@@ -36,7 +36,7 @@ pub fn lib_dir() -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "macos")]
-fn macos_bundle_resource_tcc(exe: &Path) -> Option<PathBuf> {
+pub(crate) fn macos_bundle_resource_tcc(exe: &Path) -> Option<PathBuf> {
     let macos = exe.parent()?;
     if macos.file_name()? != "MacOS" {
         return None;
@@ -49,7 +49,7 @@ fn macos_bundle_resource_tcc(exe: &Path) -> Option<PathBuf> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn macos_bundle_resource_tcc(_exe: &Path) -> Option<PathBuf> {
+pub(crate) fn macos_bundle_resource_tcc(_exe: &Path) -> Option<PathBuf> {
     None
 }
 

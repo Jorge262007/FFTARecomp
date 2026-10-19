@@ -1,7 +1,7 @@
 """Build the replaceable desktop libtcc, using Android's exact source revision.
 
 Requires a host GCC/Clang (developers only). For cross-Linux on Windows,
-pass --zig PATH. No compiler toolchain is needed on the player's machine.
+pass --zig PATH. On macOS the target is Apple Silicon (arm64, Mach-O). No compiler toolchain is needed on the player's machine.
 """
 from pathlib import Path
 import argparse
@@ -10,6 +10,7 @@ import io
 import os
 import shutil
 import subprocess
+import sys
 import urllib.request
 import zipfile
 
@@ -22,7 +23,8 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--platform', choices=['windows', 'linux'], default='windows' if os.name == 'nt' else 'linux')
+    host = 'windows' if os.name == 'nt' else 'macos' if sys.platform == 'darwin' else 'linux'
+    parser.add_argument('--platform', choices=['windows', 'linux', 'macos'], default=host)
     parser.add_argument('--cc', default=os.environ.get('CC') or shutil.which('gcc') or shutil.which('clang'))
     parser.add_argument('--zig', type=Path)
     parser.add_argument('--output', type=Path)
@@ -51,10 +53,14 @@ def main():
                 raise SystemExit('Invalid TinyCC archive path')
         files.extractall(cache)
     source = cache / f'tinycc-{REV}'
-    config = '#define TCC_VERSION "0.9.28-43c7708"\n#define TCC_TARGET_X86_64 1\n'
+    config = '#define TCC_VERSION "0.9.28-43c7708"\n'
+    if args.platform == 'macos':
+        config += '#define TCC_TARGET_ARM64 1\n#define TCC_TARGET_MACHO 1\n'
+    else:
+        config += '#define TCC_TARGET_X86_64 1\n'
     if args.platform == 'windows':
         config += '#define TCC_TARGET_PE 1\n'
-    else:
+    elif args.platform == 'linux':
         config += '#define CONFIG_TCC_ELFINTERP "/lib64/ld-linux-x86-64.so.2"\n'
     config += ('#define CONFIG_TCCDIR ""\n#define CONFIG_TCC_SYSINCLUDEPATHS ""\n'
                '#define CONFIG_TCC_LIBPATHS ""\n#define CONFIG_TCC_CRTPREFIX ""\n'
@@ -65,13 +71,18 @@ def main():
     converter = cache / ('c2str.exe' if os.name == 'nt' else 'c2str')
     run([args.cc, '-DC2STR', source / 'conftest.c', '-o', converter])
     run([converter, source / 'include/tccdefs.h', source / 'tccdefs_.h'])
-    default_output = HERE.parent / 'target/release/tcc' / ('libtcc.dll' if args.platform == 'windows' else 'libtcc.so')
+    library = {'windows': 'libtcc.dll', 'linux': 'libtcc.so', 'macos': 'libtcc.dylib'}[args.platform]
+    default_output = HERE.parent / 'target/release/tcc' / library
     output = (args.output or default_output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     compiler = [args.zig, 'cc', '-target', 'x86_64-linux-gnu.2.17'] if args.zig else [args.cc]
     if args.platform == 'windows':
         flags = ['-DLIBTCC_AS_DLL', '-static-libgcc', '-Wl,--export-all-symbols']
         extra = [source / 'win32/lib/chkstk.S']
+    elif args.platform == 'macos':
+        flags = ['-dynamiclib', '-fPIC', '-arch', 'arm64', '-mmacosx-version-min=11.0',
+                 '-install_name', '@rpath/libtcc.dylib']
+        extra = ['-lm']
     else:
         flags, extra = ['-fPIC'], ['-ldl', '-lm']
     run([*compiler, '-shared', '-O2', '-I' + str(source), *flags,

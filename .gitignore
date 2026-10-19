@@ -2,6 +2,7 @@
 /Installer/*.exe
 /Installer/payload/
 /Installer/Linux/
+/Installer/macOS/
 /Installer/Android/
 /Installer/Licenses/
 *.gba

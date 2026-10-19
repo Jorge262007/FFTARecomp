@@ -1,7 +1,10 @@
 use std::{io,path::Path};
 
-pub const PLAYER:&str=if cfg!(windows){"FFTARecomp.exe"}else{"FFTARecomp"};
-pub const RECOMP:&str=if cfg!(windows){"recomp.exe"}else{"recomp"};
+// macOS installs an app bundle; recomp lives inside it so the game window
+// carries the bundle's name and icon. Paths are relative to the install dir.
+pub const PLAYER:&str=if cfg!(windows){"FFTARecomp.exe"}else if cfg!(target_os="macos"){"FFTARecomp.app"}else{"FFTARecomp"};
+pub const PLAYER_BIN:&str=if cfg!(target_os="macos"){"FFTARecomp.app/Contents/MacOS/FFTARecomp"}else{PLAYER};
+pub const RECOMP:&str=if cfg!(windows){"recomp.exe"}else if cfg!(target_os="macos"){"FFTARecomp.app/Contents/MacOS/recomp"}else{"recomp"};
 
 pub fn executable(path:&Path)->io::Result<()> {
     #[cfg(unix)] {
