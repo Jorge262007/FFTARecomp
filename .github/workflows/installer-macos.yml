@@ -1,0 +1,26 @@
+name: FFTA installer macOS
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin
+      - name: Tests
+        run: cargo test -p installer -p input-config -p recomp --lib --bins
+      - name: TinyCC smoke test
+        run: |
+          python3 TinyCC/build.py --platform macos
+          FFTA_TCC_LIBRARY="$PWD/target/release/tcc/libtcc.dylib" cargo test -p recomp-core tcc_memory -- --ignored
+      - name: Package
+        run: bash scripts/package_ffta_macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FFTAInstaller-macos-arm64
+          path: Installer/macOS/*.zip

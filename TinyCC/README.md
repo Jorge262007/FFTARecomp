@@ -1,7 +1,8 @@
 # TinyCC used by FFTARecomp
 
 This folder accompanies the replaceable `tcc/libtcc.dll` (Windows x86_64)
-or `tcc/libtcc.so` (Linux x86_64). No ROM, game-generated code or save is here.
+or `tcc/libtcc.so` (Linux x86_64) or `libtcc.dylib` (macOS arm64,
+in `FFTARecomp.app/Contents/Resources/tcc/`). No ROM, game-generated code or save is here.
 
 TinyCC revision: `43c7708b85681a2fd4451c8a541af4494a8919b2`, the same source
 revision as the Android port. `source.zip` contains complete upstream source;
@@ -22,6 +23,8 @@ Developers need Python 3.9+ and GCC or Clang. Players need neither.
 Windows: `python TinyCC/build.py --cc C:/path/to/gcc.exe`
 
 Linux: `python3 TinyCC/build.py --platform linux`
+
+macOS (Apple Silicon): `python3 TinyCC/build.py --platform macos`
 
 Copy the resulting library into `tcc/` beside `recomp`, or set
 `FFTA_TCC_LIBRARY` to its absolute path. Compatible modified libraries are

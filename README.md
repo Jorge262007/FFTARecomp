@@ -5,13 +5,13 @@
 <h1 align="center">FFTARecomp</h1>
 
 <p align="center">
-  <b>Final Fantasy Tactics Advance, running natively on your Windows PC, Linux PC or Steam Deck.</b><br>
+  <b>Final Fantasy Tactics Advance, running natively on your Windows PC, Mac, Linux PC or Steam Deck.</b><br>
   Widescreen, video and audio options, and a one-click installer.
 </p>
 
 <p align="center">
   <a href="https://github.com/Jorge262007/FFTARecomp/releases"><img src="https://img.shields.io/github/v/release/Jorge262007/FFTARecomp?include_prereleases&label=release" alt="Release"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20%7C%20Linux%20%7C%20Steam%20Deck-blue" alt="Platforms">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20%7C%20macOS%20%7C%20Linux%20%7C%20Steam%20Deck-blue" alt="Platforms">
   <img src="https://img.shields.io/badge/built%20with-Rust-orange" alt="Rust">
 </p>
 
@@ -19,7 +19,7 @@
 
 ## ✨ What is this?
 
-**FFTARecomp** turns *Final Fantasy Tactics Advance* (USA version) into a native program for Windows, Linux and Steam Deck. Instead of running in an emulator, the game is recompiled from your own ROM, so it runs smoothly, needs no BIOS, and gets modern options. It is based on [gba-recomp](https://github.com/JRickey/gba-recomp) by JRickey.
+**FFTARecomp** turns *Final Fantasy Tactics Advance* (USA version) into a native program for Windows, macOS, Linux and Steam Deck. Instead of running in an emulator, the game is recompiled from your own ROM, so it runs smoothly, needs no BIOS, and gets modern options. It is based on [gba-recomp](https://github.com/JRickey/gba-recomp) by JRickey.
 
 ## 🆕 What's new in v3.0
 
@@ -42,6 +42,7 @@
 - ⏩ **Fast forward.**
 - 🎛️ **Completely redesigned menu.**
 - 🎮 **Gamepad support** (generic XInput).
+- 🍎 **Native macOS version** (Apple Silicon).
 - 🐧 **Native Linux version.**
 - 🕹️ **Steam Deck support.**
 - 📦 **One-click installer:** pick your ROM and you're done.
@@ -119,6 +120,14 @@ mkdir -p FFTARecomp-linux && tar -xzf FFTARecomp-linux-x86_64.tar.gz -C FFTAReco
 
 On Steam Deck, run it from Desktop Mode.
 
+### macOS (Apple Silicon)
+
+1. Download `FFTAInstaller-macos-arm64.zip` from [Releases](https://github.com/Jorge262007/FFTARecomp/releases) and extract it.
+2. Open `FFTAInstaller.app`, choose your ROM and press **Recompile & Install**. The game installs to `~/Applications/FFTARecomp`, so it shows up in Launchpad and Spotlight.
+3. Press **Play**, or open **FFTARecomp** from Launchpad. ▶️
+
+> 🍎 The apps are not notarized by Apple. If macOS says it can't verify `FFTAInstaller`, open **System Settings → Privacy & Security** and click **Open Anyway** (once). TinyCC is bundled, so Xcode is not needed.
+
 > 💡 You need your own copy of *Final Fantasy Tactics Advance (USA)*. This project does not include any game data.
 
 ## 🔨 Building from source
@@ -153,6 +162,16 @@ powershell -ExecutionPolicy Bypass -File .\build-all.ps1
 To force a fresh toolchain download, delete `Installer\payload\toolchain` and run the script again.
 
 > ⏱️ The first build can take several minutes.
+
+### macOS
+
+You need [Rust](https://rustup.rs) and the Xcode Command Line Tools (`xcode-select --install`). Then run:
+
+```bash
+bash scripts/package_ffta_macos.sh
+```
+
+The installer is written to `Installer/macOS/FFTAInstaller-macos-arm64.zip`.
 
 ## 🐞 Known issues
 

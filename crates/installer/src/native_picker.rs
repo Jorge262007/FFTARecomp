@@ -7,7 +7,7 @@ pub enum Result {
     Unavailable(String),
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 pub fn pick(kind: Kind) -> Result {
     let dialog = rfd::FileDialog::new();
     let path = match kind {
@@ -55,7 +55,7 @@ pub fn pick(kind: Kind) -> Result {
     Result::Unavailable(failures.join("; "))
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 pub fn pick(_: Kind) -> Result {
     Result::Unavailable("No desktop selector configured on this platform".into())
 }

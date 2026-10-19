@@ -28,12 +28,14 @@ pub fn library_path() -> Option<PathBuf> {
     } else {
         "libtcc.so"
     };
-    let beside = std::env::current_exe()
-        .ok()?
-        .parent()?
-        .join("tcc")
-        .join(name);
-    beside.is_file().then_some(beside)
+    let exe = std::env::current_exe().ok()?;
+    let beside = exe.parent()?.join("tcc").join(name);
+    if beside.is_file() {
+        return Some(beside);
+    }
+    // macOS app bundle: Contents/MacOS/recomp + Contents/Resources/tcc.
+    let bundled = crate::tcc::macos_bundle_resource_tcc(&exe)?.join(name);
+    bundled.is_file().then_some(bundled)
 }
 
 pub struct NativeCode {

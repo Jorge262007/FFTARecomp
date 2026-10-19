@@ -265,6 +265,41 @@ Enable the repo's formatting gate once per clone:
 The pre-commit hook runs `cargo fmt --all -- --check` (the same check CI's
 fmt job enforces) so formatting failures never reach CI.
 
+## Build the macOS installer
+
+On an Apple Silicon Mac with Rust and the Xcode Command Line Tools:
+
+```sh
+bash scripts/package_ffta_macos.sh
+```
+
+It builds `installer`, `recomp` and `ffta-play` for `aarch64-apple-darwin`,
+builds `libtcc.dylib` (`python3 TinyCC/build.py --platform macos`), and
+writes `Installer/macOS/FFTAInstaller-macos-arm64.zip`:
+
+```
+FFTAInstaller.app/Contents/
+  MacOS/FFTAInstaller
+  Resources/payload/
+    FFTARecomp.app/Contents/{MacOS/FFTARecomp, MacOS/recomp, Resources/tcc/libtcc.dylib}
+    gamedb.sqlite, TinyCC/, Licenses/
+```
+
+The installer copies the payload to `~/Applications/FFTARecomp` and puts the
+ROM next to `FFTARecomp.app`, never inside it, so the ad-hoc signature stays
+valid. It also clears the download quarantine on the installed files.
+`ffta-play` resolves the game folder as the bundle's parent and execs
+`recomp`, so the game window carries the bundle's name and icon. Without
+the bundled `libtcc.dylib`, translation falls back to the system `cc`, but
+only when `xcode-select -p` reports installed developer tools.
+
+Smoke-test the in-memory TinyCC backend:
+
+```sh
+FFTA_TCC_LIBRARY=$PWD/target/release/tcc/libtcc.dylib \
+    cargo test -p recomp-core tcc_memory -- --ignored
+```
+
 ## Build all desktop packages and Android from Windows
 
 `./build-all.ps1 -AndroidSdk D:\Android\SDK` also builds the current standalone

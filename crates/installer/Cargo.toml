@@ -13,7 +13,7 @@ sha2 = "0.11.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
 dirs = "5"
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
 rfd = "0.15"
 
 [target.'cfg(windows)'.build-dependencies]

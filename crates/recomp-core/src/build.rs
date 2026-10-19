@@ -87,7 +87,7 @@ impl Compiler {
                 &["cc", "clang", "gcc"]
             };
             for name in candidates {
-                if let Some(p) = which(name) {
+                if let Some(p) = which(name).filter(|p| system_compiler_usable(p)) {
                     return Compiler::external(p);
                 }
             }
@@ -116,6 +116,25 @@ impl Compiler {
 
 /// Minimal `which`: first match for `name` (with platform exe suffixes) in a
 /// `PATH` directory. Avoids a dependency for a five-line search.
+/// macOS ships `/usr/bin/{cc,clang,gcc}` as stubs even without the Command
+/// Line Tools; running one only pops the "install developer tools" dialog.
+/// Trust them once `xcode-select -p` reports an installed developer dir.
+#[cfg(target_os = "macos")]
+fn system_compiler_usable(path: &Path) -> bool {
+    !path.starts_with("/usr/bin")
+        || std::process::Command::new("/usr/bin/xcode-select")
+            .arg("-p")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn system_compiler_usable(_path: &Path) -> bool {
+    true
+}
+
 fn which(name: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     let exts: &[&str] = if cfg!(windows) {

@@ -86,9 +86,12 @@ impl App {
                 egui::TextureOptions::LINEAR,
             )
         });
-        let install_dir = dirs::data_local_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(APP_NAME);
+        // macOS: ~/Applications so Launchpad and Spotlight find FFTARecomp.app.
+        #[cfg(target_os = "macos")]
+        let base = dirs::home_dir().map(|h| h.join("Applications"));
+        #[cfg(not(target_os = "macos"))]
+        let base = dirs::data_local_dir();
+        let install_dir = base.unwrap_or_else(|| PathBuf::from(".")).join(APP_NAME);
         Self {
             screen: {
                 #[cfg(feature="installer-preview")]
@@ -165,7 +168,11 @@ impl App {
             if !dir.join(PLAYER_EXE).exists() {
                 return send(Msg::Failed(format!("{PLAYER_EXE} is missing from 'payload'.")));
             }
-            for name in [PLAYER_EXE,platform::RECOMP] {
+            // Files copied from a downloaded installer inherit its quarantine
+            // flag; Gatekeeper would then block the game and libtcc again.
+            #[cfg(target_os = "macos")]
+            let _ = Command::new("/usr/bin/xattr").args(["-dr", "com.apple.quarantine"]).arg(&dir).status();
+            for name in [platform::PLAYER_BIN,platform::RECOMP] {
                 if let Err(error)=platform::executable(&dir.join(name)) {
                     return send(Msg::Failed(format!("Could not prepare {name}: {error}")));
                 }
@@ -324,12 +331,24 @@ fn create_shortcut(dir:&Path) {
     }
 }
 
-#[cfg(not(any(windows,target_os="linux")))]
+#[cfg(target_os="macos")]
+fn create_shortcut(dir:&Path) {
+    let Some(desktop)=dirs::desktop_dir() else{return;};
+    let link=desktop.join(PLAYER_EXE);
+    if std::fs::symlink_metadata(&link).is_ok_and(|m|m.file_type().is_symlink()) {let _=std::fs::remove_file(&link);}
+    let _=std::os::unix::fs::symlink(dir.join(PLAYER_EXE),link);
+}
+
+#[cfg(not(any(windows,target_os="linux",target_os="macos")))]
 fn create_shortcut(_:&Path) {}
 
 fn find_payload() -> Option<PathBuf> {
-    let beside = std::env::current_exe().ok()?.parent()?.join("payload");
+    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let beside = exe_dir.join("payload");
     if beside.is_dir() { return Some(beside); }
+    // macOS: FFTAInstaller.app/Contents/{MacOS,Resources/payload}
+    let bundled = exe_dir.parent()?.join("Resources").join("payload");
+    if cfg!(target_os = "macos") && bundled.is_dir() { return Some(bundled); }
     let cwd = PathBuf::from("payload");
     if cwd.is_dir() { Some(cwd) } else { None }
 }
@@ -585,6 +604,11 @@ impl App {
             if let Some(warning) = &self.warning { ui.label(RichText::new(warning).color(ERR)); }
             ui.add_space(20.0);
             if accent_button(ui, "Play", true, 150.0).clicked() {
+                #[cfg(target_os = "macos")]
+                let mut command = Command::new("/usr/bin/open");
+                #[cfg(target_os = "macos")]
+                command.arg(self.install_dir.join(PLAYER_EXE));
+                #[cfg(not(target_os = "macos"))]
                 let mut command = Command::new(self.install_dir.join(PLAYER_EXE));
                 command.current_dir(&self.install_dir);
                 #[cfg(any(target_os = "linux", windows))]
