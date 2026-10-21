@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "inventory-alternate-background-palettes",
+  "title": "Inventory alternate background palette catalogs against original producers",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Independently locate two alternate-palette catalogs at USA427a04/42cc80 and EUR489bb0/48ee2c, selected by environment low bits2/1through descriptor byte56. Each catalog has157relativeu16links keyed0..156;314valid streams per region use a distinct custom LZ/RLE consumer with BEoutput size. Preserve the five FFunavailable descriptor keys and keep their caller precondition unresolved rather than dereferencing or inventing fallback data."
+  ],
+  "validation": [
+    "All314streams produce256B/eight16-word banks each;39933consumed source bytes/80384decoded bytes per region. Both relative-link tables and every exact consumed source/output hash agree across EUR/USA. Private bounded decoder hypothesis covers literal/short-medium-long copy and short-long zero tokens; FFfill exists in original code but is absent from valid catalog streams.",
+    "Both release test builds warning-free; four original interpreter producer cases each pass1256calls/2655156guest instructions for157valid records, environments1/2/FD/FE and direct/current IDs. Each call enters the actual regional consumer with expected arguments; complete output/guards match, EWRAM remains unchanged and SP is restored. Exact ROM/canonical/test executable/private inventory hashes protected. Tests are functional, with no performance measurements."
+  ],
+  "limitations": [
+    "Completes the declared valid-index inventory/output oracle, not a production codec or runtime migration. Five FFrecord caller preconditions, typed parser/malformed-input tests, managed extraction/runtime/native equivalence, other catalogs/languages and GUI/native Windows remain open. Only cfg(test) code is added; active dataset remains e6, canonical executables/archives/AndroidPort unchanged, no agent commit/push."
+  ],
+  "files": [
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/alternate_palette_tests.rs"
+  ],
+  "references": [
+    "docs/rom_data_graphics.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

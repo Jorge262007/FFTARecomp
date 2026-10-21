@@ -23,11 +23,16 @@
 //! anything. On platforms without compositor color management the sRGB
 //! assumption applies (with a manual wide-gamut override in the config).
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 use crate::profile::DisplayTarget;
+
+#[path = "gpu_timing.rs"]
+mod gpu_timing;
+pub use gpu_timing::{GpuTimingCounts, GpuTimings};
 
 /// Per-frame grid/scaling parameters; resolved from config + screen kind.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -81,10 +86,111 @@ pub fn letterbox_f(window: (u32, u32), vw: f32, vh: f32) -> (f32, f32, f32) {
     (scale, (w - vw * scale) * 0.5, (h - vh * scale) * 0.5)
 }
 
+/// Optional CPU wall times for one presentation, not GPU execution durations.
+/// None means that stage was not reached (for example after acquire failure).
+#[derive(Clone, Copy, Default)]
+pub struct CpuTimings {
+    pub setup_upload: Option<Duration>,
+    pub acquire: Option<Duration>,
+    pub encode: Option<Duration>,
+    pub submit: Option<Duration>,
+    pub present: Option<Duration>,
+    pub timestamp_readback: Option<Duration>,
+}
+
+/// A skipped surface frame is not a successful host presentation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PresentOutcome {
+    Presented,
+    Skipped,
+}
+
+// Queue writes allocate staging immediately but only start at submit. Track
+// them across layer updates (including clearing the layers) so skipped frames
+// cannot retain an unbounded sequence of unsubmitted copies.
+#[derive(Default)]
+struct PendingUploads(bool);
+
+impl PendingUploads {
+    fn mark(&mut self) { self.0 = true; }
+    fn submitted(&mut self) { self.0 = false; }
+    fn flush(&mut self, submit: impl FnOnce()) -> bool {
+        if !self.0 { return false; }
+        submit();
+        self.submitted();
+        true
+    }
+}
+
+#[derive(Default)]
+struct SurfaceRecovery {
+    failed_recoveries: u8,
+}
+
+impl SurfaceRecovery {
+    // At most one reconfigure/retry per call and three failed calls before
+    // software fallback. Timeouts do not reconfigure or spin: the normal
+    // event-loop pacing schedules the next attempt.
+    fn acquire<T>(
+        &mut self,
+        mut acquire: impl FnMut(bool) -> Result<T, wgpu::SurfaceError>,
+    ) -> Result<Option<T>, String> {
+        use wgpu::SurfaceError::{Lost, Outdated, Timeout};
+        let result = match acquire(false) {
+            Err(Lost | Outdated) => acquire(true),
+            result => result,
+        };
+        match result {
+            Ok(frame) => {
+                self.failed_recoveries = 0;
+                Ok(Some(frame))
+            }
+            Err(Timeout) => Ok(None),
+            Err(error @ (Lost | Outdated)) => {
+                self.failed_recoveries = self.failed_recoveries.saturating_add(1);
+                if self.failed_recoveries >= 3 {
+                    Err(format!("surface recovery exhausted: {error}"))
+                } else {
+                    Ok(None)
+                }
+            }
+            // Memory exhaustion and unknown errors are not resize signals.
+            Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
+/// Configuration is infrequent and may fail even after capability discovery.
+/// Capture backend errors without replacing the device's uncaptured-error
+/// handler. Always pop every scope, including when a nested scope caught one.
+/// On the pinned native wgpu backend, pop_error_scope returns a ready future;
+/// no GPU polling/readback wait is introduced here.
+fn configuration_result(device: &wgpu::Device, configure: impl FnOnce()) -> Result<(), String> {
+    for filter in [wgpu::ErrorFilter::Validation, wgpu::ErrorFilter::OutOfMemory, wgpu::ErrorFilter::Internal] {
+        device.push_error_scope(filter);
+    }
+    configure();
+    let mut error = None;
+    for _ in 0..3 {
+        if let Some(next) = pollster::block_on(device.pop_error_scope()) {
+            error.get_or_insert(next);
+        }
+    }
+    match error {
+        Some(error) => Err(format!("surface configuration failed: {error}")),
+        None => Ok(()),
+    }
+}
+
+fn configure_surface(surface: &wgpu::Surface<'_>, device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Result<(), String> {
+    configuration_result(device, || surface.configure(device, config))
+}
+
 pub struct Presenter {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    failure: Arc<OnceLock<String>>,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     texture: wgpu::Texture,
@@ -96,6 +202,12 @@ pub struct Presenter {
     srgb_surface: bool,
     src_size: (u32, u32),
     ui_layer: Vec<Option<crate::ui_layer::Gpu>>,
+    cpu_timings: Option<CpuTimings>,
+    ui_uploaded_bytes: usize,
+    pending_uploads: PendingUploads,
+    recovery: SurfaceRecovery,
+    gpu_profile: Option<gpu_timing::GpuProfiler>,
+    gpu_sampling: bool,
 }
 
 impl Presenter {
@@ -116,6 +228,17 @@ impl Presenter {
     ) -> Result<Presenter, String>
     where
         W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static,
+    {
+        Self::new_profiled(window, src_w, src_h, target, vsync, false)
+    }
+
+    /// As `new`, optionally requesting render-pass timestamps when supported.
+    /// Unsupported timestamps never prevent normal presenter creation.
+    pub fn new_profiled<W>(
+        window: Arc<W>, src_w: u32, src_h: u32, target: DisplayTarget,
+        vsync: bool, gpu_timestamps: bool,
+    ) -> Result<Presenter, String>
+    where W: HasWindowHandle + HasDisplayHandle + Send + Sync + 'static,
     {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let surface = instance
@@ -140,11 +263,36 @@ impl Presenter {
             adapter_info.driver,
             adapter_info.driver_info,
         );
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("screen-presenter"),
+        let mut timestamp_features = gpu_timing::requested_features(gpu_timestamps, adapter.features());
+        let requested_device = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: Some("screen-presenter"), required_features: timestamp_features,
             ..Default::default()
-        }))
-        .map_err(|e| format!("graphics device: {e}"))?;
+        }));
+        let (device, queue) = match requested_device {
+            Err(error) if !timestamp_features.is_empty() => {
+                eprintln!("video: timestamp device unavailable ({error}); retrying without optional features");
+                timestamp_features = wgpu::Features::empty();
+                pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+                    label: Some("screen-presenter"), ..Default::default()
+                }))
+            }
+            result => result,
+        }.map_err(|error| format!("graphics device: {error}"))?;
+        // This Presenter owns the Device; retain its first fatal error instead
+        // of letting uncaptured validation errors panic during resource creation
+        // after device loss. Error scopes still handle local configuration errors.
+        let failure = Arc::new(OnceLock::new());
+        let errors = failure.clone();
+        device.on_uncaptured_error(Box::new(move |error| {
+            errors.get_or_init(|| format!("graphics error: {error}"));
+        }));
+        let lost = failure.clone();
+        device.set_device_lost_callback(move |reason, message| {
+            lost.get_or_init(|| format!("graphics device lost ({reason:?}): {message}"));
+        });
+        if gpu_timestamps {
+            eprintln!("video: GPU render-pass timestamps {}", if timestamp_features.is_empty() { "unavailable; CPU profiling remains available" } else { "enabled (deferred readback, 3 slots, 18000 samples)" });
+        }
 
         let caps = surface.get_capabilities(&adapter);
         // Display-encoded bytes in, display-encoded bytes out: prefer a
@@ -285,10 +433,12 @@ impl Presenter {
             cache: None,
         });
 
+        let gpu_profile = (!timestamp_features.is_empty()).then(|| gpu_timing::GpuProfiler::new(&device, &queue));
         let p = Presenter {
             surface,
             device,
             queue,
+            failure,
             pipeline,
             bind_group,
             texture,
@@ -297,8 +447,14 @@ impl Presenter {
             srgb_surface,
             src_size: (src_w, src_h),
             ui_layer: Vec::new(),
+            cpu_timings: None,
+            pending_uploads: PendingUploads::default(),
+            recovery: SurfaceRecovery::default(),
+            ui_uploaded_bytes: 0,
+            gpu_profile,
+            gpu_sampling: false,
         };
-        p.surface.configure(&p.device, &p.config);
+        configure_surface(&p.surface, &p.device, &p.config)?;
         // Color-match the layer to the panel (macOS only); the surface +
         // CAMetalLayer now exist on the window's view.
         #[cfg(target_os = "macos")]
@@ -307,32 +463,66 @@ impl Presenter {
         // for the resolved primaries (see `display::resolve`) and we declare
         // nothing to the compositor — Wayland treats untagged surfaces as sRGB.
         let _ = target;
+        p.device_result()?;
         Ok(p)
     }
 
-    /// Independent UI passes in stable layer order; absent slots clear immediately.
-    pub fn set_ui_layers(&mut self,frames:&[Option<crate::ui_layer::Frame<'_>>]) {
-        if self.ui_layer.len()<frames.len() {self.ui_layer.resize_with(frames.len(),||None);}
-        for ui in self.ui_layer.iter_mut().flatten() {ui.active=false;}
-        for (slot,frame) in self.ui_layer.iter_mut().zip(frames) {
-            let Some(frame)=frame else {if let Some(ui)=slot {ui.active=false;} continue;};
-            assert_eq!(frame.pixels.len(),480*160);assert_eq!(frame.lut.len(),32768);
-            assert!(frame.raw_world.len()>=frame.world_dims.0 as usize*frame.world_dims.1 as usize);
-            if slot.as_ref().is_none_or(|ui|ui.dimensions()!=frame.world_dims) {
-                *slot=Some(crate::ui_layer::Gpu::new(&self.device,self.config.format,frame.world_dims));
-            }
-            slot.as_mut().unwrap().update(&self.queue,frame,self.srgb_surface);
+    fn device_result(&self) -> Result<(), String> {
+        match self.failure.get() {
+            Some(error) => Err(error.clone()),
+            None => Ok(()),
         }
     }
+
+    /// Collect CPU wall times and sample this frame if GPU timestamps were
+    /// requested at creation. Disabling sampling still drains earlier readbacks.
+    pub fn enable_cpu_profiling(&mut self, enabled: bool) {
+        self.cpu_timings = enabled.then(CpuTimings::default);
+        self.gpu_sampling = enabled;
+    }
+
+    pub fn cpu_timings(&self) -> Option<CpuTimings> { self.cpu_timings }
+
+    /// Drain once after each present, including skipped/error presentations.
+    /// Results refer to earlier sampled passes and may arrive while paused.
+    pub fn take_gpu_timings(&mut self) -> Option<GpuTimings> {
+        self.gpu_profile.as_mut().map(|profile| profile.take())
+    }
+
+    pub fn ui_uploaded_bytes(&self) -> usize { self.ui_uploaded_bytes }
+
+    /// Independent UI passes in stable layer order; absent slots clear immediately.
+    pub fn set_ui_layers(&mut self,frames:&[Option<crate::ui_layer::Frame<'_>>]) {
+        if self.failure.get().is_some() { self.ui_uploaded_bytes = 0; return; }
+        self.ui_uploaded_bytes = crate::ui_layer::update_layers(
+            &mut self.ui_layer, &self.device, &self.queue,
+            self.config.format, self.srgb_surface, frames,
+        );
+        if self.failure.get().is_some() { self.ui_uploaded_bytes = 0; }
+        if self.ui_uploaded_bytes != 0 { self.pending_uploads.mark(); }
+    }
+
     pub fn set_ui_layer(&mut self,frame:Option<&crate::ui_layer::Frame<'_>>) {
         self.set_ui_layers(&[frame.copied()]);
+    }
+
+    fn flush_uploads(&mut self) {
+        // Submit transfers only: no draw, surface present, timestamp reservation,
+        // or GPU wait. Revision caches remain valid on the next visible frame.
+        let start = self.cpu_timings.as_ref().map(|_| Instant::now());
+        if self.pending_uploads.flush(|| { self.queue.submit([]); }) {
+            if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), start) {
+                times.submit = Some(start.elapsed());
+            }
+        }
     }
 
     /// Switch presentation mode live (false = AutoNoVsync, true =
     /// AutoVsync). Pacing principle: emulation speed is owned by the audio
     /// clock; vsync only affects presentation (tearing vs latency), never
     /// game speed — see the module header.
-    pub fn set_vsync(&mut self, on: bool) {
+    pub fn set_vsync(&mut self, on: bool) -> Result<(), String> {
+        self.device_result()?;
         let mode = if on {
             wgpu::PresentMode::AutoVsync
         } else {
@@ -342,11 +532,14 @@ impl Presenter {
             self.config.present_mode = mode;
             self.config.width = self.config.width.max(1);
             self.config.height = self.config.height.max(1);
-            self.surface.configure(&self.device, &self.config);
+            configure_surface(&self.surface, &self.device, &self.config)?;
         }
+        Ok(())
     }
 
     /// Upload the frame and draw it at the window's current size.
+    /// Transient acquisition failures return `Skipped`; retain the presenter
+    /// and try again on the next normally paced frame. Errors request fallback.
     /// `window_physical` is the surface size in physical pixels (winit's
     /// `inner_size()` reports this directly and cross-platform).
     ///
@@ -363,12 +556,26 @@ impl Presenter {
         window_physical: (u32, u32),
         grid: &GridParams,
         view: [f32; 4],
-    ) -> Result<(), String> {
+    ) -> Result<PresentOutcome, String> {
+        if let Some(times) = self.cpu_timings.as_mut() { *times = CpuTimings::default(); }
+        self.device_result()?;
+        if let Some(profile) = self.gpu_profile.as_mut() {
+            let start = self.cpu_timings.as_ref().map(|_| Instant::now());
+            profile.poll(&self.device);
+            if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), start) {
+                times.timestamp_readback = Some(start.elapsed());
+            }
+        }
+        if window_physical.0 == 0 || window_physical.1 == 0 {
+            self.flush_uploads();
+            return Ok(PresentOutcome::Skipped);
+        }
+        let upload_start = self.cpu_timings.as_ref().map(|_| Instant::now());
         let (w, h) = (window_physical.0.max(1), window_physical.1.max(1));
         if (w, h) != (self.config.width, self.config.height) {
             self.config.width = w;
             self.config.height = h;
-            self.surface.configure(&self.device, &self.config);
+            configure_surface(&self.surface, &self.device, &self.config)?;
         }
 
         // Menus have their own high-resolution canvas; grow once when needed.
@@ -414,10 +621,12 @@ impl Presenter {
                 ],
             });
             self.src_size = (width, height);
+            self.device_result()?;
         }
         let (tw, th) = self.src_size;
         let (sw, sh) = (frame_dims.0.clamp(1, tw), frame_dims.1.clamp(1, th));
         debug_assert_eq!(rgba.len(), (sw * sh) as usize);
+        self.pending_uploads.mark();
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture: &self.texture,
@@ -471,32 +680,40 @@ impl Presenter {
         ];
         self.queue
             .write_buffer(&self.uniforms, 0, as_bytes(&params));
+        if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), upload_start) {
+            times.setup_upload = Some(start.elapsed());
+        }
 
-        let frame = match self.surface.get_current_texture() {
-            Ok(f) => f,
-            // Outdated/Lost: the surface needs reconfiguring (resize, mode
-            // change, GL context dance). OutOfMemory: some drivers report
-            // it transiently for swapchain churn — reconfigure ONCE and
-            // retry; if it fails again the Err propagates and the caller
-            // falls back to CPU blit loudly.
-            Err(
-                wgpu::SurfaceError::Outdated
-                | wgpu::SurfaceError::Lost
-                | wgpu::SurfaceError::OutOfMemory,
-            ) => {
-                self.surface.configure(&self.device, &self.config);
-                self.surface
-                    .get_current_texture()
-                    .map_err(|e| e.to_string())?
+        let acquire_start = self.cpu_timings.as_ref().map(|_| Instant::now());
+        let mut configuration_error = None;
+        let frame = self.recovery.acquire(|reconfigure| {
+            if reconfigure {
+                if let Err(error) = configure_surface(&self.surface, &self.device, &self.config) {
+                    configuration_error = Some(error);
+                    return Err(wgpu::SurfaceError::Other);
+                }
             }
-            Err(e) => return Err(e.to_string()),
+            self.surface.get_current_texture()
+        });
+        let frame = configuration_error.map_or(frame, Err);
+        if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), acquire_start) {
+            times.acquire = Some(start.elapsed());
+        }
+        self.device_result()?;
+        let Some(frame) = frame? else {
+            self.flush_uploads();
+            return Ok(PresentOutcome::Skipped);
         };
+        let encode_start = self.cpu_timings.as_ref().map(|_| Instant::now());
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        let sample = if self.gpu_sampling {
+            self.gpu_profile.as_mut().and_then(|profile| profile.reserve())
+        } else { None };
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("screen-pass"),
@@ -510,17 +727,34 @@ impl Presenter {
                     },
                 })],
                 depth_stencil_attachment: None,
-                timestamp_writes: None,
+                timestamp_writes: sample.map(|index| self.gpu_profile.as_ref().unwrap().writes(index)),
                 occlusion_query_set: None,
             });
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
             pass.draw(0..3, 0..1);
-            for ui in self.ui_layer.iter().flatten() {ui.draw(&mut pass);}
+            for ui in self.ui_layer.iter().flatten() {ui.draw(&mut pass, (self.config.width, self.config.height));}
         }
-        self.queue.submit([encoder.finish()]);
+        if let Some(index) = sample { self.gpu_profile.as_ref().unwrap().resolve(&mut encoder, index); }
+        let command = encoder.finish();
+        self.device_result()?;
+        if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), encode_start) {
+            times.encode = Some(start.elapsed());
+        }
+        let submit_start = self.cpu_timings.as_ref().map(|_| Instant::now());
+        self.queue.submit([command]);
+        self.pending_uploads.submitted();
+        self.device_result()?;
+        if let Some(index) = sample { self.gpu_profile.as_ref().unwrap().map(index); }
+        if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), submit_start) {
+            times.submit = Some(start.elapsed());
+        }
+        let present_start = self.cpu_timings.as_ref().map(|_| Instant::now());
         frame.present();
-        Ok(())
+        if let (Some(times), Some(start)) = (self.cpu_timings.as_mut(), present_start) {
+            times.present = Some(start.elapsed());
+        }
+        Ok(PresentOutcome::Presented)
     }
 }
 
@@ -533,9 +767,129 @@ fn as_bytes(v: &[f32; 20]) -> &[u8] {
     unsafe { std::slice::from_raw_parts(v.as_ptr().cast(), 80) }
 }
 
+#[cfg(all(test, any(target_os = "linux", target_os = "windows")))]
+#[path = "device_loss_tests.rs"]
+mod device_loss_tests;
+
 #[cfg(test)]
 mod tests {
     use super::letterbox;
+
+    #[test]
+    #[ignore = "requires a working graphics adapter; run explicitly"]
+    fn configuration_validation_is_returned_and_error_scopes_remain_balanced() {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).unwrap();
+        let (device, _queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).unwrap();
+        let invalid = || {
+            let _texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("invalid-configuration-test"),
+                size: wgpu::Extent3d { width: 0, height: 1, depth_or_array_layers: 1 },
+                mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[],
+            });
+        };
+        assert!(super::configuration_result(&device, invalid).is_err());
+        // Retain an outer caller-owned scope across successful configuration.
+        device.push_error_scope(wgpu::ErrorFilter::Validation);
+        assert!(super::configuration_result(&device, || {
+            let _buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: None, size: 4, usage: wgpu::BufferUsages::COPY_DST, mapped_at_creation: false,
+            });
+        }).is_ok());
+        invalid();
+        assert!(pollster::block_on(device.pop_error_scope()).is_some());
+        assert!(super::configuration_result(&device, || {}).is_ok());
+    }
+
+    #[test]
+    fn skipped_upload_batches_are_flushed_once_and_normal_submit_consumes_them() {
+        let mut pending = super::PendingUploads::default();
+        let mut submits = 0;
+        // Empty/zero-size frames need no submission. Multiple layer updates or
+        // hiding layers must not lose an earlier queued write.
+        pending.flush(|| submits += 1);
+        assert_eq!(submits, 0);
+        for _ in 0..120 {
+            pending.mark(); // UI
+            pending.mark(); // framebuffer/uniforms, same batch
+            pending.flush(|| submits += 1); // timeout: transfers, no draw
+            pending.flush(|| panic!("same batch submitted twice"));
+        }
+        assert_eq!(submits, 120);
+        pending.mark(); // last UI update before a zero-size skip
+        // An absent-layer update queues no write and leaves this batch intact.
+        pending.flush(|| submits += 1);
+        assert_eq!(submits, 121);
+        pending.mark(); // restored window: regular draw submission
+        pending.submitted();
+        pending.flush(|| panic!("normal presentation left pending uploads"));
+        pending.mark(); // next skipped frame starts a fresh batch
+        pending.flush(|| submits += 1);
+        assert_eq!(submits, 122);
+    }
+
+    #[test]
+    fn surface_timeout_skips_without_reconfiguration_then_recovers() {
+        let mut recovery = super::SurfaceRecovery::default();
+        for _ in 0..120 {
+            assert_eq!(recovery.acquire::<()>(|retry| {
+                assert!(!retry);
+                Err(wgpu::SurfaceError::Timeout)
+            }), Ok(None));
+        }
+        assert_eq!(recovery.acquire(|retry| {
+            assert!(!retry);
+            Ok(42)
+        }), Ok(Some(42)));
+    }
+
+    #[test]
+    fn lost_surface_reconfigures_once_and_success_resets_failure_budget() {
+        let mut recovery = super::SurfaceRecovery::default();
+        for _ in 0..2 {
+            let mut calls = Vec::new();
+            assert_eq!(recovery.acquire::<()>(|retry| {
+                calls.push(retry);
+                Err(wgpu::SurfaceError::Lost)
+            }), Ok(None));
+            assert_eq!(calls, [false, true]);
+        }
+        assert_eq!(recovery.acquire(|retry| {
+            if retry { Ok(7) } else { Err(wgpu::SurfaceError::Outdated) }
+        }), Ok(Some(7)));
+        assert_eq!(recovery.failed_recoveries, 0);
+        assert_eq!(recovery.acquire::<()>(|_| Err(wgpu::SurfaceError::Lost)), Ok(None));
+    }
+
+    #[test]
+    fn persistent_surface_loss_has_bounded_retries() {
+        let mut recovery = super::SurfaceRecovery::default();
+        let mut calls = 0;
+        for attempt in 0..3 {
+            let result = recovery.acquire::<()>(|_| {
+                calls += 1;
+                Err(wgpu::SurfaceError::Outdated)
+            });
+            assert_eq!(result.is_err(), attempt == 2);
+        }
+        assert_eq!(calls, 6);
+    }
+
+    #[test]
+    fn fatal_surface_errors_do_not_reconfigure() {
+        for error in [wgpu::SurfaceError::OutOfMemory, wgpu::SurfaceError::Other] {
+            let mut recovery = super::SurfaceRecovery::default();
+            let mut calls = 0;
+            assert!(recovery.acquire::<()>(|retry| {
+                calls += 1;
+                assert!(!retry);
+                Err(error.clone())
+            }).is_err());
+            assert_eq!(calls, 1);
+        }
+    }
 
     #[test]
     fn grid_shader_parses_and_validates() {
@@ -615,6 +969,10 @@ mod macos {
     use objc2_quartz_core::CAMetalLayer;
 
     use crate::profile::DisplayTarget;
+
+#[path = "gpu_timing.rs"]
+mod gpu_timing;
+pub use gpu_timing::{GpuTimingCounts, GpuTimings};
 
     pub fn ns_view_ptr(window: &impl raw_window_handle::HasWindowHandle) -> *mut std::ffi::c_void {
         match window.window_handle().map(|h| h.as_raw()) {

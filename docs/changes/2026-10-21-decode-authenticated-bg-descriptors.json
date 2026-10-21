@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "decode-authenticated-bg-descriptors",
+  "title": "Decode authenticated background descriptor metadata and verify original selectors",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows-GNU-Wine"
+  ],
+  "changes": [
+    "Add a source-authenticated typed decoder for the contiguous162-record/14256-byte background descriptor block at independently verified USA/EUR roots. Preserve every byte through explicit relative sources, optional control/data/VRAM transfer triples, optional variant-program source, selectors, alternate palette key and unclassified trailing byte.",
+    "Bound record count, source/table ranges, transfer-group consistency and aligned VRAM destinations. Retain exact metadata roundtrip and deterministic inspectable TOML, without claiming linked payload lengths/program semantics or enabling a managed resource yet."
+  ],
+  "validation": [
+    "Three synthetic core tests pass on each target for typed roundtrip including unclassified bytes/relative groups, environment masking/zero/fallback selectors and malformed record counts, pointers and partial transfers. Core and recomp test builds are warning-free on Linux and Windows GNU.",
+    "All162records structurally validate in each exact image and the next payload fails the descriptor source constraints. The minimum relative payload starts at0x37b0; both14KBsource blocks have SHA2562766525e0889e0ec2f3646dda7a95c143fe68931ee19923b6808b5d989519ce6. This proves the supported contiguous metadata block, not an exhaustive graphics catalog.",
+    "Four private cases pass on EUR/USA independently under Linux/Wine. Each executes2612original selector calls/134629instructions, covering every ID, eight environment bytes, direct/current-ID forms, ff sentinels and a post-authentication in-memory fallback probe; all EWRAM stays read-only. The changed fallback byte is restored and edited ROMs remain rejected by authentication.",
+    "Source metadata roundtrip is byte-exact. Four106309-byte TOML outputs are byte-identical across regions/targets, SHA256e408f8122bc7689e02c72d6e5844b6176d217f25d921afc35a8f2980b7c60f81. No boot, closed packet test, scene, benchmark or archive build is repeated; original ROM/source and canonical runtime hashes remain unchanged.",
+    "Final project_memory.py check, CRLF-aware git diff --check, formatting of added descriptor modules,141affected local-document links and final implementation/ROM/canonical hashes pass. Handoff closes the bounded metadata units and records managed-resource integration plus remaining graphics/catalog work; all selected handles are terminal."
+  ],
+  "limitations": [
+    "Only the contiguous descriptor metadata and verified selector/link roles are supported here. First graphics format, linked asset/program semantics and lengths, other catalogs/sharing and language completeness remain open. The larger TOML output is a private test artifact: current OBJ-only16KiB file bound, managed schema/revisions, extraction CLI, preparation and runtime consumption are unchanged. No full CPU/clock/IRQ/audio/performance/native Windows, public archive, AndroidPort, agent commit or push claim."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/bg_descriptors.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/bg_descriptor_tests.rs"
+  ],
+  "references": [
+    "docs/rom_data_graphics.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "characterize-high-zoom-replay",
+  "title": "Characterize high-zoom workload before introducing desktop parallel rendering",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux headless"
+  ],
+  "changes": [
+    "Reused the observed enemy replay at zoom 6 (570x322) for one ordinary and one detailed profile run; additional rows are not the dominant cost in this scenario. Keep parallel zoom and GPU policy unchanged."
+  ],
+  "validation": [
+    "3530-frame run with 120 warm-up frames: ordinary 7.623306 ms/frame, detailed 7.723037 ms/frame. Across 3410 profiled frames extra rows average 0.634410 ms (8.2161% of core), p99 total 9.389758 ms, max 10.063026 ms, no over-budget frames and no invalid stage samples.",
+    "Ordinary/profile initial and final state hashes, framebuffer and execution counts match. GUI zoom and reload worked, but Undo revealed the separately tracked restored-preview stride bug; driver exit alone was not treated as visual success."
+  ],
+  "limitations": [
+    "One workload characterization and overhead estimate, not a five-pair speedup result, isolated AI measurement, hardware GPU benchmark or coverage of all aspect ratios and CPUs."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

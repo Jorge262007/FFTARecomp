@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "save-states",
+  "title": "Save and load persistent machine checkpoints from the desktop menu",
+  "kind": "added",
+  "platforms": [
+    "Windows (Wine)",
+    "Linux core"
+  ],
+  "changes": [
+    "Add Save states > Save state... / Load state... to the pause menu with file selection, error feedback and persistent .ffstate files.",
+    "Capture CPU, hardware scheduling, memory, cartridge protocol/data, graphics and enhanced audio state in a versioned ROM/BIOS-bound format; validate and decode before changing the running machine.",
+    "Write checkpoints atomically and protect cartridge .sav destinations; loading cancels pointer requests, resets audio/presentation history and refuses active input recording.",
+    "Exclude private state files from Git, source packages and release audits; document cartridge-save behavior and future state-format versioning requirements."
+  ],
+  "validation": [
+    "Windows GNU release tests through Wine: 163 core, 27 menu and 29 runtime tests passed; four snapshot tests also passed after extending banked CPU register coverage.",
+    "Optional native replay passed with enhanced audio taps: 120 framebuffer hashes and complete final machine state matched after rewind and after loading into a fresh machine.",
+    "Linux core: 163 tests passed serially. Interactive Windows/Wine smoke created and loaded a checkpoint, loaded again after restart, resumed and exited cleanly using isolated test data.",
+    "Five memory-tool tests, updated skill validation and whitespace checks passed. The Windows archive passed CRC checks, executable hash comparisons and private-data/test-double exclusion checks."
+  ],
+  "limitations": [
+    "Native Windows and physical-controller manual validation remain outstanding; AndroidPort is a separate tree and is unchanged.",
+    "Linux desktop compilation needs the missing ALSA development package on this host.",
+    "States require identical ROM/BIOS content and a compatible state version; they are not cartridge saves or another emulator's format.",
+    "Loading rewinds cartridge memory; normal autosave or clean exit subsequently persists it to the currently selected .sav."
+  ],
+  "files": [
+    ".cursor/skills/ffta-development/SKILL.md",
+    ".gitignore",
+    "Cargo.lock",
+    "README.md",
+    "crates/gba-core/Cargo.toml",
+    "crates/gba-core/src/apu.rs",
+    "crates/gba-core/src/backup.rs",
+    "crates/gba-core/src/cpu.rs",
+    "crates/gba-core/src/ffta_dialogue.rs",
+    "crates/gba-core/src/ffta_movement.rs",
+    "crates/gba-core/src/ffta_rom.rs",
+    "crates/gba-core/src/ffta_sprites.rs",
+    "crates/gba-core/src/ffta_stage.rs",
+    "crates/gba-core/src/gax.rs",
+    "crates/gba-core/src/lib.rs",
+    "crates/gba-core/src/mem.rs",
+    "crates/gba-core/src/mp2k.rs",
+    "crates/gba-core/src/ppu.rs",
+    "crates/gba-core/src/rdrv.rs",
+    "crates/gba-core/src/rtc.rs",
+    "crates/gba-core/src/save_state.rs",
+    "crates/gba-core/src/shadow.rs",
+    "crates/menu/src/lib.rs",
+    "crates/menu/src/menu_icons.rs",
+    "crates/menu/src/theme.rs",
+    "crates/recomp/Cargo.toml",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/save_state.rs",
+    "docs/development/PROJECT_STATE.md",
+    "docs/save_states.md",
+    "scripts/audit_release.py",
+    "scripts/package_source.py",
+    "scripts/project_memory.py",
+    "scripts/tests/test_project_memory.py"
+  ],
+  "references": [
+    "docs/save_states.md",
+    "docs/development/PROJECT_STATE.md"
+  ]
+}

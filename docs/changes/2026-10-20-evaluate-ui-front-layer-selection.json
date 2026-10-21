@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "evaluate-ui-front-layer-selection",
+  "title": "Keep standard UI layer sorting after evaluating two front-layer selectors",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux release replay and isolated Linux desktop fixtures"
+  ],
+  "changes": [
+    "Evaluate simple and compact-key two-front-layer selection in CPU UI capture without changing blend/window rules. Restore the original production implementation after the measurements; neither prototype nor its extra reference test remains in the shipped core.",
+    "Separate contended timing experiments from quiet-host comparisons after identifying the unrelated IDE npm scan. Preserve local experiment artifacts and retain original standard sorting until a material, reproducible overall benefit is shown.",
+    "Prepare a second visually classified local world-map snapshot and input recording from a copy of the supplied cartridge save, keeping all fixture bytes ignored."
+  ],
+  "validation": [
+    "Both prototypes passed an exhaustive reference comparison across 196608 valid priority/presence combinations, including BG ties, portrait/world OBJ exclusivity, empty layers and preserved payloads. Prototype suites passed 168 core and 47 runtime release tests serially; optional fixture cases stayed ignored.",
+    "Quiet-host compact-key comparison passed five alternating 1200-frame pairs after 120 warm-up frames, with per-frame framebuffer/OAM, full final state and dispatch-count equality. Baseline/candidate medians 10.776782/10.953074 ms/frame show a 1.636 percent slowdown.",
+    "Quiet-host simple-selector comparison passed the same five-pair and state/image/count checks. Baseline/candidate medians 10.822120/10.652935 ms/frame show only a 1.563 percent reduction. Separate 1080-frame profiles reported p95 11.337150/11.687671 ms and p99 12.501026/13.649431 ms, with zero/two frames over budget; these single captures do not establish better tail behavior or its causal source.",
+    "The original PPU source was restored byte-for-byte to HEAD after inspecting that only the experimental changes were present. The source cartridge save and provided battle snapshot remain unchanged; the world-map fixture was saved through the isolated desktop menu after visual scene confirmation.",
+    "The restored native release executable has exactly the preserved baseline SHA-256. The visually classified world-map snapshot passed five alternating same-binary 1200-frame pairs, full final-state and dispatch-count checks, and all framebuffer/OAM captures. Baseline/candidate medians 2.128969/2.139713 ms/frame calibrate ordinary variation, not a speedup; both 1080-frame profiles had zero over-budget frames and p95 2.348801/2.369600 ms.",
+    "The existing exported Docker Linux portable bundle, using the original renderer, passed an isolated Xvfb/llvmpipe battle load, 10-second resumed play, Undo load, reload, resumed play and normal close. Screenshots confirmed both load messages and the Undo result; observed idle-battle overlays were 59.6/59.6 internal/external FPS and 59.0/59.0 shortly after reload. These are software-presentation observations, not a native Radeon or enemy-turn benchmark. The slot and original ZIP bytes were unchanged.",
+    "Project-memory working-tree and --base HEAD checks passed, together with the whitespace check. No implementation file differs from HEAD after rejecting the experiments."
+  ],
+  "limitations": [
+    "No new production PPU speedup is claimed. Initial loaded-host timing estimates were unreliable, and the modest quiet-host simple-selector mean did not establish an overall pacing improvement.",
+    "The battle samples are idle-scene replays, not an identified enemy AI turn. Native Windows performance, hardware controller and actual GPU execution timing remain separate work."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

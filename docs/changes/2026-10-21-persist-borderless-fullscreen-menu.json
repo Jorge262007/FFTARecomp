@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "persist-borderless-fullscreen-menu",
+  "title": "Share persistent fullscreen between Video menu and F11",
+  "kind": "added",
+  "platforms": [
+    "Desktop Linux and Windows GNU/Wine"
+  ],
+  "changes": [
+    "Add Video > Fullscreen (F11), default-off video.fullscreen persistence and one startup/menu/shortcut borderless request path. Ignore auto-repeat, permit cancellation of pending requests and reconcile backend-reported state after up to2seconds acknowledgement without idle clock reads.",
+    "Reuse winit/WM normal placement/maximized restoration. If the previous window area no longer usefully intersects an available monitor, move to current/primary monitor, bound oversized normal dimensions and preserve maximization. Keep benchmark startup windowed and guest/audio/aspect/zoom/temporal history unchanged.",
+    "Fix a menu resize race found in the actual GUI: GPU upload dimensions and software source stride use the completed canvas view instead of a potentially newer physical window size. Retain negative evidence and update feature/TODO/state/handoff documentation."
+  ],
+  "validation": [
+    "Native release:28input/config,35menu,81runtime pass; Windows GNU/Wine28/35/82 pass,4optional runtime ignored each. After the resize correction both runtime suites pass again; unchanged config/menu results reused. Native/Windows production builds warning-free; canonical binaries restored and verified by SHA-256, source mtime refreshed.",
+    "Tests cover legacy/default/roundtrip fullscreen config, menu/mouse toggles and scrolling through11Video rows, delayed acknowledgement/rejection, pending cancellation, external reported state, zero idle clock calls, negative/removed monitor coordinates and oversized fallback dimensions.",
+    "Actual Linux CPAL/native-translation/Xvfb/Openbox and Windows GNU/Wine interpreter frontend pass held-F11 once, exact640x360normal restoration, menu/F11 synchronization, persisted fullscreen at restart, maximized and normal geometry, VSyncOn, fullscreen minimize/restore, unchanged private slots and clean exit0. Maximized client1200x779 on both. Menu/fullscreen/startup/windowed captures inspected.",
+    "First live native run fails with GPU copy overrun640x360->1200x800 and software stride panic; old candidate/source/log retained under target/fullscreen-menu/resize-race-before/. Corrected presentation passes. Later pointer/focus harness failures do not reach the intended menu criterion; retained passed F11/geometry checks were not repeated, only unmeasured menu/restart gates followed helper corrections.",
+    "Additional actual native software fallback passes held F11, exact normal restoration and menu/F11 sync with inspected captures, unchanged slot and clean exit. Process-local invalid driver paths produce a GL configuration failure and existing CPU fallback; an earlier empty-EGL-vendor setup panics inside wgpu before a usable window and is retained separately, not counted as a presentation result.",
+    "Local evidence under ignored target/fullscreen-menu/:source/candidate/canonical hashes, native/Wine suites, build logs, GUI scripts/results/captures and separate negative setups. No prior PERF-04 matrix, fixture generation or accepted audio/FPS unit was reopened."
+  ],
+  "limitations": [
+    "Native Windows/macOS/Wayland, physical controllers, Alt-Tab and monitor hotplug/DPI/refresh changes remain unverified. Offscreen policy has synthetic coverage, not physical removal proof. Window state follows winit; backends that do not expose external WM fullscreen changes cannot synchronize those changes.",
+    "Wine GUI uses interpreter to reuse the private state, not Windows native-translation performance. Window geometry is retained within a session, not persisted across restart. No guest/save/translation ABI or AndroidPort change, portable export, commit, push or release."
+  ],
+  "files": [
+    "crates/input-config/src/lib.rs",
+    "crates/menu/src/lib.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/fullscreen.rs",
+    "docs/fullscreen.md",
+    "docs/packaging.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/fullscreen.md",
+    "docs/development/todo_bug_fix.md"
+  ]
+}

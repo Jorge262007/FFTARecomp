@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "characterize-pipewire-backend-errors",
+  "title": "Observe native audio stream and sink errors independently through PipeWire",
+  "kind": "docs",
+  "platforms": [
+    "Linux native CPAL / PipeWire / Xvfb Vulkan"
+  ],
+  "changes": [
+    "Document a bounded read-only backend observation with one line-buffered pw-top, PID-to-client-to-stream/link/sink identity checks, stable object serials and validated sample cadence; preserve existing runtime and system audio policy."
+  ],
+  "validation": [
+    "Accepted capture has10/3/6 running samples over approximately9/2/5seconds for idle battle/pause/resumed play, maximum sample gap below1.001s; stream and sink ERR deltas0 in each observed interval. Sink ERR already1 at first idle sample, with no causal or hardware-XRUN inference.",
+    "Native portable runtime hash equals the previously validated canonical Linux export. CPAL frame window8596:9196 completes235playing callbacks without faithful holds/drops/over-period or device error notifications. Idle/resumed screenshots inspected; Vulkan/no fallback/clean exit and slot privacy pass.",
+    "First pw-dump sandbox read was unable to connect in the sandbox; approved read-only elevated inventory succeeds. First GUI capture completes but piped pw-top batches paused rows at one read time, invalidating phase timing. Preserved it and repeated only backend collection with stdbuf -oL; the corrected cadence/identity analysis passes."
+  ],
+  "limitations": [
+    "Shared graph ERR is not a dedicated ALSA hardware-XRUN counter or proof of game causality. Creating-node zeros do not establish a valid running baseline. These are short idle-scene wall intervals, not exact app frame-window boundaries, AI-turn or native Windows/hardware coverage."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

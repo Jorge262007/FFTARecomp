@@ -2,6 +2,7 @@
 //! mappings; gameplay and remapping consume one stable state per host frame.
 use std::time::{Duration, Instant};
 
+#[cfg(target_os = "linux")]
 const BUTTONS: [gilrs::Button; 17] = {
     use gilrs::Button::*;
     [South, East, West, North, LeftTrigger, RightTrigger, LeftTrigger2,
@@ -19,6 +20,7 @@ const TOKENS: [&str; 25] = [
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct Snapshot(u32);
 impl Snapshot {
+    #[cfg(target_os = "linux")]
     pub fn read(pad: &gilrs::Gamepad, deadzone: f32, previous: Self) -> Self {
         use gilrs::Axis::*;
         let buttons = BUTTONS.map(|button| {

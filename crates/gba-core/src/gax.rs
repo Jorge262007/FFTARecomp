@@ -53,6 +53,7 @@ const MAX_VOICES: usize = 16;
 /// consecutive snapshots bracket one chunk exactly: start position,
 /// guest-true per-voice advance, and both gain endpoints.
 #[derive(Clone, Copy, Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct SnapV {
     on: bool,
     /// Position including the 12-bit fraction.
@@ -85,6 +86,7 @@ pub fn detect_v1(rom: &[u8]) -> Option<GaxV1Sig> {
 /// previous snapshot, per-GRID-sample step from guest position
 /// telemetry, gains lerped between the two snapshot endpoints.
 #[derive(Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Voice {
     on: bool,
     pos: f64,
@@ -129,6 +131,7 @@ impl Default for Voice {
 /// buffer (the 256-halfword echo processor): per-channel independent
 /// delays, so the ring holds L/R pairs and cursors count pairs. The
 /// mono variant's ring is one halfword per sample.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Echo {
     ring: Vec<(f32, f32)>,
     rd: usize,
@@ -155,6 +158,7 @@ impl Echo {
 /// (everything precomputed by the guest: window, 21.11 position and
 /// step, composite volume). Mono.
 #[derive(Clone, Copy, Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct V3Voice {
     on: bool,
     /// Absolute byte position (u8 PCM) and window end.
@@ -173,6 +177,7 @@ struct V3Voice {
 /// Per-stream (music / fx) v3 state: guest mix rate and the
 /// stream-level canon-domain ZOH.
 #[derive(Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct V3Stream {
     rate: f64,
     chk_hold: f32,
@@ -193,11 +198,13 @@ impl Default for V3Stream {
 }
 
 #[derive(Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize)]
 enum Mode {
     V1,
     V3,
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct GaxHle {
     mode: Mode,
     /// Guest address of the live SoundSystem block (found by scan).

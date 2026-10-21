@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-ui-panel-row-classification",
+  "title": "Cache native UI panel membership per row and eligible pixel",
+  "kind": "performance",
+  "platforms": [
+    "Native Linux evaluation"
+  ],
+  "changes": [
+    "Implement a per-call panel rule snapshot with cached vertical membership and lazy per-pixel classification shared across eligible BG candidates. Preserve banner precedence, missing-bounds laziness and the original uncached policy in a test specialization.",
+    "Preserve sorting, blending, existing window-register cache, serialized state and translation ABI. Retain after exact replay/panel checks and five-pair improvements in headless and complete GUI work."
+  ],
+  "validation": [
+    "Native serial core suite passed173 tests,5 optional ignored. New exhaustive old-policy comparisons cover action/town/shop flags, panel kinds, banners, rectangles, vertical/horizontal edges and primary/extra panels; missing bounds remain lazy for overriding banners and rows without eligible BG. Existing full panel-state comparisons now use the uncached policy reference.",
+    "Native runtime/launcher and Windows GNU core tests compile; Windows/Wine serial core suite also passed173 tests,5 optional ignored. Headless evaluation matches all3530frame/OAM hashes, full state and dispatch counts; five timing pairs/diagnostics still running.",
+    "Completed five native headless3530-frame A/B pairs with120 warm-up: all hashes/state/counts equal, all pairs faster. Median6.001925 ->5.840709ms (-2.6861%). Separate instrumented p95/p99/max7.081627/7.251019/8.735002 ->6.864737/6.994522/7.344674ms; PPU mean3.806301 ->3.650077ms, core remainder2.196837 ->2.191594ms. No over-budget frames in that diagnostic pair.",
+    "Complete unpaced native Linux llvmpipe GUI five pairs pass: median mean7.767086 ->7.591386ms(-2.2621%), all pairs improve2.108-2.641%; median p95/p99/max9.397574/9.895277/11.371842 ->9.136884/9.641691/11.062622ms. All3530frames/state/counts/private data match; UI payload316299008bytes unchanged.",
+    "World-map setup initially omitted the existing empty.input file and failed before guest execution. Copied the existing fixture; rerun only that uncovered scene, not completed timing pairs.",
+    "Corrected world-map run passed240frame parity/state/counts and two alternating1200frame diagnostic pairs: candidate3.024185/3.024873ms, baseline3.027517/3.087637ms, private data unchanged. No world-map speedup claim.",
+    "Zoom0:6 verification passed all3530frame/OAM hashes, full state and dispatch counts against original baseline; inputs unchanged. Normal default GUI with profiling off passed load/zoom/Undo/reload/resume/WM close on Vulkan without fallback; resumed battle/HUD capture inspected.",
+    "Final Docker exports passed335 Windows/Wine and336 Linux tests (15 optional ignored each), archive integrity/privacy/doc/source hashes, PE resources/imported DLL set and GLIBC2.35. Actual extracted Linux portable passed cold-cache load/zoom/Undo/reload/resume/WM close with profiling off, Vulkan without fallback and inspected battle/HUD/Undo captures.",
+    "Updated local dist archives and BUILD-INFO after checks, preserving previous versions: Windows SHA256edb9a43aceea8c673937f5cdfb2431dc0da080ac600339570b92d1f6b93d669c; Linuxacbcf0e556be1f340a18c38300650874c70de0b8c02a01e19fe748bb114b7a09. No public release.",
+    "project_memory.py render/check/check --base HEAD and Git whitespace validation passed; all evaluation/build/GUI handles terminal, no duplicate calibration or fixture recording."
+  ],
+  "limitations": [
+    "Measurements describe work on the supplied native Linux replay, including unpaced llvmpipe GUI with CPU profiling enabled; no audio callback/GPU timestamp/per-frame hash I/O in timing. No original rare-stall, native Windows hardware/performance or AndroidPort claim.",
+    "Cache is local to one capture call/pixel; no cross-frame invalidation or state/translation ABI change. Earlier lifecycle/device-loss validation remains applicable; those unrelated tests were not repeated."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/fps_overlay.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

@@ -140,6 +140,7 @@ fn normalize(value: i32, min: i32, max: i32) -> f32 {
     ((2.0 * (value as f64 - min as f64) / (max as f64 - min as f64) - 1.0) as f32).clamp(-1.0, 1.0)
 }
 
+#[cfg(any(windows, test))]
 fn normalize_centered(value: i32, center: i32, min: i32, max: i32) -> f32 {
     if max <= min || center < min || center > max {
         return 0.0;
@@ -166,6 +167,7 @@ fn normalize_centered(value: i32, center: i32, min: i32, max: i32) -> f32 {
     (normalized as f32).clamp(-1.0, 1.0)
 }
 
+#[cfg(any(windows, test))]
 fn changed_pov(values: [u32; 4], centers: [u32; 4]) -> Option<u32> {
     values
         .iter()

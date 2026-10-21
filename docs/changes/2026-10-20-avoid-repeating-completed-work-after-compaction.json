@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "avoid-repeating-completed-work-after-compaction",
+  "title": "Resume from completed task evidence instead of repeating work after compaction",
+  "kind": "changed",
+  "platforms": [
+    "Project agent workflow"
+  ],
+  "changes": [
+    "Route session start, context-compaction recovery and automatic goal continuation through TASK_HANDOFF.md from AGENTS and all three local skills. Separate stable completed subtask IDs and rejected experiments from broad unchecked TODO parents.",
+    "Seed the handoff with verified replay/baseline, tooling, caching and recovery substeps, rejected experiments, local artifact locators and the next unfinished PPU profiling criterion. Replace stale task-selection guidance without changing historical results.",
+    "Require a concrete affected input, missing criterion, explicit request or observed failure before expensive repeats; inspect existing process/output state before restarting and keep missing local artifacts separate from completed outcomes. Maintain the handoff at work-unit boundaries and before known compaction."
+  ],
+  "validation": [
+    "All three modified SKILL.md files passed the skill-creator quick validator. Checked 44 local Markdown links across the routing, skills and memory documents; all targets exist.",
+    "Exercised the resumption rule by reading the existing completed benchmark summary: passed, five pairs, 3530 frames, full-state and framebuffer/OAM equality. No build, replay, fixture creation or benchmark was repeated for this workflow change."
+  ],
+  "limitations": [
+    "This is agent-maintained routing and guidance, not a runtime compaction hook or automatic task-completion detector. The existing memory checker validates records and coverage, not agent decision quality or compliance."
+  ],
+  "files": [
+    "AGENTS.md",
+    ".cursor/skills/ffta-development/SKILL.md",
+    ".cursor/skills/ffta-windows-validation/SKILL.md",
+    ".cursor/skills/ffta-project-memory/SKILL.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/PERFORMANCE_TODO.md"
+  ],
+  "references": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/MEMORY_WORKFLOW.md",
+    "AGENTS.md"
+  ]
+}

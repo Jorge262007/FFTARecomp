@@ -2154,6 +2154,9 @@ name = "ffta-play"
 version = "0.1.0"
 dependencies = [
  "dirs 6.0.0",
+ "input-config",
+ "rfd 0.15.4",
+ "tempfile",
  "winresource",
 ]
 
@@ -2358,7 +2361,9 @@ version = "0.2.0"
 dependencies = [
  "armv4t",
  "libc",
+ "postcard",
  "rayon",
+ "serde",
  "sha2 0.11.0",
  "windows-sys 0.59.0",
 ]
@@ -4531,8 +4536,11 @@ dependencies = [
  "recomp-core",
  "rfd 0.15.4",
  "screen",
+ "serde",
+ "serde_json",
  "sha2 0.11.0",
  "softbuffer",
+ "tempfile",
  "toml 0.8.23",
  "winit",
  "winresource",
@@ -4545,6 +4553,7 @@ dependencies = [
  "armv4t",
  "dirs 6.0.0",
  "gba-core",
+ "input-config",
  "libloading",
  "toml 0.8.23",
 ]
@@ -4799,10 +4808,12 @@ dependencies = [
  "objc2-quartz-core 0.3.2",
  "pollster",
  "raw-window-handle",
+ "softbuffer",
  "wayland-backend",
  "wayland-client",
  "wayland-protocols",
  "wgpu 26.0.1",
+ "winit",
 ]
 
 [[package]]

@@ -108,8 +108,8 @@ fn parse(path: &Path, dir: PathBuf) -> Result<Manifest, String> {
 /// (then in the shared config dir) hashing to the pin.
 pub fn find_rom(m: &Manifest) -> Result<PathBuf, String> {
     let mut dirs = vec![m.dir.clone()];
-    if let Some(c) = dirs::config_dir() {
-        dirs.push(c.join("FFTARecomp"));
+    if let Some(c) = input_config::config_root() {
+        dirs.push(c);
     }
     for d in &dirs {
         let Ok(entries) = std::fs::read_dir(d) else {

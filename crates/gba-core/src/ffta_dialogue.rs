@@ -2,6 +2,7 @@
 //! future Settings controls; it never changes OAM, VRAM or game coordinates.
 
 #[derive(Clone, Copy, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct DialogueStyle {
     /// Relative to the normal screen-space size, independently of world zoom.
     pub scale: f32,
@@ -21,6 +22,7 @@ impl Default for DialogueStyle {
     }
 }
 #[derive(Clone, Copy, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Placement {
     pub scale: f32,
     pub left: f32,
@@ -62,6 +64,7 @@ impl Placement {
     }
 }
 #[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct DialogueState {
     pub style: DialogueStyle,
     /// Desktop opt-in: extract native UI instead of drawing it into the world.
@@ -75,6 +78,10 @@ pub struct DialogueState {
     pub town_layout: bool,
     pub shop_layout: bool,
     pub site_layout: bool,
+    /// Host-only subtype of the centered Notice layer; recomputed each frame.
+    /// Skipped so existing snapshot layouts stay compatible.
+    #[serde(skip)]
+    pub laws_layout: bool,
     pub extra: Panel,
     pub pixels: Vec<UiPixel>,
     pub(crate) anchor_bounds: Option<(usize, usize)>,
@@ -114,6 +121,15 @@ pub(crate) fn continuation(attrs: [u16; 3]) -> bool {
 mod tests {
     use super::*;
     #[test]
+    fn laws_host_subtype_does_not_change_snapshot_bytes() {
+        let mut machine = crate::Machine::new(vec![0; 192]);
+        let original = machine.save_state().unwrap();
+        machine.bus.ffta_dialogue.laws_layout = true;
+        assert_eq!(machine.save_state().unwrap(), original);
+        machine.load_state(&original).unwrap();
+        assert!(!machine.bus.ffta_dialogue.laws_layout);
+    }
+    #[test]
     fn anchors_keep_native_size_on_screen_at_every_zoom() {
         for ey in [0, 10, 33, 80, 176] {
             for width in [284, 568, 1136, 1536] {
@@ -146,6 +162,7 @@ pub const LAYER_INSET: i32 = 120;
 /// Transparent pixels have eva=0, evb=16. No encoded-color alpha approximation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct UiPixel {
     pub color: u16,
     pub eva: u8,
@@ -255,6 +272,7 @@ mod layer_tests {
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum PanelKind {
     #[default]
     None,
@@ -263,6 +281,7 @@ pub enum PanelKind {
     Notice,
 }
 #[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Panel {
     pub backing: Vec<UiPixel>,
     /// Raw top BG, before effects or OBJ, for native semitransparent OBJ blending.
@@ -328,6 +347,14 @@ pub(crate) fn notice_cursor(attrs:[u16;3],x:i32,y:i32,bounds:Option<[i32;4]>) ->
         && x>=l && x+8<=r && y>=t && y+8<=b
 }
 
+/// Verified laws selector (8x16) and HELP continuation marker. These belong
+/// to the centered modal, not the portrait or the world beneath it.
+pub(crate) fn laws_cursor(attrs: [u16; 3], x: i32, y: i32, bounds: Option<[i32; 4]>) -> bool {
+    let Some([l, t, r, b]) = bounds else { return false; };
+    attrs[1] & 0xfe00 == 0 && x >= l && x + 8 <= r && y >= t && y + 16 <= b
+        && ((attrs[0] & 0xff00 == 0x8000 && attrs[2] == 0x02dc) || continuation(attrs))
+}
+
 /// Extend only the backing at its outer edge; translate foreground rigidly inward.
 /// Coordinates and scale remain native, so glyphs and portraits are never stretched.
 pub fn pack_panel(pixels:&[UiPixel],backing:&[UiPixel],length:f32,right:bool,out:&mut Vec<[u8;4]>) {
@@ -366,6 +393,90 @@ pub fn pack_panel(pixels:&[UiPixel],backing:&[UiPixel],length:f32,right:bool,out
 #[cfg(test)]
 mod panel_extension_tests {
     use super::*;
+    fn row_endpoint_pixel_bounds(pixels: &[UiPixel]) -> Option<[i32; 4]> {
+        let mut out = [i32::MAX, i32::MAX, i32::MIN, i32::MIN];
+        // Only row endpoints can enlarge the bounds. Avoid visiting a dense
+        // panel's interior, and derive coordinates once per nonempty row.
+        // chunks() also preserves the previous behavior for partial final rows.
+        for (y, row) in pixels.chunks(LAYER_WIDTH).enumerate() {
+            if let Some(left) = row.iter().position(|p| p.visible()) {
+                let right = left + row[left..].iter().rposition(|p| p.visible()).unwrap();
+                out = [
+                    out[0].min(left as i32 - LAYER_INSET),
+                    out[1].min(y as i32),
+                    out[2].max(right as i32 + 1 - LAYER_INSET),
+                    out[3].max(y as i32 + 1),
+                ];
+            }
+        }
+        (out[0] != i32::MAX).then_some(out)
+    }
+    #[test]
+    fn row_endpoint_bounds_match_full_scan_for_sparse_dense_and_partial_layers() {
+        for len in [0, 1, 479, 480, 481, 480 * 160, 480 * 161 + 7] {
+            let mut pixels = vec![UiPixel::default(); len];
+            assert_eq!(row_endpoint_pixel_bounds(&pixels), pixel_bounds(&pixels));
+            for i in 0..len {
+                // Include varying colors/blend weights, isolated endpoints,
+                // transparent holes, and pixels outside the usual canvas.
+                let bits = (i as u32).wrapping_mul(1664525).wrapping_add(1013904223);
+                pixels[i] = UiPixel {
+                    color: bits as u16,
+                    eva: (bits >> 16) as u8 % 17,
+                    evb: (bits >> 24) as u8 % 17,
+                };
+            }
+            assert_eq!(row_endpoint_pixel_bounds(&pixels), pixel_bounds(&pixels));
+            pixels.fill(UiPixel::opaque(31));
+            assert_eq!(row_endpoint_pixel_bounds(&pixels), pixel_bounds(&pixels));
+            pixels.fill(UiPixel::default());
+            for i in [0, 479, 480, len.saturating_sub(1)] {
+                if i < len {
+                    pixels[i] = UiPixel::opaque(0);
+                    assert_eq!(row_endpoint_pixel_bounds(&pixels), pixel_bounds(&pixels));
+                    pixels[i] = UiPixel::default();
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "diagnostic microbenchmark; run release and serially without other workloads"]
+    fn benchmark_panel_bounds() {
+        use std::{hint::black_box, time::Instant};
+        for pattern in ["empty", "dense", "sparse", "panel"] {
+            let mut pixels = vec![UiPixel::default(); LAYER_WIDTH * LAYER_HEIGHT];
+            for y in 0..LAYER_HEIGHT {
+                for x in 0..LAYER_WIDTH {
+                    if match pattern {
+                        "dense" => true,
+                        "sparse" => (x + y * 7) % 113 == 0,
+                        "panel" => (240..360).contains(&x) && (70..150).contains(&y),
+                        _ => false,
+                    } {
+                        pixels[y * LAYER_WIDTH + x] = UiPixel::opaque(31);
+                    }
+                }
+            }
+            assert_eq!(row_endpoint_pixel_bounds(&pixels), pixel_bounds(&pixels));
+            for run in 0..5 {
+                let mut elapsed = [0.; 2];
+                for which in if run % 2 == 0 { [0, 1] } else { [1, 0] } {
+                    let start = Instant::now();
+                    for _ in 0..2000 {
+                        black_box(if which == 0 {
+                            pixel_bounds(black_box(&pixels))
+                        } else {
+                            row_endpoint_pixel_bounds(black_box(&pixels))
+                        });
+                    }
+                    elapsed[which] = start.elapsed().as_secs_f64() * 1e6 / 2000.;
+                }
+                eprintln!("PANEL_BOUNDS pattern={pattern} run={run} reference_us={:.3} candidate_us={:.3}", elapsed[0], elapsed[1]);
+            }
+        }
+    }
+
     #[test]
     fn animated_cursor_cannot_change_panel_bounds_or_length_displacement() {
         let blue=UiPixel{color:0x7c00,eva:8,evb:8};

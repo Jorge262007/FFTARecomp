@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "decode-verified-boot-graphics-streams",
+  "title": "Decode bounded LZ77 streams against observed regional graphics producers",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows-GNU-Wine"
+  ],
+  "changes": [
+    "Add a bounded offline GBA LZ77 decoder that returns exact decoded bytes and consumed source length, excludes padding, supports overlapping and clipped final matches, and rejects truncated inputs, invalid history, unsupported type and output-budget violations. It is not wired to BIOS or the active resource dataset.",
+    "Add optional test-only producer discovery through actual executed SWI events during clean demo boot, plus offline comparisons against retained post-SWI guest outputs without repeating the boot. Independently locate four source ranges per region and original relative descriptor roots at USA569104/EUR7662a8 with88-byte stride; packet semantics and catalog bounds remain open."
+  ],
+  "validation": [
+    "All four1200-frame original-interpreter traces pass independently for EUR/USA on Linux and Windows GNU/Wine. Each observes four SWI11calls; per-region trace and destination files are byte-identical across targets. Original source ROMs and canonical runtime binaries are preserved.",
+    "Four synthetic core tests pass on each target, including both existing BIOS11/12output oracles, overlap/history-distance4096, partial final token/flag group, all truncated prefixes, bad type/history and allocation budgets. Core and recomp test builds are warning-free on both targets.",
+    "Offline checks verify eight regional source ranges per target against actual guest outputs. Consumed lengths125/133/1481/2507 yield160/456/1996/2960bytes; totals4246encoded/5572decoded per region, with equal payload hashes across regions and byte-identical verification reports across targets. Captured trace/output and source/canonical hashes remain unchanged.",
+    "An observer compile typo was corrected before any trace. Native Cargo then reused an old library whose binary dep-info tracked the previous isolated source; refreshing source mtime alone did not fix resolution. Preserve original logs/fingerprint and invalidate only the affected library fingerprint before a successful current-source rebuild; no successful trace, old measurement or reference source was repeated/changed.",
+    "Final project_memory.py check, CRLF-aware git diff --check, Rust formatting of the added/affected test and decoder files,142affected local-document links and protected fixture/canonical hashes pass. Task handoff closes these units and records the independently open descriptor-catalog criterion; all selected processes are terminal."
+  ],
+  "limitations": [
+    "Verified early producers and a codec do not establish complete graphics assets, total descriptor count, packet semantics, regional/language catalogs, palette/tile/map sharing or consumer migration. No new resources enter managed extraction/startup/runtime yet, and existing dataset revisions are unchanged. No decompression speedup, native Windows, whole-scene parity, AndroidPort, canonical/public archive, agent commit or push claim."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/lz77.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/compression_tests.rs"
+  ],
+  "references": [
+    "docs/rom_data_graphics.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

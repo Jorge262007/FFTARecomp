@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "project-memory",
+  "title": "Add project skills and checked development memory",
+  "kind": "docs",
+  "platforms": [
+    "Project-wide"
+  ],
+  "changes": [
+    "Add project instructions and local skills for implementation, Windows validation and evidence-based change recording.",
+    "Backfill performance, FPS and menu shortcut history; keep durable project knowledge separate from chronological records.",
+    "Generate CHANGELOG.md from structured JSON records and check that changed implementation files have a new or updated record.",
+    "Add a read-only CI workflow for change coverage and memory tooling tests; preserve existing uncommitted feature work."
+  ],
+  "validation": [
+    "Five Python unittest cases passed in temporary Git repositories, including stale output, duplicate records, unsafe paths, invalid dates, missing references, commit ranges, deleted files and staged changes.",
+    "All three local skills passed the skill-creator validator."
+  ],
+  "limitations": [
+    "Agents must read AGENTS.md or discover the local skills; no global client settings or background services are installed.",
+    "The checker verifies file coverage and metadata, not the truth of descriptions; change summaries and validation evidence require review.",
+    "The CI workflow has been added locally but has not run on GitHub; remote branch protection settings are unchanged."
+  ],
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "scripts/project_memory.py",
+    "scripts/tests/test_project_memory.py",
+    ".github/workflows/project-memory.yml",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/MEMORY_WORKFLOW.md",
+    ".cursor/skills/ffta-development/SKILL.md",
+    ".cursor/skills/ffta-project-memory/SKILL.md",
+    ".cursor/skills/ffta-windows-validation/SKILL.md"
+  ],
+  "references": [
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md",
+    "AGENTS.md"
+  ]
+}

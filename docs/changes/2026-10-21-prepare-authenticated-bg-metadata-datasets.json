@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "prepare-authenticated-bg-metadata-datasets",
+  "title": "Prepare source-authenticated three-file resource datasets with BG metadata",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows-GNU-Wine"
+  ],
+  "changes": [
+    "Extend managed extraction/verification/preparation with graphics.bg-descriptors alongside OBJ dimensions. Schema1/extractor3/decoder2 selects v1/e3-d2 and retains prior generations; fixed filenames, source-authenticated typed metadata and whole-set validation reject missing/duplicate/escaped/rehashed edited resources.",
+    "Retain16KiB manifest/OBJ caps, add256KiB BG cap and272KiB total before parsing/publication. Serialize/sync/read back all three files before publication, require complete verified reuse and repair missing/corrupt BG into a new immutable generation without overwriting older data.",
+    "Authenticate both resources before session activation and derive dataset identity from every pinned resource ID/file hash. Current owner/projections remain OBJ-only, with an explicit prepared BG/runtime=rom diagnostic; direct BG consumption is the next unit. Save/native/guest ABI and OBJ ownership budget are unchanged."
+  ],
+  "validation": [
+    "Affected release tests pass: Linux2core extraction+4core runtime+7file+10preparation and Wine2+4+6+9. Two Unix-only symlink cases explain the difference. Two additional private regional/lifecycle tests per target cover both exact ROMs, source authentication, transactional activation, whole-set identity, Load/Undo/backup restore and retention of a real imported e2-d1dataset.",
+    "Tested deterministic three-file publication/no-write reuse/relocation, four publishers/preparers, cancellation/lock handling, three child process-death stages, simulated partial BG write/storage failure, corrupt/missing BG repair, fixed-path/size/total-budget enforcement and source-equal formatting with distinct complete dataset identity. Rehashed semantic edits and missing BG leave live ownership and full guest snapshots intact.",
+    "Native and Windows production CLI builds are warning-free. Each actual Linux/Wine executable passes18checks from unrelated working directories: help, EUR/USA first extract/reuse/verify, managed create/reuse, corrupt/missing BG recovery, root move/reuse and legacy rejection/retention. Three files are byte-identical across targets per region and total107861logical bytes.",
+    "The synthetic tar/zip privacy test now plants both managed/unmanaged BG descriptor markers beside selected inputs; both archive scenarios exclude them. Original ROM/legacy fixture/source and canonical executable hashes remain unchanged; canonical binaries restored and main source mtime refreshed for future Cargo builds.",
+    "Final rustfmt correction only reorders two cfg(test) module declarations. The exact tested frontend preimage is retained and matches its recorded hash; production functions and test bodies are unchanged, so no runtime rebuild or closed test replay is needed.",
+    "Final project_memory.py check, CRLF-aware git diff --check, formatting of affected Rust modules,153affected local-document links and current/tested implementation, original ROM/legacy fixture and canonical hashes pass. Handoff closes the managed unit and selects actual BG consumer integration as next open work; all selected processes are terminal."
+  ],
+  "limitations": [
+    "BG metadata is prepared/authenticated but guest consumption still reads ROM; no completed BG migration, new GUI/full-scene/performance/native Windows or physical-power-loss result is claimed. Linked graphics/programs, other catalogs/languages and mods remain open. Old OBJ results retain their original revision scope. No public archive rebuild, AndroidPort update, agent commit or push."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/runtime.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/preparation.rs",
+    "crates/recomp/src/rom_data/managed_tests.rs",
+    "scripts/tests/test_portable_resources.py"
+  ],
+  "references": [
+    "docs/rom_data.md",
+    "docs/rom_data_graphics.md",
+    "docs/rom_data_runtime.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

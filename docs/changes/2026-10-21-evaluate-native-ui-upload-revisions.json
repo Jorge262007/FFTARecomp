@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-native-ui-upload-revisions",
+  "title": "Reject packed-byte UI upload caching after end-to-end evaluation",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux desktop evaluation"
+  ],
+  "changes": [
+    "Evaluated then removed a candidate that packed into reusable scratch buffers, compared complete output bytes and supplied process-unique UI revisions. No production runtime change is retained; existing unversioned/native UI, FPS caching and validated portable exports remain the baseline.",
+    "Record the rejected result so context recovery does not repeat this byte-comparison-only design. Any follow-up must address the measured preparation cost, for example by avoiding packing when its complete input tuple is unchanged, rather than only avoiding transfer after packing."
+  ],
+  "validation": [
+    "Native runtime/screen suites passed 55/41 tests (3 optional ignored each). New tests compare packed panel output across lengths/anchors, content changes, reusable capacity, clears/reactivation and independent producers; existing GPU pixel/byte-equivalence test passed on Radeon 780M/Vulkan.",
+    "Baseline and candidate passed the existing 3530-frame GUI verification: all image/OAM hashes, final machine state and dispatch counts equal the established reference, private data unchanged. Logical UI upload payload fell from 2011423488 to 530412288 bytes over 3410 measured updates. Verification timings are not used to accept the optimization.",
+    "Five alternating new-code A/B pairs passed with 3530 additional frames and 120 warm-up per run. Median run means baseline 8.328947 ms, candidate 8.339867 ms (+0.131109%); paired changes range -0.008598% to +0.840389%. All final states, dispatch counts, inputs and private files agree.",
+    "Median UI preparation mean rose 0.156532 -> 0.179629 ms; upload mean fell 0.129143 -> 0.103490 ms. Median per-run combined UI work only fell 0.285154 -> 0.281867 ms, not a useful end-to-end improvement despite about 74% fewer logical upload bytes.",
+    "Preserved candidate source/binaries/logs under ignored target paths, then restored only the four experiment preimages and the prior native executable byte-for-byte. Removed the experiment-owned new module. Published portable archives were never replaced for this rejected candidate."
+  ],
+  "limitations": [
+    "This is a scoped unpaced llvmpipe/Vulkan evaluation, not native Windows or hardware GPU performance evidence. Logical scheduled bytes do not establish PCIe traffic, power savings or a speedup.",
+    "The rejected design has no retained implementation. Previous baseline validation remains applicable because source/binary restoration is exact; no duplicate build or calibration was run merely to recover the baseline."
+  ],
+  "files": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

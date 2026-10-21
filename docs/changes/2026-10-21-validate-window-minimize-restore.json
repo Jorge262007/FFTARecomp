@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-window-minimize-restore",
+  "title": "Add observed window-manager minimize and restore regression coverage",
+  "kind": "added",
+  "platforms": [
+    "Linux X11, Openbox and llvmpipe Vulkan",
+    "Windows GNU/MinGW13 under Wine10 with Vulkan"
+  ],
+  "changes": [
+    "Add an optional no-ROM event-loop Presenter diagnostic that observes real window-manager minimize/restore transitions, requires rendering after restore, checks three sizes and VSync ON/OFF, and preserves surface-before-window cleanup.",
+    "Require observable minimized state and bounded phase deadlines; unsupported state, premature close or incomplete teardown fails instead of claiming lifecycle success from explicit zero-size API calls."
+  ],
+  "validation": [
+    "Native release diagnostic compiled and passed three actual minimize/restore cycles, resize to 640x360/960x540/852x480, VSync ON/OFF and clean teardown on Xvfb/Openbox/llvmpipe Vulkan: 27 Presented, zero Skipped. Independent xprop observed three Iconic and four Normal states.",
+    "The unchanged canonical Linux portable passed three real WM minimize/restore cycles while running an isolated battle copy, followed by Undo/reload/resume/WM-close. Independent states and exit status checked; restored battle/HUD screenshot inspected. Runtime hash matches the current inspected Linux export.",
+    "The new example cross-compiled for Windows GNU using existing local MinGW13. Wine first selected its synthetic D3D12 adapter and failed device creation; this is not passing coverage. A retry with D3D12 DLLs disabled only in the isolated test prefix passed on llvmpipe Vulkan: three observed minimize/restore cycles, resize/VSync and clean exit, 18 Presented/9 Skipped (minimized sizes were zero). Independent xprop observed three Iconic/four Normal states. No production backend choice was changed.",
+    "The first Wine wrapper cleanup used an unavailable wineserver command name; corrected its path and cleaned up the owned Xvfb/prefix before retry. The final wrapper finished normally and left no test display/process running.",
+    "project_memory.py render, check and check --base HEAD, rustfmt --check on the new example and Git whitespace validation passed before handoff."
+  ],
+  "limitations": [
+    "No native Windows GPU, Wayland minimize/restore, physical monitor switch or forced runtime device-loss claim. Runtime and canonical portable archives are unchanged; no existing benchmark or fixture was recreated."
+  ],
+  "files": [
+    "crates/recomp/examples/presenter_window_lifecycle.rs",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

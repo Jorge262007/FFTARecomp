@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+# Linux container -> standalone Windows x86_64 executables (GNU/MinGW).
+FROM rust:1.94.0-slim-bookworm@sha256:a86cada82e36ebd7a9bffed7548792c55a952fdb20718eea9278a936bcb76e62 AS rust-toolchain
+FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS build
+
+# Reuse the pinned Rust toolchain image shared with the Linux builder.
+COPY --from=rust-toolchain /usr/local/cargo /usr/local/cargo
+COPY --from=rust-toolchain /usr/local/rustup /usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo RUSTUP_HOME=/usr/local/rustup \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN test "$(dpkg --print-architecture)" = amd64 \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl python3 gcc-mingw-w64-x86-64 \
+        binutils-mingw-w64-x86-64 wine64 \
+    && rm -rf /var/lib/apt/lists/* \
+    && rustup target add x86_64-pc-windows-gnu
+
+ENV CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
+    CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc \
+    AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar \
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=/usr/lib/wine/wine64 \
+    WINEPREFIX=/tmp/ffta-build-wine WINEARCH=win64 WINEDEBUG=-all \
+    WINESERVER=/usr/lib/wine/wineserver64
+
+WORKDIR /workspace
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+COPY assets/ assets/
+COPY TinyCC/ TinyCC/
+COPY Licenses/ Licenses/
+COPY gamedb.sqlite ./
+COPY scripts/package_ffta_portable.py scripts/
+COPY docs/portable.md docs/docker.md docs/fps_overlay.md docs/menu_shortcuts.md docs/save_states.md docs/save_backups.md docs/rom_data.md docs/rom_data_runtime.md docs/
+
+RUN --mount=type=cache,id=ffta-linux-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=ffta-linux-cargo-git,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,id=ffta-windows-target-amd64,target=/workspace/target,sharing=locked \
+    cargo build --locked --release --target x86_64-pc-windows-gnu -p recomp -p ffta-play \
+    && python3 TinyCC/build.py --platform windows --cc x86_64-w64-mingw32-gcc --host-cc gcc \
+        --output target/x86_64-pc-windows-gnu/release/tcc/libtcc.dll \
+    && cargo test --locked --release --target x86_64-pc-windows-gnu \
+        -p input-config -p menu -p gba-core -p screen -p recomp -- --test-threads=1 \
+    && python3 scripts/package_ffta_portable.py --platform windows \
+        --runtime-dir target/x86_64-pc-windows-gnu/release \
+    && mkdir /artifacts \
+    && cp dist/FFTARecomp-windows-portable.zip /artifacts/ \
+    && { rustc --version; cargo --version; cat /etc/os-release; \
+         x86_64-w64-mingw32-gcc --version | head -n 1; /usr/lib/wine/wine64 --version; \
+         x86_64-w64-mingw32-objdump -p target/x86_64-pc-windows-gnu/release/ffta-play.exe | grep 'DLL Name:'; \
+         x86_64-w64-mingw32-objdump -p target/x86_64-pc-windows-gnu/release/recomp.exe | grep 'DLL Name:'; \
+         x86_64-w64-mingw32-objdump -p target/x86_64-pc-windows-gnu/release/tcc/libtcc.dll | grep 'DLL Name:'; \
+         sha256sum /artifacts/FFTARecomp-windows-portable.zip; \
+       } > /artifacts/BUILD-INFO.txt
+
+FROM scratch AS export
+COPY --from=build /artifacts/ /

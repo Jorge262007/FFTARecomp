@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "parse-readable-bg-json-datasets",
+  "title": "Parse readable BG JSON datasets directly into typed resources",
+  "kind": "changed",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Store BG descriptors as standard pretty JSON and deserialize directly into typed records; manifest/OBJ remain TOML. Pin bg-descriptors-json-v2 at schema1/extractor4/decoder3 and retain prior e3/e2/e1 generations.",
+    "Keep source authentication, strict unknown/duplicate/missing/type/size checks, atomic three-file publication, no-write reuse, repair and immutable runtime binding. JSON changes the captured file/dataset hash, not source/save/native identity or bus semantics.",
+    "Follow updated user preference: readability/functionality take priority over shrinking extracted data. Use normal two-space JSON149261B (generation150818B); discard one-space formatting/storage-gate tuning. Existing parser/input bounds remain malformed-input guards. Add only the already locked serde_json dependency to recomp."
+  ],
+  "validation": [
+    "Affected release checks pass32Linux/30Windows-Wine including private cases:2core extraction+7runtime+8/7file+10/9preparation defaults, regional command/identity/e2 isolation, Load/Undo/backup, actual e3 TOML generation retention and two regional JSON-native provenance/lifecycle cases per target. New JSON checks cover deterministic output, unknown/duplicate/missing fields, truncation/trailing data, invalid UTF-8, numeric overflow, malformed arrays and empty records.",
+    "Actual old e3 fixtures stay byte-identical, new typed data reproduce the complete source and prior catalog, missing/corrupt activation remains transactional. Each regional provenance case records2608calls/134424original instructions,5836native dispatches/660event shells/3867native BG API loads/3888total BG reads with raw source poisoned.",
+    "Warning-free production builds and18actual CLI operations per target pass regional extraction/reuse/verification, managed create/reuse/corrupt-or-missing repair, unrelated-cwd relocation and old e2 refusal/retention. New JSON data files match across targets.",
+    "Actual interpreter/native CLI1200-frame demo pairs match legacy framebuffer hashes and native final full-state hashes,53BG reads each; ready-dataset bytes/mtimes, source ROM/input/native cache and canonical runtime hashes stay unchanged. Marker unit passes both synthetic tar/zip scenarios for old/new private data names.",
+    "Old e3 scene/frame/startup/storage/RSS observations and rejected parser/format probes are retained. No broad scene/timing rerun is required for the startup-only format change; no new budget-only campaign follows the user space-preference change."
+  ],
+  "limitations": [
+    "Opt-in metadata only. Linked graphics/palette/program payloads and other catalogs/families, BG GUI/archive/native Windows coverage, normal enablement and mods remain open. Isolated parser heap is not a current whole-process RSS measurement or speedup. No compression, new public export, AndroidPort update, agent commit or push."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/managed_tests.rs",
+    "crates/recomp/Cargo.toml",
+    "Cargo.lock",
+    "scripts/tests/test_portable_resources.py"
+  ],
+  "references": [
+    "docs/rom_data.md",
+    "docs/rom_data_graphics.md",
+    "docs/rom_data_runtime.md",
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

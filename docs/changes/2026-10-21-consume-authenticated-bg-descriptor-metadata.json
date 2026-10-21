@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "consume-authenticated-bg-descriptor-metadata",
+  "title": "Consume authenticated BG descriptor metadata through guest and native reads",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Retain the authenticated162-record BG dataset as immutable typed session data and a14256-byte source projection; route fixed regional CPU/DMA/RtApi reads through file-derived bytes without changing neighbors, guest execution, timing or residual ROM payloads.",
+    "Add separate BG file identity and bus-operation/projected-byte diagnostics. Enforce predeclared shared/OBJ<=1KiB including Arc and extraBG<=64KiB budgets; both64-bit targets own440+28672=29112bytes. Keep schema/extractor/decoder1/3/2, RtApi, native keys and state schema1 unchanged.",
+    "Preserve the BG owner and counters across transactional Load, Slots Undo and backup clean boot; reject corrupt/missing new activation while resident data continue serving a loaded session after file deletion. Update actual CLI help for both supported metadata families."
+  ],
+  "validation": [
+    "Full serial release core suites pass204tests each on Linux and Windows/Wine (7optional ignored). Frontend defaults pass98Linux/97Wine (18optional ignored). New synthetic cases cover all widths/mirrors/edges/native APIs, original CPU loads,16/32-bit DMA, unchanged timing/snapshot bytes and poisoned raw BG data.",
+    "Four exact-region/target real-file tests reuse existing e3datasets. Each compares2608original selector calls/134424instructions between legacy interpreter, file-backed interpreter and production TinyCC components, with raw descriptor ROM bytes poisoned after activation. Registers/CPSR/clock/EWRAM/IWRAM match at native boundaries and interpreter steps; restored test poison yields identical complete snapshots. Each observes3888BG reads,3867native byte-load callbacks,5836native dispatches and660event-boundary interpreter shells. Load/Undo/backup, corrupt/missing activation and deleted-file resident reads pass.",
+    "New EUR1200-frame native boot pairs independently match every full state, central/wide image, OAM, dispatch and mixed/PSG/both FIFO/HLE stream on Linux/Wine. HLE compares bits; all five streams are nonempty and both runs observe53BG reads. Existing platform-specific TinyCC ELF caches are reused; Linux6479719/Wine4067051native blocks are not compared as cross-target timing/dispatch equality.",
+    "Warning-free production builds preserve canonical runtime hashes. Actual CLI help,1200-frame interpreter demo pairs and native CLI idle/explicit-demo pairs are checked; explicit input is required because runc otherwise keeps keys released. Complete CLI results, no-write reuse and protected inputs are recorded in private verification-summary.json. A final static help-text-only edit follows the tested runtime preimage and is checked on the actual production binaries.",
+    "Retain the first component harness stall caused by omitted frame-ready dispatch clearing, and the first CLI helper overstrict positive-read gate on all-released runc. Only affected helper inputs changed; completed frames/idle results are reused. Wine background D-Bus diagnostics occur with passing test exits. No production workaround or unchanged OBJ scene/benchmark rerun."
+  ],
+  "limitations": [
+    "Opt-in bounded metadata only; linked graphics/palette/packet payloads and programs still use original ROM producers. Broader BG scene/GUI/startup/frame/RSS/archive gates, other catalogs/languages, native Windows, normal enablement and mods remain open. Type-size accounting excludes allocator overhead/process RSS. No speedup, complete-ROM extraction, instruction skip, new public archive, AndroidPort change, agent commit or push."
+  ],
+  "files": [
+    "crates/gba-core/src/mem.rs",
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/runtime.rs",
+    "crates/gba-core/src/rom_data/runtime/background.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/bg_runtime_tests.rs",
+    "crates/recomp/src/main.rs"
+  ],
+  "references": [
+    "docs/rom_data.md",
+    "docs/rom_data_runtime.md",
+    "docs/rom_data_graphics.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

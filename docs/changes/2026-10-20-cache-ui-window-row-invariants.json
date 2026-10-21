@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "cache-ui-window-row-invariants",
+  "title": "Cache native UI window decisions for each extraction row",
+  "kind": "performance",
+  "platforms": [
+    "Root desktop renderer; native Linux headless and isolated Xvfb/llvmpipe validation"
+  ],
+  "changes": [
+    "Cache window registers and vertical membership once per native UI extraction row; preserve WIN0, WIN1, OBJ-window and outside precedence, inclusive/exclusive ranges and wrapping. Hoist native origin and modal flags without changing blend or sorting rules."
+  ],
+  "validation": [
+    "The cached window helper matches the previous per-pixel reference on 2457600 coordinate/enable/mask/object-window combinations, including empty, wrapping and overlapping windows.",
+    "Release suites passed 169 core and 48 runtime tests, with 5/3 optional cases ignored. Native release build passed. The preserved pre-change executable hash matches the previously validated stage-enabled release.",
+    "The new-code verification passed framebuffer/OAM on all 3530 frames of the existing enemy replay, full final machine state and dispatch counts.",
+    "Completed five alternating 3530-frame battle pairs with 120 warm-up frames: baseline/candidate medians 8.412148/8.229073 ms, 2.1763 percent lower work time; every pair favored the candidate. All framebuffer/OAM captures, final serialized state and dispatch counts matched.",
+    "Detailed battle profiles attributed UI capture means 4.940586/4.779405 ms. Core p95 10.117031/9.889575 ms and p99 10.539597/10.346466 ms improved in these captures. Over-budget counts were 2/4, maxima 18.489253/18.634405 ms: retain the unfavorable rare-tail observation rather than claiming all spikes are fixed.",
+    "World-map regression passed five 1200-frame pairs with 120 warm-up frames and full image/state/count equality. Medians 1.958091/1.966537 ms differ by +0.4313 percent; both 1080-frame profiles had zero over-budget frames. The candidate p95 increased from 2.002853 to 2.107436 ms in the single captures; no universal no-regression guarantee is claimed.",
+    "An isolated copy with the new native runtime passed GUI load, 10-second resumed play, Undo load, reload, resumed play and normal close under Xvfb/llvmpipe. Inspected loaded/Undo/reloaded gameplay screenshots; detailed PPU reports contained 988 frames, 158080 scanlines and zero invalid intervals. Slot bytes and original archive hash were unchanged.",
+    "The first GUI escalation timed out in automatic permission review before process creation; ordinary sandbox Xvfb then could not bind a socket. The single escalated retry was approved and completed successfully. Only that retry is counted as GUI validation."
+  ],
+  "limitations": [
+    "The measured work-time benefit is modest and scene-specific; it does not establish native Windows/Radeon performance, physical-controller coverage or resolution of the originally reported lag.",
+    "Rare-tail counts and the small world-map timing increase remain part of the evidence. No guest timing, decisions, save-state layout or GPU workload changed."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

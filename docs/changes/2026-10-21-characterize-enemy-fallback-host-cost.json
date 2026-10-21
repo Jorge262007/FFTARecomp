@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "characterize-enemy-fallback-host-cost",
+  "title": "Attribute observed enemy replay dispatches and remaining CPU cost",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux headless"
+  ],
+  "changes": [
+    "Complete fallback-candidate triage using existing observed enemy snapshot/input and native translation. No production translation, lookup, hook, guest ABI, runtime or package change accepted from counts alone.",
+    "Prioritize remaining native UI panel extraction work from a new host CPU sample, while preserving completed/rejected optimizations and the broader open performance TODO."
+  ],
+  "validation": [
+    "Confirmed the only existing COST_DISPATCH log covered the intro; collected one new3530-frame enemy-scene census after120 warm-up frames. All3530 framebuffer/OAM hashes, full state and native/fallback counts match the existing headless reference; ROM/state/input/library/runtime hashes unchanged.",
+    "Warm-up-excluded dispatches:22626079 native,79140200 missing,6820 system,55906060 intentional hooks;3804 fallback entry keys across the full replay (3729ROM/75IWRAM). These are counts and guest-cycle attribution, not host CPU shares.",
+    "Built only the final optimized recomp crate with strip disabled/debug1 for symbols, isolated it under ignored target storage and restored the original native binary by hash. One199Hz user CPU sample enabled after the8596 warm-up marker collected3928 samples with zero lost; final guest state/counts match reference. No census or per-frame hash I/O during sampling.",
+    "Leaf self samples: capture_dialogue_part31.52%, render_sprites_extent8.63%, compose_into7.76%, exec::step_inner6.21%, render_text_bg_hardware5.14%, Machine::step4.56%. Leaf percentages are not inclusive timing or an isolated AI interval; no speedup is claimed.",
+    "project_memory.py render/check/check --base HEAD and Git whitespace validation passed. Profiling process handles are terminal and original target/release/recomp hash is restored; shipping archives were not rebuilt."
+  ],
+  "limitations": [
+    "Call-chain reconstruction does not isolate all missing versus intentional interpreter work. One headless native workload excludes realtime audio/window behavior and the originally reported rare slow episode; no native Windows performance claim."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PROJECT_STATE.md"
+  ]
+}

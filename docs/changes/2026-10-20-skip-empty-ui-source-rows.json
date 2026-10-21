@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "skip-empty-ui-source-rows",
+  "title": "Skip UI candidate work for rows with no UI sources",
+  "kind": "performance",
+  "platforms": [
+    "Root desktop renderer; native Linux headless and isolated Xvfb/llvmpipe validation"
+  ],
+  "changes": [
+    "After UI setup and portrait extraction, clear the destination and bypass world candidate sorting/blending only when native UI text/backing and portrait sources are empty. Preserve backing resize, anchor updates, capture-flag cleanup and hardware simulation.",
+    "Keep the prior full pixel loop as a const-generic test reference; production compiles only the enabled shortcut. No persistent cache, guest timing or save-state layout is added."
+  ],
+  "validation": [
+    "Release suites passed 171 core and 48 runtime tests, with 5/3 optional cases ignored. Empty-row/reference tests cover 48 panel/target/blend configurations with nonempty world BGs and semitransparent world objects, stale destination contents, exact transparent pixels, unaffected rows and complete state equality.",
+    "The existing 48-configuration shared-background test now compares the shortcut with the previous full loop and seeds stale primary/extra/backing pixels. The preserved executable hash matches the accepted shared-background release.",
+    "Native release build passed. Five alternating 3530-frame battle pairs after 120 warm-up frames passed every framebuffer/OAM, complete final-state and dispatch-count comparison. Medians 7.890765/6.194050 ms show 21.5025 percent less host work versus the accepted shared-BG release, with every pair favoring the candidate.",
+    "UI capture means fell 4.466777/2.769615 ms. Core p95 9.480594/7.497194 ms and p99 9.905679/7.793264 ms improved in the separate profiles, with zero over-budget frames. The isolated maximum increased 10.770382/14.501617 ms; no universal rare-tail guarantee is claimed.",
+    "Five world-map pairs passed framebuffer/OAM, final state and counts: medians 1.977584/1.942254 ms, zero over-budget frames in both 1080-frame profiles. These are scene-specific results, not native hardware GPU timing.",
+    "An isolated copy with the new native runtime passed GUI load, 10-second resumed play, Undo load, reload, resumed play and clean close. Inspected loaded/Undo/reloaded gameplay screenshots. Detailed reports contain 987 frames, 157920 scanlines and zero invalid intervals; slot bytes and original ZIP hash were unchanged.",
+    "Closed the empty-row work unit in TASK_HANDOFF and queued validation of current desktop/container builds, especially Windows, before further renderer optimization. Completed replay and baseline tasks remain closed."
+  ],
+  "limitations": [
+    "The measured benefit is Linux headless host work, not an increase in the guest clock or proof of native Windows/Radeon/controller behavior. The original reported lag and rare maxima remain uncharacterized.",
+    "Current portable Docker archives predate the retained renderer changes and were not regenerated in this work unit. No persistent state, translation ABI or save-state format changed."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

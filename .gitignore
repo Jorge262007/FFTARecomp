@@ -1,4 +1,5 @@
 /target/
+/Data/
 /Installer/*.exe
 /Installer/payload/
 /Installer/Linux/
@@ -6,6 +7,7 @@
 /Installer/Licenses/
 *.gba
 *.sav
+*.ffstate
 *.input
 *.log
 *.o
@@ -24,3 +26,7 @@ ffta-input-diagnostic*.txt
 *.swp
 .idea/
 .vscode/
+
+# Local save fixture archive; never commit personal game progress.
+/saves.zip
+/saves/

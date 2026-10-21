@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "gate-realtime-audio-by-guest-frame",
+  "title": "Select one realtime audio profile interval by published guest frame",
+  "kind": "added",
+  "platforms": [
+    "Native Linux",
+    "Windows GNU / Wine / Docker"
+  ],
+  "changes": [
+    "Add optional FFTA_AUDIO_PROFILE_FRAMES=START:END to profile-enabled normal play, retaining context-separated callback timing and counts only for one producer-published frame traversal; close on end or timeline restore/rewind.",
+    "Keep DSP, callback code, queues and audio policy unchanged; no new callback lock, IO, allocation or clocks. Default play and callback-free benchmarks ignore the optional window."
+  ],
+  "validation": [
+    "Native runtime suite passed60 tests,4 optional ignored, including gate boundary/rewind/restore and actual callback output/queue/counter parity. Normal CPAL GUI same idle-battle600-frame window captures236/235 callbacks for faithful/enhanced, no faithful holds/drops/over-period callbacks; screenshots inspected.",
+    "Final Docker exports passed338 Windows/Wine and339 Linux tests,15 optional ignored each; archive integrity/privacy/docs/source hashes, resources/imported DLL set and GLIBC2.35 checks pass. Actual extracted Linux archive cold-cache GUI passes load/zoom/Undo/reload/resume/close; inspected battle/FPS/Undo captures, Vulkan without unexpected fallback. Undo interrupts the window and reload does not reopen it. Default-off ignores invalid window with no audio diagnostic rows; callback-free benchmark ignores it and matches240 reference frames without private writes.",
+    "The main.rs callback/DSP source is byte-identical to the preserved preimage. Native scene measurements predate only a guard avoiding optional no-stream profiling mutex work in callback-free benchmarks; the measured normal-play path is unchanged.",
+    "The lifecycle-window test observes1309 faithful holds in7 of222 playing callbacks, with0 drops/over-period callbacks; it includes transitions and concurrent native compilation and is not a steady-scene timing comparison. Retain this observation rather than asserting that all audio holds are absent.",
+    "Final native runtime/launcher build passes. Canonical local Windows/Linux archives updated only after checks; previous archives preserved under the current case."
+  ],
+  "limitations": [
+    "Native Windows/device timing, enhanced-source shortages and driver XRUNs remain unverified. One idle-scene pair is not an AI-turn, original-stall resolution or mode-performance comparison. Frame publication attributes callbacks to producer boundaries, not per-sample guest provenance; CPU/GPU profiles remain whole-session."
+  ],
+  "files": [
+    "crates/recomp/src/audio_profile.rs",
+    "crates/recomp/src/play.rs"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

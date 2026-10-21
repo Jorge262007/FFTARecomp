@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "measure-deferred-gpu-render-pass-time",
+  "title": "Measure optional GPU render-pass time with bounded deferred readback",
+  "kind": "added",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Add FFTA_GPU_TIMESTAMPS=1 alongside FFTA_PROFILE=1 to request supported render-pass timestamp queries. Default presentation requests no optional features and allocates no query resources. Retry device creation once without the optional feature if necessary.",
+    "Reuse three asynchronous readback slots, nonblocking device polling and a 18000-submission cap; skip busy samples and stop diagnostic capture after map/poll failures without blocking or disabling normal rendering. Report GPU render-pass durations separately from CPU submission/readback phases and count incomplete/skipped/failed capture."
+  ],
+  "validation": [
+    "Release Linux screen/runtime suites passed 41 and 50 tests (2 and 3 optional ignored); conversion/optional-feature selection and delayed-batch pending gauges passed.",
+    "Explicit GPU test passed on physical AMD Radeon 780M, RADV Vulkan/Mesa 26.0.8: three-slot backpressure, bounded submissions, deferred completion and exact RGBA equality with/without timestamp queries.",
+    "Windows GNU Docker build and Wine test suites passed 320 tests, with 10 optional cases ignored, including conversion and runtime report aggregation tests.",
+    "New runtime GUI under Xvfb/llvmpipe Vulkan passed load, zoom 6, Undo load, reload, resumed play and clean close with inspected screenshots. 897 timestamp pairs submitted, 896 completed, 1 pending at nonblocking shutdown, zero failures/invalid/busy skips. Readback polling/decoding averaged 0.059444 ms (p99 0.124735 ms); render pass mean 1.250164 ms on this software adapter, not hardware GPU performance.",
+    "Linux Docker export passed 321 tests (10 optional ignored). Both archive integrity/privacy checks, BUILD-INFO hashes, unchanged PE dependency sets/resources and Linux GLIBC 2.35 checks passed. Actual Linux portable export passed cold-cache load/Undo/zoom/reload/resume/clean close with both profiling variables absent; no diagnostic series or timestamp startup message was emitted. Source/input hashes remained unchanged and canonical local archives were refreshed, preserving prior exports."
+  ],
+  "limitations": [
+    "Native Windows GUI/timing and controlled total GUI overhead remain unverified. Physical Radeon GUI under Xvfb failed surface configuration identically in the previous runtime baseline; physical Vulkan headless test passed. Software Vulkan GUI passed; those measurements are not Radeon render-pass performance.",
+    "No per-scene/warm-up GPU labels yet; asynchronous aggregate samples include startup. Queued results at shutdown are reported as pending rather than awaited. Actual map/poll failure injection, unsupported-adapter GUI fallback and native Windows GPU paths remain unverified. Local archives are not a published release."
+  ],
+  "files": [
+    "crates/screen/src/gpu_timing.rs",
+    "crates/screen/src/present.rs",
+    "crates/recomp/src/perf.rs",
+    "crates/recomp/src/play.rs",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

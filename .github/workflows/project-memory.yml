@@ -1,0 +1,24 @@
+name: Project memory
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  memory:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - name: Test memory tooling
+        run: python3 -m unittest discover -s scripts/tests -p test_project_memory.py
+      - name: Check change documentation
+        env:
+          MEMORY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$MEMORY_BASE" ] && git cat-file -e "$MEMORY_BASE^{commit}" 2>/dev/null; then
+            python3 scripts/project_memory.py check --base "$MEMORY_BASE"
+          else
+            python3 scripts/project_memory.py check --metadata-only
+          fi

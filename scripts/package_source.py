@@ -6,7 +6,7 @@ root = Path(__file__).resolve().parents[1]
 dest = root / 'target/github-upload/FFTARecomp-source.zip'
 dest.parent.mkdir(parents=True, exist_ok=True)
 directories = {'.github', 'assets', 'crates', 'docs', 'Image', 'scripts', 'tools', 'Licenses'}
-suffixes = {'.exe', '.dll', '.so', '.dylib', '.gba', '.gb', '.gbc', '.sav', '.bin', '.o', '.bak', '.log', '.input', '.ppm', '.asm', '.pyc'}
+suffixes = {'.exe', '.dll', '.so', '.dylib', '.gba', '.gb', '.gbc', '.sav', '.ffstate', '.bin', '.o', '.bak', '.log', '.input', '.ppm', '.asm', '.pyc'}
 files = []
 for path in root.rglob('*'):
     if not path.is_file():

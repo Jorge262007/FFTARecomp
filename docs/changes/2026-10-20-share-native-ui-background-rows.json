@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "share-native-ui-background-rows",
+  "title": "Share immutable native UI backgrounds within each scanline",
+  "kind": "performance",
+  "platforms": [
+    "Root desktop renderer; native Linux headless and isolated Xvfb/llvmpipe validation"
+  ],
+  "changes": [
+    "Prepare native BG2/BG3 once per captured scanline and share them between primary/extra and normal/backing passes. Keep backing text filtering local, preserve the Stats panel mask, and do not retain data across scanlines or guest writes."
+  ],
+  "validation": [
+    "Release suites passed 170 core and 48 runtime tests, with 5/3 optional cases ignored. The strengthened reference fixture checks nonempty text/backing planes, BG-enable combinations, primary/extra and normal/action paths, Stats/Actions/Notice across all 160 scanlines in each of 48 configurations; complete final machine snapshots match fresh per-part preparation. The strengthened test and native release build passed.",
+    "The pre-change binary was preserved and its hash matches the accepted row-window release, without rebuilding or recreating existing fixtures.",
+    "Five alternating 3530-frame battle pairs after 120 warm-up frames passed all framebuffer/OAM, full final-state and dispatch-count checks. Baseline/candidate medians 8.244362/7.902728 ms show 4.14385 percent less host work versus the accepted row-window release; every pair favored the candidate.",
+    "Detailed UI capture means fell 4.781399/4.476117 ms. Core p95 9.894629/9.486562 ms and p99 10.327550/9.908776 ms improved in these profiles, with zero over-budget frames. The isolated maximum increased 10.862195/12.277206 ms, so no universal rare-tail improvement is claimed.",
+    "Five world-map pairs passed images, full final state and counts: medians 1.962043/1.950314 ms, a small difference rather than a separate world-map speedup claim. Both 1080-frame profiles had zero over-budget frames.",
+    "The new native runtime passed isolated GUI load, 10-second resumed play, Undo load, reload, resumed play and normal close with detailed profiling enabled. Inspected load/Undo/gameplay screenshots; reports contain 989 frames, 158240 scanlines and zero invalid intervals. Original ZIP hash and GUI slot bytes remained unchanged.",
+    "Updated TASK_HANDOFF to close prepared-BG reuse and select the distinct pending empty-UI-row shortcut, retaining completed baseline/fixture evidence and rejected experiments."
+  ],
+  "limitations": [
+    "The measured benefit is scene-specific native Linux host work, not proof of native Windows/Radeon/controller behavior or resolution of the originally reported lag. Rare maxima still vary.",
+    "No data persists across scanlines or guest writes; no guest clock, decision logic, save-state layout, translation ABI or GPU workload changed. Packaged release archives were not regenerated for this work unit."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

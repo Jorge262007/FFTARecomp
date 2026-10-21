@@ -2,6 +2,7 @@
 //! Guest writes and the existing terrain-edge policy remain unchanged.
 use crate::mem::MemMap;
 #[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct StageState {
     pub enabled: bool,
     pub bases: [Option<u32>; 2],

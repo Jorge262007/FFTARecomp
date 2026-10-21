@@ -42,12 +42,12 @@ pub enum StepEvent {
 impl Machine {
     /// Instruction observations only: CPU, memory and emulated time remain untouched.
     pub fn ffta_log_instruction(&mut self, pc: u32, native: bool) {
-        if crate::ffta_sprites::trace_enabled(self.bus.frames) && pc==0x030068a4 {
+        if pc == 0x030068a4 && crate::ffta_sprites::trace_enabled(self.bus.frames) {
             println!("FFTA_OTHER_PRODUCER frame={} pc={pc:08x} lr={:08x} regs={:08x?}",self.bus.frames,self.cpu.regs[14],self.cpu.regs);
         }
-        if crate::ffta_sprites::trace_enabled(self.bus.frames)
+        if (0x03006170..0x030065a8).contains(&pc)
             && ((12038..12046).contains(&self.bus.frames) || (12406..12414).contains(&self.bus.frames))
-            && (0x03006170..0x030065a8).contains(&pc) {
+            && crate::ffta_sprites::trace_enabled(self.bus.frames) {
             println!("FFTA_CULL_INSTR frame={} pc={pc:08x} native={native} cpsr={:08x} regs={:08x?}",self.bus.frames,self.cpu.cpsr,self.cpu.regs);
         }
         if let Some(log) = self.bus.ffta_diagnostics.as_mut() {
@@ -58,10 +58,14 @@ impl Machine {
     }
     /// Read-only diagnostics at known FFTA sprite routine entries.
     pub fn ffta_log_sprite_entry(&self, key: u32) {
+        // Most dispatches cannot produce this diagnostic. Reject them before
+        // touching the shared logging configuration.
+        if !matches!(key, 0x0800_14c9 | 0x0800_16d5 | 0x0800_12bd) {
+            return;
+        }
         static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         if !*ENABLED.get_or_init(|| std::env::var("FFTA_OAM_LOG").as_deref() == Ok("1"))
             || self.bus.frames % 30 != 0
-            || !matches!(key, 0x0800_14c9 | 0x0800_16d5 | 0x0800_12bd)
         { return; }
         let stack = (0..6).map(|i| {
             let addr = self.cpu.regs[13].wrapping_add(i * 4);

@@ -1,5 +1,13 @@
 # FFTA character and scene OBJ: runtime publication fix
 
+Regional metadata correction (ROMDATA-04): the EUR main draw routines use the
+direct ROM dimensions at0x14ced8, not the copied IWRAM table. The host decoder
+now follows that original source in both legacy and decoded modes; battle and
+visibility code retain mutable IWRAM dimensions. A48-case EUR/USA matrix checks
+the actual original instructions, registers/cycles, writes and host attributes.
+See [decoded metadata runtime](rom_data_runtime.md) for file-backed consumption,
+the additional EUR copied alias, source provenance and remaining scene limits.
+
 MEDIDO: native battle DMA submits OAM in at least two pieces:
 
 ```text

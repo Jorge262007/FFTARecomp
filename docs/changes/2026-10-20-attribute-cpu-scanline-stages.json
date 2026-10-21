@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "attribute-cpu-scanline-stages",
+  "title": "Attribute CPU scanline cost to disjoint optional profiling stages",
+  "kind": "changed",
+  "platforms": [
+    "Root desktop runtime; native Linux validation"
+  ],
+  "changes": [
+    "Add FFTA_PPU_STAGES opt-in stage attribution for BG, OBJ, composition, native UI capture and line-zero UI setup, with a residual that partitions hardware scanline time. Keep captures scoped, thread-local, bounded and outside serialized machine state.",
+    "Read the detailed flag at profiler construction, preserve coarse-only profiling and avoid extra stage clock reads when disabled. Include relocated wide passes and keep nested UI preparation within its parent rather than double-counting it.",
+    "Validate and retain optional scanline-stage rows in the existing comparison script, preserving compatibility with older baseline executables. Reuse the completed enemy replay to validate this new instrumentation."
+  ],
+  "validation": [
+    "Release core/runtime suites passed: 168 core and 48 runtime tests, with 5/3 optional cases ignored. Detailed capture tests check full machine-state equality across forced blank and modes 0/1/2/3, stage containment, thread isolation and nested capture restoration.",
+    "All 12 benchmark script tests passed, including new stage partition checks for missing/duplicate/nonfinite/inconsistent reports and rejection during uninstrumented timing. Native Linux release build passed.",
+    "Completed five alternating 3530-frame pairs on the existing enemy replay with 120 warm-up frames. Every framebuffer/OAM capture, full final state and dispatch count matched the preserved baseline; summary passed and the process exited 0.",
+    "Uninstrumented baseline/candidate medians were 8.289029/8.317234 ms, a 0.3403 percent increase in this comparison. Candidate detailed capture measured 8.373327 ms, an estimated 0.6744 percent overhead versus its own uninstrumented median. Both 3410-frame profiles had zero over-budget frames and no invalid intervals.",
+    "Candidate stage means were BG 0.246104 ms, OBJ 0.287876 ms, composition 0.531136 ms, UI capture 4.911876 ms, UI setup 0.070950 ms and residual 0.078428 ms. These partition scanline time; UI capture accounts for about 80 percent of scanlines and 59 percent of core time. No rejected selector experiment was repeated.",
+    "Marked the instrumentation subtask complete in TASK_HANDOFF, retained completed fixture/baseline decisions and selected a distinct pending UI row-invariant optimization. The comparison summary retains input/binary hashes and confirms the supplied inputs stayed unchanged.",
+    "The later row-window candidate exercised the same detailed desktop profiler through an isolated Xvfb GUI load/Undo/reload/close check: 988 completed frames, all six stage reports and no invalid intervals. This checks desktop integration, not hardware GPU timing."
+  ],
+  "limitations": [
+    "No rendering algorithm, guest timing or GPU workload is optimized by this diagnostic change. Native Windows and hardware GPU detailed reports remain unverified.",
+    "Timing differences and profiling overhead are estimates from one native Linux comparison; no production speedup or universal overhead bound is claimed. Stage attribution covers scanlines, with zoom and actual GPU execution remaining separate."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "crates/gba-core/src/ppu_profile.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/perf.rs",
+    "crates/recomp/src/play.rs",
+    "scripts/benchmark_windows_runtime.py",
+    "scripts/tests/test_benchmark_runtime.py",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

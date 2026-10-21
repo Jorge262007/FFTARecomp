@@ -29,6 +29,11 @@ fn ffta_oam_log_enabled() -> bool {
     *ENABLED.get_or_init(|| std::env::var("FFTA_OAM_LOG").as_deref() == Ok("1"))
 }
 
+fn trace_sound_dma() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("RECOMP_TRACE_SDMA").is_some())
+}
+
 const DISPSTAT: u32 = 0x0400_0004;
 const VCOUNT: u32 = 0x0400_0006;
 const KEYINPUT: u32 = 0x0400_0130;
@@ -107,6 +112,7 @@ pub fn render_height() -> usize {
 pub const HBLANK_FLAG_CYCLE: u64 = 1006;
 
 #[derive(Default, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Timer {
     reload: u16,
     control: u8,
@@ -132,6 +138,7 @@ impl Timer {
 }
 
 #[derive(Default, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Dma {
     src: u32,
     dst: u32,
@@ -162,13 +169,17 @@ impl Dma {
 
 /// Video event phase within the current scanline.
 #[derive(Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize)]
 enum VPhase {
     Hblank,
     LineEnd,
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct MemMap {
+    #[serde(skip)]
     pub ffta_diagnostics: Option<Box<crate::ffta_log::Diagnostics>>,
+    #[serde(skip)]
     pub bios: Vec<u8>,
     pub ewram: Vec<u8>,
     pub iwram: Vec<u8>,
@@ -176,12 +187,16 @@ pub struct MemMap {
     pub palette: Vec<u8>,
     pub vram: Vec<u8>,
     pub oam: Vec<u8>,
+    #[serde(skip)]
     pub rom: Vec<u8>,
+    #[serde(skip)]
+    pub(crate) rom_resources: Option<std::sync::Arc<crate::rom_data::RuntimeResources>>,
     /// Verified, per-cartridge terrain edge policy; never modifies guest memory.
     pub(crate) ffta_bg_edge: crate::ppu::FftaBgEdge,
     pub ffta_sprites: crate::ffta_sprites::SpriteState,
     pub ffta_movement: crate::ffta_movement::MovementState,
     pub ffta_stage: crate::ffta_stage::StageState,
+    #[serde(skip)]
     pub ffta_battle_mouse: crate::ffta_battle_mouse::State,
     pub sram: Vec<u8>,
 
@@ -224,6 +239,7 @@ pub struct MemMap {
     /// render_width()), column i = screen column i - extra(), row j =
     /// screen row j - extra_y(). Allocated for the maximum size.
     pub wide_framebuffer: Vec<u16>,
+    #[serde(skip)]
     pub(crate) zoom_scratch: Vec<u16>,
     pub ffta_dialogue: crate::ffta_dialogue::DialogueState,
     /// Affine BG reference-point accumulators (bg2x, bg2y, bg3x, bg3y),
@@ -303,6 +319,24 @@ pub const AUDIO_SAMPLE_CYCLES: u64 = 256;
 pub const AUDIO_RATE_HZ: u32 = ((1u64 << 24) / AUDIO_SAMPLE_CYCLES) as u32;
 
 impl MemMap {
+    pub(crate) fn validate_state(&self, current: &Self) -> Result<(), String> {
+        let lengths = [(&self.ewram, 0x40000), (&self.iwram, 0x8000),
+            (&self.io, 0x400), (&self.palette, 0x400), (&self.vram, 0x18000),
+            (&self.oam, 0x400), (&self.sram, 0x10000)];
+        if lengths.iter().any(|(v, n)| v.len() != *n)
+            || self.framebuffer.len() != current.framebuffer.len()
+            || self.wide_framebuffer.len() != current.wide_framebuffer.len()
+            || self.backup != current.backup || self.real_bios != current.real_bios
+            || self.flash.as_ref().map(|v| v.data.len()) != current.flash.as_ref().map(|v| v.data.len())
+            || self.eeprom.as_ref().map(|v| v.data.len()) != current.eeprom.as_ref().map(|v| v.data.len())
+            || self.rtc.is_some() != current.rtc.is_some()
+            || self.vline_start > self.clock || self.audio_cursor > self.clock.saturating_add(AUDIO_SAMPLE_CYCLES)
+            || self.fifo.iter().any(|f| f.len() > 32)
+        {
+            return Err("Invalid or incompatible machine state".into());
+        }
+        Ok(())
+    }
     pub fn new(rom: Vec<u8>) -> MemMap {
         let backup = backup::detect(&rom);
         let flash = match backup {
@@ -336,6 +370,7 @@ impl MemMap {
             vram: vec![0; 0x1_8000],
             oam: vec![0; 0x400],
             rom,
+            rom_resources: None,
             sram: vec![0xFF; 0x1_0000],
             clock: 0,
             reg_ie: 0,
@@ -460,17 +495,51 @@ impl MemMap {
         self.ime && self.irq_line()
     }
 
+    /// Native scheduling allowance, derived without advancing guest time.
+    /// A deferred event already due grants no cycles.
+    pub(crate) fn cycles_until_event(&self) -> u64 {
+        self.next_event.saturating_sub(self.clock)
+    }
+
     /// Advance the master clock and process any due events, generating
     /// audio grid samples up to each event first so they see the DAC/PSG
     /// state that was current at their own instants.
     pub fn tick(&mut self, cycles: u64) {
-        self.clock += cycles;
-        while self.clock >= self.next_event {
-            let ev = self.next_event;
-            self.pump_audio(ev);
-            self.process_events();
+        self.advance_clock::<true>(cycles);
+    }
+
+    /// Service events at their own clock, not at the end of a native tick batch.
+    /// DMA steals extend the endpoint; they must not consume the caller's cycles.
+    /// During an active DMA only timers may preempt it: processing video here
+    /// could start the same still-enabled transfer again before it completes.
+    fn advance_clock<const VIDEO: bool>(&mut self, cycles: u64) {
+        let mut end = self.clock + cycles;
+        loop {
+            let event = if VIDEO {
+                self.next_event
+            } else {
+                (0..4).filter_map(|i| self.timer_overflow_time(i)).min().unwrap_or(u64::MAX)
+            };
+            if event > end {
+                break;
+            }
+            // A DMA may have crossed a video boundary while video was deferred.
+            // Never rewind the clock when servicing that overdue event.
+            self.clock = self.clock.max(event);
+            self.pump_audio(self.clock);
+            let before = self.clock;
+            if VIDEO {
+                self.process_events();
+            } else {
+                self.advance_timers();
+            }
+            end += self.clock - before;
         }
+        self.clock = self.clock.max(end);
         self.pump_audio(self.clock);
+        if !VIDEO {
+            self.recompute_next_event();
+        }
     }
 
     /// Generate audio samples on the 65536 Hz grid up to `until` (capped
@@ -641,13 +710,7 @@ impl MemMap {
 
     /// Jump the clock to the next event (used while halted/waiting).
     pub fn skip_to_next_event(&mut self) {
-        self.clock = self.clock.max(self.next_event);
-        while self.clock >= self.next_event {
-            let ev = self.next_event;
-            self.pump_audio(ev);
-            self.process_events();
-        }
-        self.pump_audio(self.clock);
+        self.tick(self.next_event.saturating_sub(self.clock));
     }
 
     fn video_due(&self) -> u64 {
@@ -902,9 +965,9 @@ impl MemMap {
                 Some(s) => self.fifo_sample[f] = s,
                 None => {
                     self.fifo_underruns[f] += 1;
-                    if std::env::var_os("RECOMP_TRACE_SDMA").is_some()
-                        && f == 0
+                    if f == 0
                         && self.fifo_underruns[0] % 200 == 1
+                        && trace_sound_dma()
                     {
                         let d = &self.dma[1];
                         eprintln!(
@@ -936,8 +999,7 @@ impl MemMap {
                         && self.dma[ch].cur_dst & !3 == fifo_addr
                     {
                         self.fifo_refills[f] += 1;
-                        if std::env::var_os("RECOMP_TRACE_SDMA").is_some()
-                            && self.fifo_refills[f] % 64 == 1
+                        if self.fifo_refills[f] % 64 == 1 && trace_sound_dma()
                         {
                             eprintln!(
                                 "sdma f{f} ch{ch} refill#{} src={:08x} clock={}",
@@ -1054,9 +1116,7 @@ impl MemMap {
             // interleave — otherwise a big graphics/overlay copy starves
             // the FIFO for its whole duration (audible ~1-2 ms dropouts).
             if !sound_mode && done % 16 == 0 {
-                self.clock += 32;
-                self.advance_timers();
-                self.pump_audio(self.clock);
+                self.advance_clock::<false>(32);
             }
         }
 
@@ -1102,7 +1162,7 @@ impl MemMap {
         } else {
             (count as u64 / 16) * 32
         };
-        self.clock += 2 * count as u64 + 4 - accounted;
+        self.advance_clock::<false>(2 * count as u64 + 4 - accounted);
 
         // An EEPROM request is exactly one DMA; the end of the transfer
         // delimits the serial bitstream.
@@ -1361,6 +1421,10 @@ impl MemMap {
 }
 
 impl Bus for MemMap {
+    fn decoded_base_palette(&self, source: u32) -> Option<crate::rom_data::PaletteRead> {
+        self.rom_resources.as_ref()?.decoded_palette(source)
+    }
+
     fn read8(&mut self, addr: u32) -> u8 {
         match addr >> 24 {
             0x00 => {
@@ -1403,6 +1467,11 @@ impl Bus for MemMap {
                 }
                 let idx = Self::rom_index(addr);
                 if idx < self.rom.len() {
+                    if Self::resource_page(idx) {
+                        if let Some(bytes) = self.rom_resources.as_ref().and_then(|r| r.guest_read::<1>(idx, &self.rom)) {
+                            return bytes[0];
+                        }
+                    }
                     self.rom[idx]
                 } else {
                     Self::rom_open_bus(addr)
@@ -1524,6 +1593,11 @@ impl Bus for MemMap {
                 }
                 let idx = Self::rom_index(addr);
                 if idx + 2 <= self.rom.len() {
+                    if Self::resource_page(idx) {
+                        if let Some(bytes) = self.rom_resources.as_ref().and_then(|r| r.guest_read::<2>(idx, &self.rom)) {
+                            return u16::from_le_bytes(bytes);
+                        }
+                    }
                     u16::from_le_bytes([self.rom[idx], self.rom[idx + 1]])
                 } else {
                     self.rd16_bytes(addr)
@@ -1595,6 +1669,11 @@ impl Bus for MemMap {
                 }
                 let idx = Self::rom_index(addr);
                 if idx + 4 <= self.rom.len() {
+                    if Self::resource_page(idx) {
+                        if let Some(bytes) = self.rom_resources.as_ref().and_then(|r| r.guest_read::<4>(idx, &self.rom)) {
+                            return u32::from_le_bytes(bytes);
+                        }
+                    }
                     u32::from_le_bytes(self.rom[idx..idx + 4].try_into().unwrap())
                 } else {
                     self.rd32_halves(addr)
@@ -1804,6 +1883,117 @@ mod tests {
         mem.note_fetch(0x0800_0000);
         assert_eq!(mem.read32(0x100), 0x1234_5678);
         assert_eq!(mem.read8(0x0), 0x78);
+    }
+
+    fn timer_audio_fixture(period: u16) -> MemMap {
+        let mut mem = MemMap::new(vec![]);
+        mem.tap_channels = true;
+        mem.write16(0x0400_0084, 0x80);
+        mem.write16(0x0400_0082, 0x0304); // FIFO A, both sides, full volume.
+        for sample in 1..=32u8 {
+            mem.write8(0x0400_00A0, sample);
+        }
+        mem.write16(0x0400_0100, 0u16.wrapping_sub(period));
+        mem.write16(0x0400_0102, 0xC0);
+        mem
+    }
+
+    fn assert_same_timer_audio(mut expected: MemMap, mut actual: MemMap) {
+        // Timer counters are lazy; synchronize both at the common final clock.
+        expected.advance_timers();
+        actual.advance_timers();
+        assert_eq!(actual.clock, expected.clock);
+        assert_eq!(actual.audio_buf, expected.audio_buf, "mixed samples");
+        assert_eq!(actual.fifo_tap, expected.fifo_tap, "FIFO event stream");
+        assert_eq!(postcard::to_allocvec(&actual).unwrap(),
+                   postcard::to_allocvec(&expected).unwrap(), "complete bus state");
+    }
+
+    #[test]
+    fn timer_audio_is_independent_of_tick_batch_size() {
+        for period in [64, 127, 128, 255, 256, 257] {
+            for batch in [2, 7, 32, 600] {
+                let mut expected = timer_audio_fixture(period);
+                let mut actual = timer_audio_fixture(period);
+                for _ in 0..4096 { expected.tick(1); }
+                let mut left = 4096;
+                while left > 0 {
+                    let n = left.min(batch);
+                    actual.tick(n);
+                    left -= n;
+                }
+                assert_same_timer_audio(expected, actual);
+            }
+        }
+    }
+
+    #[test]
+    fn timer_audio_batches_preserve_two_timers_cascade_and_hblank_dma() {
+        for control in [0xC0, 0xC1, 0xC2, 0xC3, 0xC4] {
+            let fixture = || {
+                let mut mem = timer_audio_fixture(127);
+                mem.write16(0x0400_0082, 0x730C); // FIFO B on timer 1.
+                for sample in 1..=32u8 { mem.write8(0x0400_00A4, sample * 3); }
+                mem.write16(0x0400_0104, 0xFFFB);
+                mem.write16(0x0400_0106, control);
+                for i in 0..1024u32 { mem.write32(0x0200_0000 + i * 4, i); }
+                mem.write32(0x0400_00D4, 0x0200_0000);
+                mem.write32(0x0400_00D8, 0x0300_0000);
+                mem.write16(0x0400_00DC, 8);
+                mem.write16(0x0400_00DE, 0xA600); // Repeat HBlank, words.
+                mem
+            };
+            let mut expected = fixture();
+            let mut actual = fixture();
+            for _ in 0..8192 { expected.tick(1); }
+            actual.tick(8192);
+            assert!(expected.clock > 8192, "HBlank DMA must steal cycles");
+            assert!(!expected.fifo_tap[1].is_empty(), "timer 1 must drive FIFO B");
+            assert_same_timer_audio(expected, actual);
+        }
+    }
+
+    #[test]
+    fn timer_audio_skip_matches_clocked_execution() {
+        let mut expected = timer_audio_fixture(128);
+        let mut actual = timer_audio_fixture(128);
+        for _ in 0..512 { expected.tick(1); }
+        while actual.clock < 512 { actual.skip_to_next_event(); }
+        assert_same_timer_audio(expected, actual);
+    }
+
+    #[test]
+    fn graphics_dma_preserves_audio_sample_timer_ties_and_cycle_cost() {
+        let mut mem = timer_audio_fixture(128);
+        for i in 0..300u32 { mem.write32(0x0200_0000 + i * 4, i); }
+        mem.write32(0x0400_00D4, 0x0200_0000);
+        mem.write32(0x0400_00D8, 0x0300_0000);
+        mem.write16(0x0400_00DC, 300);
+        mem.write16(0x0400_00DE, 0x8400);
+        assert_eq!(mem.clock, 604); // 2 cycles/word + 4 setup.
+        assert_eq!(mem.read32(0x0300_0000 + 299 * 4), 299);
+        // Samples at 0,256,512 precede a timer overflow at the same instant.
+        assert_eq!(mem.audio_buf, [0, 0, 64, 64, 192, 192]);
+    }
+
+    #[test]
+    fn sound_dma_preserves_audio_across_tick_batches_and_stolen_cycles() {
+        let fixture = || {
+            let mut mem = timer_audio_fixture(128);
+            for i in 0..1024u32 { mem.write8(0x0200_0000 + i, i as u8); }
+            mem.write32(0x0400_00BC, 0x0200_0000);
+            mem.write32(0x0400_00C0, 0x0400_00A0);
+            mem.write16(0x0400_00C4, 4);
+            mem.write16(0x0400_00C6, 0xB640); // Repeat, special timing, words, fixed dst.
+            mem
+        };
+        let mut expected = fixture();
+        let mut actual = fixture();
+        for _ in 0..6000 { expected.tick(1); }
+        actual.tick(6000);
+        assert!(expected.fifo_refills[0] > 0);
+        assert_eq!(expected.clock, 6000 + expected.fifo_refills[0] * 12);
+        assert_same_timer_audio(expected, actual);
     }
 
     #[test]

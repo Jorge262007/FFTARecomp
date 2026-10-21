@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "validate-optimized-desktop-exports",
+  "title": "Validate and refresh desktop archives for the retained renderer optimizations",
+  "kind": "docs",
+  "platforms": [
+    "Windows x86_64 GNU via Docker/Wine 10",
+    "Linux Bookworm export and Ubuntu Xvfb runtime"
+  ],
+  "changes": [
+    "Rebuild the current profiling/window/background/empty-row renderer with the existing pinned desktop containers and cached dependencies. Export first to a fresh ignored validation directory, preserving old canonical archives.",
+    "After successful validation, atomically replace local dist/docker-windows and dist/docker-linux archives and BUILD-INFO files. Preserve previous exports under the ignored validation directory; no remote release or publication is performed.",
+    "Close current desktop build coverage in TASK_HANDOFF and select the distinct missing high-zoom workload characterization. Keep native Windows, physical controllers and hardware GPU timing unverified."
+  ],
+  "validation": [
+    "Windows/MinGW container gates passed 317 tests: 171 core, 26 input/config, 33 menu, 49 runtime and 38 screen; nine optional cases ignored. Linux Bookworm gates passed 318: 171 core, 26 input/config, 33 menu, 48 runtime and 40 screen; nine optional cases ignored.",
+    "Both archives passed integrity, path/member, required runtime/loader, executable-format, empty-Data-scaffold and private-data checks. Only the expected TinyCC DLL/shared library is shipped, with required source/ABI files and license notices; no ROM, save, recording, generated game library or test DLL is included.",
+    "Windows PE resources are present and dependency sets equal the prior exports for runtime, launcher and TinyCC. Linux runtime maximum required GLIBC symbol version remains 2.35. Recorded renderer/Cargo/Docker source hashes stayed unchanged and archive hashes match BUILD-INFO.",
+    "The exported Windows runtime under host Wine passed all 3530 per-frame framebuffer/OAM captures, complete final state and dispatch-count comparisons against both the previous Windows export and validated native Linux replay. Existing Windows translation and read-only fixtures were reused; this is correctness evidence, not native Windows performance timing.",
+    "A fresh copy of the exported Linux package passed cold-cache launch, battle load, resumed play, Undo load, reload, resumed play and clean close under Xvfb/llvmpipe. Screenshots confirmed messages/preview/gameplay; detailed reports contain 1001 frames, 160160 scanlines and zero invalid intervals. Original ZIP hash and slot bytes stayed unchanged."
+  ],
+  "limitations": [
+    "Native Windows/Desktop/PowerShell, hardware Radeon/GPU timing, physical controllers and older-distro/Steam Deck runtime compatibility are not established by these container/Wine/Xvfb checks.",
+    "Packaged archives are local build outputs, not a published release. Correctness replay timing is not used as a new speedup claim; the originally reported slow turn remains uncharacterized."
+  ],
+  "files": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ],
+  "references": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

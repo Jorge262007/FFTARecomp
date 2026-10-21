@@ -82,12 +82,14 @@ fn visible_col(i: usize) -> Option<usize> {
 
 /// Window tests use hardware screen coordinates; margin columns inherit
 /// the nearest visible edge column.
+#[cfg(test)]
 fn win_x(i: usize) -> u8 {
     (i as isize - extra() as isize).clamp(0, VISIBLE_WIDTH as isize - 1) as u8
 }
 
 /// Store one composed pixel: always into the wide buffer, and into the
 /// legacy 240-wide framebuffer when the column is on the visible screen.
+#[cfg(test)]
 fn put_pixel(mem: &mut MemMap, line: usize, i: usize, color: u16) {
     let rw = render_width();
     let row = if mem.ffta_movement.zoom_output {
@@ -116,6 +118,7 @@ pub fn render_ffta_zoom_rows(mem: &mut MemMap) {
     if !ffta_zoom_rows_ready(mem) {
         return;
     }
+    let _profile = crate::ppu_profile::zoom_timer();
     let rw = render_width();
     mem.wide_framebuffer.copy_within(0..160 * rw, ey * rw);
     if mem.ffta_dialogue.extra.kind == crate::ffta_dialogue::PanelKind::Stats {
@@ -354,7 +357,10 @@ fn render_zoom_lane(
 }
 
 pub fn render_scanline(mem: &mut MemMap, line: usize) {
+    let _profile = crate::ppu_profile::scanline_timer();
+    use crate::ppu_profile::{scanline_stage_timer, ScanlineStage};
     if line == 0 {
+        let _setup = scanline_stage_timer(ScanlineStage::UiSetup);
         begin_dialogue_frame(mem);
         mem.ffta_movement.sky_edges[0] = pal16(mem, 0);
     }
@@ -404,6 +410,7 @@ pub fn render_scanline(mem: &mut MemMap, line: usize) {
     let mut bg_lines = [[TRANSPARENT; MAX_RENDER_WIDTH]; 4];
     let mut bg_used = [false; 4];
 
+    let bg_timer = scanline_stage_timer(ScanlineStage::Backgrounds);
     match mode {
         0 => {
             for bg in 0..4 {
@@ -442,13 +449,18 @@ pub fn render_scanline(mem: &mut MemMap, line: usize) {
         _ => {}
     }
 
+    drop(bg_timer);
+
     // Sprites.
     let mut obj_line = [OBJ_EMPTY; MAX_RENDER_WIDTH];
     let mut obj_window = [false; MAX_RENDER_WIDTH];
     let mut line_has_semi = false;
+    let obj_timer = scanline_stage_timer(ScanlineStage::Objects);
     if dispcnt & 0x1000 != 0 {
         line_has_semi = render_sprites(mem, dispcnt, line, &mut obj_line, &mut obj_window);
     }
+
+    drop(obj_timer);
 
     // Step affine accumulators for the next line (PB/PD).
     mem.aff_ref[0] = mem.aff_ref[0].wrapping_add(io16(mem, 0x22) as i16 as i32);
@@ -456,6 +468,7 @@ pub fn render_scanline(mem: &mut MemMap, line: usize) {
     mem.aff_ref[2] = mem.aff_ref[2].wrapping_add(io16(mem, 0x32) as i16 as i32);
     mem.aff_ref[3] = mem.aff_ref[3].wrapping_add(io16(mem, 0x36) as i16 as i32);
 
+    let composition_timer = scanline_stage_timer(ScanlineStage::Composition);
     compose(
         mem,
         dispcnt,
@@ -466,24 +479,38 @@ pub fn render_scanline(mem: &mut MemMap, line: usize) {
         &obj_window,
         line_has_semi,
     );
+    drop(composition_timer);
+    let ui_timer = scanline_stage_timer(ScanlineStage::UiCapture);
     if mem.ffta_dialogue.separate {
-        if mem.ffta_dialogue.placement.is_some() {capture_dialogue_row(mem,dispcnt,line,&bg_lines,&bg_used,&obj_line,&obj_window,false);}
-        if mem.ffta_dialogue.extra.active() {capture_dialogue_row(mem,dispcnt,line,&bg_lines,&bg_used,&obj_line,&obj_window,true);}
+        let primary=mem.ffta_dialogue.placement.is_some();
+        let extra=mem.ffta_dialogue.extra.active();
+        if primary || extra {
+            let needs_bg=primary || (extra && mem.ffta_dialogue.extra.kind!=crate::ffta_dialogue::PanelKind::Stats);
+            let rows=UiBgRow::new(mem,line,&bg_used,needs_bg);
+            if primary {capture_dialogue_row(mem,dispcnt,line,&bg_lines,&bg_used,&obj_line,&obj_window,false,&rows);}
+            if extra {capture_dialogue_row(mem,dispcnt,line,&bg_lines,&bg_used,&obj_line,&obj_window,true,&rows);}
+        }
     }
+    drop(ui_timer);
     if mem.ffta_dialogue.placement.is_some() || mem.ffta_dialogue.extra.active() {
         // Keep the hardware framebuffer untouched. Only the host wide view
         // receives relocated UI; reuse the world BG rows already rendered.
         mem.ffta_dialogue.wide_pass = true;
+        let bg_timer = scanline_stage_timer(ScanlineStage::Backgrounds);
         for bg in 2..4 {
             if bg_used[bg] {
                 render_text_bg(mem, bg, line, &mut bg_lines[bg]);
             }
         }
+        drop(bg_timer);
+        let obj_timer = scanline_stage_timer(ScanlineStage::Objects);
         obj_line.fill(OBJ_EMPTY);
         obj_window.fill(false);
         let semi = if dispcnt & 0x1000 != 0 {
             render_sprites(mem, dispcnt, line, &mut obj_line, &mut obj_window)
         } else {false};
+        drop(obj_timer);
+        let _composition = scanline_stage_timer(ScanlineStage::Composition);
         compose(mem, dispcnt, line, &bg_lines, &bg_used, &obj_line, &obj_window, semi);
         mem.ffta_dialogue.wide_pass = false;
     }
@@ -524,6 +551,28 @@ fn action_banner_bounds(mem:&MemMap)->Option<[i32;4]> {
     if !(l+8..r-8).step_by(8).all(|x|entry(x,t)==0xb033 && entry(x,b-8)==0xb833){return None;}
     Some([l as i32,t as i32,r as i32,b as i32])
 }
+// The laws table shares the action BG registers but is one centered modal,
+// not the left HUD/right action list. Match its frame, never translated text.
+fn laws_bounds(mem: &MemMap) -> Option<[i32; 4]> {
+    if io16(mem, 0) & 0xe000 != 0 { return None; }
+    let base = ((io16(mem, 14) >> 8) & 31) as usize * 0x800;
+    let tile = |x: usize, y: usize| {
+        let off = base + (y * 32 + x) * 2;
+        u16::from_le_bytes([mem.vram[off], mem.vram[off + 1]])
+    };
+    if tile(1, 9) != 0x70e1 || tile(26, 9) != 0x74e1
+        || tile(1, 15) != 0x70ee || tile(26, 15) != 0x74ee
+        || !(2..26).all(|x| tile(x, 9) == 0x70e2 && tile(x, 15) == 0x70ef)
+        || ![11, 13].into_iter().all(|y| {
+            tile(1, y) == 0x70f3 && tile(13, y) == 0x70fe && tile(25, y) == 0x80f5
+                && tile(1, y + 1) == 0x70f6 && tile(13, y + 1) == 0x70ff && tile(25, y + 1) == 0x80f8
+        }) { return None; }
+    // Include the arrow's one-tile left overhang. Select opens HELP above the
+    // table without enabling WIN0, unlike the ordinary Notice recognizer.
+    let help = [(2, 2, 0xb00d), (27, 2, 0xb00e), (2, 7, 0xb00f), (27, 7, 0xb010)]
+        .into_iter().all(|(x, y, value)| tile(x, y) == value);
+    Some(if help { [0, 16, 224, 128] } else { [0, 72, 216, 128] })
+}
 fn notice_bounds(mem:&MemMap)->Option<[i32;4]> {
     if io16(mem,0)&0x6000!=0x2000 || io16(mem,0x48)&63!=31 || io16(mem,0x4a)&32==0 {return None;}
     let h=io16(mem,0x40);let v=io16(mem,0x44);
@@ -546,6 +595,7 @@ fn begin_dialogue_frame(mem: &mut MemMap) {
     mem.ffta_dialogue.town_layout=false;
     mem.ffta_dialogue.shop_layout=false;
     mem.ffta_dialogue.site_layout=false;
+    mem.ffta_dialogue.laws_layout=false;
     mem.ffta_dialogue.extra.kind=crate::ffta_dialogue::PanelKind::None;
     mem.ffta_dialogue.extra.bounds=None;
     let site_menu=if mem.ffta_dialogue.separate {
@@ -609,7 +659,9 @@ fn begin_dialogue_frame(mem: &mut MemMap) {
     }
     if action {mem.ffta_dialogue.action_banner=action_banner_bounds(mem);}
     if action {
-        if let Some(bounds)=notice_bounds(mem) {
+        let laws = laws_bounds(mem);
+        mem.ffta_dialogue.laws_layout = laws.is_some();
+        if let Some(bounds)=laws.or_else(||notice_bounds(mem)) {
             mem.ffta_dialogue.extra.kind=crate::ffta_dialogue::PanelKind::Notice;
             mem.ffta_dialogue.extra.bounds=Some(bounds);
         }
@@ -670,38 +722,120 @@ fn begin_dialogue_frame(mem: &mut MemMap) {
     }
 }
 
+/// Immutable native planes shared only within a scanline, never across guest writes.
+struct UiBgRow { text: Line, backing: Line }
+impl UiBgRow {
+    fn new(mem:&MemMap,line:usize,used:&[bool;4],enabled:bool)->Self {
+        let mut rows=Self {text:[TRANSPARENT;MAX_RENDER_WIDTH],backing:[TRANSPARENT;MAX_RENDER_WIDTH]};
+        if enabled && used[2] {render_text_bg_hardware(mem,2,line,&mut rows.text,0,240);}
+        if enabled && used[3] {render_text_bg_hardware(mem,3,line,&mut rows.backing,0,240);}
+        rows
+    }
+}
+
 /// Extract native UI plus GBA blend coefficients. Guest buffers are never modified.
 fn capture_dialogue_row(mem:&mut MemMap,dispcnt:u16,line:usize,
     world_bg:&[Line;4],used:&[bool;4],world_obj:&[ObjPixel;MAX_RENDER_WIDTH],
-    world_window:&[bool;MAX_RENDER_WIDTH],extra_panel:bool) {
-    capture_dialogue_part(mem,dispcnt,line,world_bg,used,world_obj,world_window,extra_panel,false);
+    world_window:&[bool;MAX_RENDER_WIDTH],extra_panel:bool,rows:&UiBgRow) {
+    capture_dialogue_part::<true,true>(mem,dispcnt,line,world_bg,used,world_obj,world_window,extra_panel,false,rows);
     if mem.ffta_dialogue.action_layout || (extra_panel && mem.ffta_dialogue.extra.kind==crate::ffta_dialogue::PanelKind::Stats) {
-        capture_dialogue_part(mem,dispcnt,line,world_bg,used,world_obj,world_window,extra_panel,true);
+        capture_dialogue_part::<true,true>(mem,dispcnt,line,world_bg,used,world_obj,world_window,extra_panel,true,rows);
     }
 }
-fn capture_dialogue_part(mem:&mut MemMap, dispcnt:u16, line:usize,
+/// Window registers and vertical membership do not change during UI extraction.
+/// Keep WIN0 before WIN1, then OBJ window, then outside, as in hardware compose.
+struct UiWindowRow {
+    any: bool,
+    obj: bool,
+    win0: (bool, u16),
+    win1: (bool, u16),
+    winin: u16,
+    winout: u16,
+}
+impl UiWindowRow {
+    fn new(mem: &MemMap, dispcnt: u16, line: usize) -> Self {
+        let window = |bit, h, v| {
+            let vertical = io16(mem, v);
+            (dispcnt & bit != 0 && in_window_range((vertical >> 8) as u8, vertical as u8, line as u8), io16(mem, h))
+        };
+        Self {
+            any: dispcnt & 0xe000 != 0, obj: dispcnt & 0x8000 != 0,
+            win0: window(0x2000, 0x40, 0x44), win1: window(0x4000, 0x42, 0x46),
+            winin: io16(mem, 0x48), winout: io16(mem, 0x4a),
+        }
+    }
+    fn control(&self, x: u8, object_window: bool) -> u16 {
+        if !self.any { 0x3f }
+        else if self.win0.0 && in_window_range((self.win0.1 >> 8) as u8, self.win0.1 as u8, x) { self.winin & 63 }
+        else if self.win1.0 && in_window_range((self.win1.1 >> 8) as u8, self.win1.1 as u8, x) { (self.winin >> 8) & 63 }
+        else if self.obj && object_window { (self.winout >> 8) & 63 }
+        else { self.winout & 63 }
+    }
+}
+
+// Per-call snapshot only: no invalidation is needed across scanlines or restores.
+enum UiPanelArea { All, Split, Bounds(Option<(i32,i32,bool)>) }
+struct UiPanelRow { banner:Option<(i32,i32)>, area:UiPanelArea, extra:bool }
+impl UiPanelRow {
+    fn new(mem:&MemMap,line:usize,extra:bool)->Self {
+        use crate::ffta_dialogue::PanelKind;
+        let ui=&mem.ffta_dialogue;let y=line as i32;
+        let banner=ui.action_banner.filter(|&[_,t,_,b]|y>=t && y<b).map(|[l,_,r,_]|(l,r));
+        let area=if (ui.action_layout || ui.town_layout) && matches!(ui.extra.kind,PanelKind::Notice|PanelKind::Actions) {
+            UiPanelArea::Bounds(ui.extra.bounds.map(|[l,t,r,b]|(l,r,y>=t && y<b)))
+        }else if ui.action_layout {UiPanelArea::Split}else{UiPanelArea::All};
+        Self {banner,area,extra}
+    }
+    #[inline]
+    fn contains(&self,x:i32)->bool {
+        if self.banner.is_some_and(|(l,r)|x>=l && x<r) {return !self.extra;}
+        match self.area {
+            UiPanelArea::All=>true,
+            UiPanelArea::Split=>if self.extra {x>=160}else{x<160},
+            UiPanelArea::Bounds(bounds)=>{
+                // Keep the old lazy failure: only an eligible BG outside the
+                // overriding banner needs bounds, never merely constructing a row.
+                let (l,r,on_row)=bounds.unwrap();
+                (on_row && x>=l && x<r)==self.extra
+            }
+        }
+    }
+}
+// Original policy for the uncached reference specialization in tests.
+fn ui_panel_contains_uncached(mem:&MemMap,line:usize,x:i32,extra_panel:bool)->bool {
+    let banner=mem.ffta_dialogue.action_banner.is_some_and(|[l,t,r,b]|x>=l && x<r && line as i32>=t && (line as i32)<b);
+    if banner {!extra_panel}
+    else if (mem.ffta_dialogue.action_layout || mem.ffta_dialogue.town_layout) && matches!(mem.ffta_dialogue.extra.kind,crate::ffta_dialogue::PanelKind::Notice|crate::ffta_dialogue::PanelKind::Actions) {
+        let [l,t,r,b]=mem.ffta_dialogue.extra.bounds.unwrap();
+        let inside=x>=l && x<r && line as i32>=t && (line as i32)<b;
+        inside==extra_panel
+    }else{!mem.ffta_dialogue.action_layout || (if extra_panel {x>=160}else{x<160})}
+}
+
+fn capture_dialogue_part<const SKIP_EMPTY:bool,const CACHE_PANEL:bool>(mem:&mut MemMap, dispcnt:u16, line:usize,
     world_bg:&[Line;4], used:&[bool;4], world_obj:&[ObjPixel;MAX_RENDER_WIDTH],
-    world_window:&[bool;MAX_RENDER_WIDTH], extra_panel:bool,background_only:bool) {
+    world_window:&[bool;MAX_RENDER_WIDTH], extra_panel:bool,background_only:bool,rows:&UiBgRow) {
     use crate::ffta_dialogue::{UiPixel,LAYER_WIDTH,LAYER_INSET};
     if background_only {
         let dst=if extra_panel {&mut mem.ffta_dialogue.extra.backing}else{&mut mem.ffta_dialogue.backing};
         dst.resize(LAYER_WIDTH*160,Default::default());
     }
-    let mut text=[TRANSPARENT;MAX_RENDER_WIDTH];
-    let mut backing=[TRANSPARENT;MAX_RENDER_WIDTH];
     let ui_mask=if extra_panel && mem.ffta_dialogue.extra.kind==crate::ffta_dialogue::PanelKind::Stats {0}else{0xc};
-    if ui_mask!=0 && used[2] {render_text_bg_hardware(mem,2,line,&mut text,0,240);}
-    if ui_mask!=0 && used[3] {render_text_bg_hardware(mem,3,line,&mut backing,0,240);}
-    if background_only && mem.ffta_dialogue.action_layout {
+    let text=if ui_mask!=0 {&rows.text}else{&[TRANSPARENT;MAX_RENDER_WIDTH]};
+    let backing=if ui_mask!=0 {&rows.backing}else{&[TRANSPARENT;MAX_RENDER_WIDTH]};
+    let mut filtered_text;
+    let text=if background_only && mem.ffta_dialogue.action_layout {
+        filtered_text=*text;
         // Verified action-plane border tiles: header/footer and the info strip.
         // Keep dynamic action labels and portrait pixels out of the backing.
         let base=((io16(mem,0x0c)>>8)&31) as usize*0x800;
         for x in 0..240 {
             let off=base+((line/8)*32+x/8)*2;
             let tile=u16::from_le_bytes([mem.vram[off],mem.vram[off+1]])&1023;
-            if !matches!(tile,0x005..=0x00a | 0x0a8..=0x0b9) {text[x]=TRANSPARENT;}
+            if !matches!(tile,0x005..=0x00a | 0x0a8..=0x0b9) {filtered_text[x]=TRANSPARENT;}
         }
-    }
+        &filtered_text
+    }else{text};
     if backing[..240].iter().any(|&c|c!=TRANSPARENT) {
         mem.ffta_dialogue.include_anchor_bounds(line,line+1);
     }
@@ -716,6 +850,17 @@ fn capture_dialogue_part(mem:&mut MemMap, dispcnt:u16, line:usize,
     mem.ffta_dialogue.capture_backing=false;
     mem.ffta_dialogue.capture=false;
     mem.ffta_dialogue.capture_extra=false;
+    // World-only candidates never enter the UI texture. Still clear this row:
+    // a loaded/previous frame may have left visible pixels in the destination.
+    if SKIP_EMPTY && text[..240].iter().all(|&c|c==TRANSPARENT)
+        && backing[..240].iter().all(|&c|c==TRANSPARENT)
+        && portraits[..LAYER_WIDTH].iter().all(|obj|obj.priority==255) {
+        let dst=if background_only {
+            if extra_panel {&mut mem.ffta_dialogue.extra.backing}else{&mut mem.ffta_dialogue.backing}
+        }else if extra_panel {&mut mem.ffta_dialogue.extra.pixels}else{&mut mem.ffta_dialogue.pixels};
+        dst[line*LAYER_WIDTH..(line+1)*LAYER_WIDTH].fill(UiPixel::default());
+        return;
+    }
     let placement=mem.ffta_dialogue.placement.unwrap_or_else(||crate::ffta_dialogue::Placement::new(true,render_width(),0,Default::default()));
     let bld=io16(mem,0x50);
     let alpha=io16(mem,0x52);
@@ -723,22 +868,18 @@ fn capture_dialogue_part(mem:&mut MemMap, dispcnt:u16, line:usize,
     let evb=((alpha>>8)&31).min(16) as u8;
     let evy=(io16(mem,0x54)&31).min(16) as u32;
     let priorities:[u8;4]=std::array::from_fn(|bg|(io16(mem,8+2*bg)&3) as u8);
-    let winin=io16(mem,0x48);let winout=io16(mem,0x4a);
+    let windows=UiWindowRow::new(mem,dispcnt,line);
+    let native_origin=extra();
+    let modal=extra_panel && mem.ffta_dialogue.extra.kind==crate::ffta_dialogue::PanelKind::Notice;
+    let panel=UiPanelRow::new(mem,line,extra_panel);
     for cx in 0..LAYER_WIDTH {
         let x=cx as i32-LAYER_INSET;
         let wx=x.clamp(0,239) as u8;
-        let native=extra()+wx as usize;
-        let mut control=0x3f;
-        if dispcnt&0xe000!=0 {
-            control=winout&63;
-            if dispcnt&0x8000!=0 && world_window[native] { control=(winout>>8)&63; }
-            for (bit,h,v,mask) in [(0x4000,0x42,0x46,(winin>>8)&63),(0x2000,0x40,0x44,winin&63)] {
-                let hh=io16(mem,h);let vv=io16(mem,v);
-                if dispcnt&bit!=0 && in_window_range((hh>>8) as u8,hh as u8,wx)
-                    && in_window_range((vv>>8) as u8,vv as u8,line as u8) {control=mask;}
-            }
-        }
+        let native=native_origin+wx as usize;
+        let control=windows.control(wx,world_window[native]);
         let mut candidates=[(0u16,5usize,255u8,false);5];let mut n=0;
+        let mut in_panel=None;
+        let mut has_ui=false;
         for bg in 0..4 {
             if !used[bg] || control&(1<<bg)==0 {continue;}
             let color=match bg {
@@ -754,51 +895,140 @@ fn capture_dialogue_part(mem:&mut MemMap, dispcnt:u16, line:usize,
                 }
                 _=>world_bg[bg][native],
             };
-            let banner=mem.ffta_dialogue.action_banner.is_some_and(|[l,t,r,b]|x>=l && x<r && line as i32>=t && (line as i32)<b);
-            let in_panel=if banner {!extra_panel}
-            else if (mem.ffta_dialogue.action_layout || mem.ffta_dialogue.town_layout) && matches!(mem.ffta_dialogue.extra.kind,crate::ffta_dialogue::PanelKind::Notice|crate::ffta_dialogue::PanelKind::Actions) {
-                let [l,t,r,b]=mem.ffta_dialogue.extra.bounds.unwrap();
-                let inside=x>=l && x<r && line as i32>=t && (line as i32)<b;
-                inside==extra_panel
-            }else{!mem.ffta_dialogue.action_layout || (if extra_panel {x>=160}else{x<160})};
+            let in_panel=if CACHE_PANEL {
+                *in_panel.get_or_insert_with(||panel.contains(x))
+            }else{ui_panel_contains_uncached(mem,line,x,extra_panel)};
             let color=if ui_mask&(1<<bg)!=0 && !in_panel {TRANSPARENT}else{color};
-            if color!=TRANSPARENT {candidates[n]=(color,bg,priorities[bg],false);n+=1;}
+            if color!=TRANSPARENT {
+                candidates[n]=(color,bg,priorities[bg],false);n+=1;
+                has_ui|=ui_mask&(1<<bg)!=0;
+            }
         }
         let obj=portraits[cx];
-        if obj.priority!=255 && control&16!=0 {candidates[n]=(obj.color,4,obj.priority,obj.semi);n+=1;}
-        // Real world objects may be the second blend target, but never enter the UI texture.
-        let wo=world_obj[native];
-        // Notice is relocated independently of the portrait below it. Do not
-        // bake a hole from an OBJ which overlaps only at the old native position.
-        let modal=extra_panel && mem.ffta_dialogue.extra.kind==crate::ffta_dialogue::PanelKind::Notice;
-        let world_object=!modal && !background_only && (0..240).contains(&x) && wo.priority!=255 && control&16!=0 && obj.priority==255;
-        candidates[..n].sort_unstable_by_key(|&(_,id,priority,_)|(priority,if id==4 {0}else{id+1}));
-        let mut top=[(0u16,5usize,255u8,false);3];
-        let mut nt=n.min(2);top[..nt].copy_from_slice(&candidates[..nt]);
-        if world_object {
-            top[nt]=(wo.color,6,wo.priority,wo.semi);nt+=1;
-            top[..nt].sort_unstable_by_key(|&(_,id,priority,_)|(priority,if id>=4 {0}else{id+1}));
+        if obj.priority!=255 && control&16!=0 {
+            candidates[n]=(obj.color,4,obj.priority,obj.semi);n+=1;has_ui=true;
         }
-        let pixel=if let Some(&(fc,fl,_,semi))=top[..nt].first() {
-            if (fl<4 && ui_mask&(1<<fl)==0) || fl>=5 {UiPixel::default()} else {
-                let (sc,sl,_,_)=top[..nt].get(1).copied().unwrap_or((0,5,255,false));
-                let sl=if sl==6 {4}else{sl};
-                let mode=(bld>>6)&3;
-                let effect=control&32!=0 && bld&(1<<fl)!=0;
-                let blend=(semi || (effect && mode==1)) && bld&(0x100<<sl)!=0;
-                if blend && ((sl<4 && ui_mask&(1<<sl)==0) || sl==5 || top[..nt].get(1).is_some_and(|v|v.1==6)) {
-                    UiPixel {color:fc,eva,evb}
-                } else if blend { UiPixel::opaque(alpha_blend(fc,sc,eva as u32,evb as u32)) }
-                else if effect && mode==2 {UiPixel::opaque(brighten(fc,evy))}
-                else if effect && mode==3 {UiPixel::opaque(darken(fc,evy))}
-                else {UiPixel::opaque(fc)}
+        // World-only candidates cannot enter this texture. Keep the destination
+        // write to clear stale pixels, but no sorting or blending is needed.
+        let pixel=if SKIP_EMPTY && !has_ui {UiPixel::default()}else {
+            // Real world objects may be the second blend target, but never enter the UI texture.
+            let wo=world_obj[native];
+            // Notice is relocated independently of the portrait below it. Do not
+            // bake a hole from an OBJ which overlaps only at the old native position.
+            let world_object=!modal && !background_only && (0..240).contains(&x) && wo.priority!=255 && control&16!=0 && obj.priority==255;
+            candidates[..n].sort_unstable_by_key(|&(_,id,priority,_)|(priority,if id==4 {0}else{id+1}));
+            let mut top=[(0u16,5usize,255u8,false);3];
+            let mut nt=n.min(2);top[..nt].copy_from_slice(&candidates[..nt]);
+            if world_object {
+                top[nt]=(wo.color,6,wo.priority,wo.semi);nt+=1;
+                top[..nt].sort_unstable_by_key(|&(_,id,priority,_)|(priority,if id>=4 {0}else{id+1}));
             }
-        } else {UiPixel::default()};
+            if let Some(&(fc,fl,_,semi))=top[..nt].first() {
+                if (fl<4 && ui_mask&(1<<fl)==0) || fl>=5 {UiPixel::default()} else {
+                    let (sc,sl,_,_)=top[..nt].get(1).copied().unwrap_or((0,5,255,false));
+                    let sl=if sl==6 {4}else{sl};
+                    let mode=(bld>>6)&3;
+                    let effect=control&32!=0 && bld&(1<<fl)!=0;
+                    let blend=(semi || (effect && mode==1)) && bld&(0x100<<sl)!=0;
+                    if blend && ((sl<4 && ui_mask&(1<<sl)==0) || sl==5 || top[..nt].get(1).is_some_and(|v|v.1==6)) {
+                        UiPixel {color:fc,eva,evb}
+                    } else if blend { UiPixel::opaque(alpha_blend(fc,sc,eva as u32,evb as u32)) }
+                    else if effect && mode==2 {UiPixel::opaque(brighten(fc,evy))}
+                    else if effect && mode==3 {UiPixel::opaque(darken(fc,evy))}
+                    else {UiPixel::opaque(fc)}
+                }
+            } else {UiPixel::default()}
+        };
         if background_only {
             let dst=if extra_panel {&mut mem.ffta_dialogue.extra.backing}else{&mut mem.ffta_dialogue.backing};
             dst[line*LAYER_WIDTH+cx]=pixel;
         } else if extra_panel {mem.ffta_dialogue.extra.pixels[line*LAYER_WIDTH+cx]=pixel;}
         else {mem.ffta_dialogue.pixels[line*LAYER_WIDTH+cx]=pixel;}
+    }
+}
+
+#[cfg(test)]
+mod ui_window_row_tests {
+    use super::*;
+
+    #[test]
+    fn panel_row_rules_match_uncached_banner_bounds_and_split_policy() {
+        use crate::ffta_dialogue::PanelKind;
+        let mut mem=MemMap::new(vec![0;192]);
+        for flags in 0..8 {for kind in [PanelKind::None,PanelKind::Stats,PanelKind::Actions,PanelKind::Notice] {
+            mem.ffta_dialogue.action_layout=flags&1!=0;
+            mem.ffta_dialogue.town_layout=flags&2!=0;
+            mem.ffta_dialogue.shop_layout=flags&4!=0;
+            mem.ffta_dialogue.extra.kind=kind;
+            for bounds in [[128,16,240,144],[-8,0,32,160],[200,40,160,20]] {
+                mem.ffta_dialogue.extra.bounds=Some(bounds);
+                for banner in [None,Some([-120,20,360,80]),Some([160,0,200,160]),Some([200,100,40,50])] {
+                    mem.ffta_dialogue.action_banner=banner;
+                    for line in [0,15,16,37,79,80,143,144,159] {for extra in [false,true] {
+                        let row=UiPanelRow::new(&mem,line,extra);
+                        for x in -120..360 {
+                            assert_eq!(row.contains(x),ui_panel_contains_uncached(&mem,line,x,extra));
+                        }
+                    }}
+                }
+            }
+        }}
+        // Missing bounds remain lazy when a banner overrides them.
+        mem.ffta_dialogue.action_layout=true;mem.ffta_dialogue.extra.kind=PanelKind::Notice;
+        mem.ffta_dialogue.extra.bounds=None;mem.ffta_dialogue.action_banner=Some([-120,0,360,160]);
+        for extra in [false,true] {
+            let row=UiPanelRow::new(&mem,37,extra);
+            assert_eq!(row.contains(0),!extra);
+            assert_eq!(row.contains(0),ui_panel_contains_uncached(&mem,37,0,extra));
+        }
+    }
+
+    #[test]
+    fn panel_row_without_eligible_background_does_not_require_bounds() {
+        use crate::ffta_dialogue::{PanelKind,LAYER_WIDTH};
+        crate::mem::set_extra(0);crate::mem::set_extra_y(0);
+        let mut actual=crate::Machine::new(vec![0;192]);
+        actual.bus.ffta_dialogue.action_layout=true;
+        actual.bus.ffta_dialogue.extra.kind=PanelKind::Notice;
+        actual.bus.ffta_dialogue.pixels.resize(LAYER_WIDTH*160,Default::default());
+        let mut reference=crate::Machine::new(vec![0;192]);reference.load_state(&actual.save_state().unwrap()).unwrap();
+        let backgrounds=[[TRANSPARENT;MAX_RENDER_WIDTH];4];let objects=[OBJ_EMPTY;MAX_RENDER_WIDTH];
+        let window=[false;MAX_RENDER_WIDTH];let rows=UiBgRow {text:[TRANSPARENT;MAX_RENDER_WIDTH],backing:[TRANSPARENT;MAX_RENDER_WIDTH]};
+        capture_dialogue_part::<false,true>(&mut actual.bus,0,37,&backgrounds,&[false;4],&objects,&window,false,false,&rows);
+        capture_dialogue_part::<false,false>(&mut reference.bus,0,37,&backgrounds,&[false;4],&objects,&window,false,false,&rows);
+        assert!(actual.save_state().unwrap()==reference.save_state().unwrap());
+    }
+
+    #[test]
+    fn cached_windows_match_pixel_reference_for_wrap_empty_and_overlap() {
+        let mut mem=MemMap::new(vec![0;192]);
+        let cases=[(0x0838u16,0x0010u16),(0xf010,0x9808),(0x0505,0x0505),(0x00ff,0x00ff),(0x8001,0x8001)];
+        for winin in [0x1021u16,0x3f00,0] {
+            mem.io[0x48..0x4a].copy_from_slice(&winin.to_le_bytes());
+            mem.io[0x4a..0x4c].copy_from_slice(&0x0a35u16.to_le_bytes());
+            for (h0,v0) in cases {for (h1,v1) in cases {
+                for (offset,value) in [(0x40,h0),(0x42,h1),(0x44,v0),(0x46,v1)] {
+                    mem.io[offset..offset+2].copy_from_slice(&value.to_le_bytes());
+                }
+                for flags in 0..8u16 {for y in [0u8,5,8,10,128,152,159,255] {
+                    let dispcnt=flags<<13;
+                    let row=UiWindowRow::new(&mem,dispcnt,y as usize);
+                    for x in 0..=255u8 {for object in [false,true] {
+                        // Previous per-pixel algorithm, with WIN0 overriding WIN1.
+                        let mut expected=0x3f;
+                        if dispcnt&0xe000!=0 {
+                            expected=0x35;
+                            if dispcnt&0x8000!=0 && object {expected=0x0a;}
+                            for (bit,h,v,mask) in [(0x4000,h1,v1,(winin>>8)&63),(0x2000,h0,v0,winin&63)] {
+                                if dispcnt&bit!=0 && in_window_range((h>>8)as u8,h as u8,x)
+                                    && in_window_range((v>>8)as u8,v as u8,y) {expected=mask;}
+                            }
+                        }
+                        assert_eq!(row.control(x,object),expected);
+                    }}
+                }}
+            }}
+        }
     }
 }
 
@@ -846,6 +1076,149 @@ mod dialogue_layout_tests {
         m.io[0x52..0x54].copy_from_slice(&0x0808u16.to_le_bytes());
         m
     }
+    #[test]
+    fn mixed_ui_rows_clear_world_only_pixels_and_preserve_portraits_and_blending() {
+        use crate::ffta_dialogue::{LAYER_WIDTH,PanelKind,UiPixel};
+        crate::mem::set_extra(164);crate::mem::set_extra_y(0);
+        let backgrounds=[[0x7c00u16;MAX_RENDER_WIDTH];4];
+        let window=std::array::from_fn(|x|x%11==0);
+        let mut rows=UiBgRow {text:[TRANSPARENT;MAX_RENDER_WIDTH],backing:[TRANSPARENT;MAX_RENDER_WIDTH]};
+        for x in 0..240 {
+            if x%17==0 {rows.text[x]=31;}
+            if x%29==0 {rows.backing[x]=0x03e0;}
+        }
+        let mut mixed=false;let mut world_blend=false;let mut portrait_only=false;
+        for kind in [PanelKind::Actions,PanelKind::Stats,PanelKind::Notice] {
+            for extra in [false,true] {for backing in [false,true] {for mode in 0..4u16 {for priority in [255,2] {
+                let mut actual=crate::Machine::new(vec![0;192]);actual.bus=stats_scene();
+                actual.bus.ffta_dialogue.extra.kind=kind;
+                actual.bus.ffta_dialogue.extra.bounds=Some([128,16,240,144]);
+                for pixels in [&mut actual.bus.ffta_dialogue.pixels,&mut actual.bus.ffta_dialogue.backing,
+                    &mut actual.bus.ffta_dialogue.extra.pixels,&mut actual.bus.ffta_dialogue.extra.backing] {
+                    pixels.resize(LAYER_WIDTH*160,UiPixel::opaque(0x1234));
+                }
+                for (offset,value) in [(8,3u16),(10,3),(12,0),(14,0),(0x48,0x3f3f),(0x4a,0x3f3f),
+                    (0x50,0x3f3f|(mode<<6)),(0x52,0x0808),(0x54,8)] {
+                    actual.bus.io[offset..offset+2].copy_from_slice(&value.to_le_bytes());
+                }
+                let objects=[ObjPixel {color:0x03e0,priority,semi:true,..OBJ_EMPTY};MAX_RENDER_WIDTH];
+                let mut reference=crate::Machine::new(vec![0;192]);reference.load_state(&actual.save_state().unwrap()).unwrap();
+                capture_dialogue_part::<true,true>(&mut actual.bus,0xff40,104,&backgrounds,&[true;4],&objects,&window,extra,backing,&rows);
+                capture_dialogue_part::<false,false>(&mut reference.bus,0xff40,104,&backgrounds,&[true;4],&objects,&window,extra,backing,&rows);
+                let target=if backing {if extra {&actual.bus.ffta_dialogue.extra.backing}else{&actual.bus.ffta_dialogue.backing}}
+                    else if extra {&actual.bus.ffta_dialogue.extra.pixels}else{&actual.bus.ffta_dialogue.pixels};
+                let row=&target[104*LAYER_WIDTH..105*LAYER_WIDTH];
+                mixed|=row.iter().any(|&p|p==UiPixel::default()) && row.iter().any(|&p|p!=UiPixel::default());
+                world_blend|=row.iter().any(|p|p.eva==8 && p.evb==8);
+                portrait_only|=kind==PanelKind::Stats && extra && !backing && row.iter().any(|&p|p!=UiPixel::default());
+                assert_eq!(target[0],UiPixel::opaque(0x1234));
+                assert!(actual.save_state().unwrap()==reference.save_state().unwrap(),"pixel shortcut changed full panel/backing state");
+            }}}}
+        }
+        assert!(mixed && world_blend && portrait_only,"fixture must exercise holes, world alpha and Stats portrait UI");
+        crate::mem::set_extra(0);crate::mem::set_extra_y(0);
+    }
+
+    #[test]
+    fn empty_ui_rows_clear_stale_pixels_and_match_full_loop_with_world_blending() {
+        use crate::ffta_dialogue::{LAYER_WIDTH,PanelKind,UiPixel};
+        crate::mem::set_extra(164);crate::mem::set_extra_y(0);
+        let backgrounds=[[0x03e0u16;MAX_RENDER_WIDTH];4];
+        let objects=[ObjPixel {color:31,priority:0,semi:true,..OBJ_EMPTY};MAX_RENDER_WIDTH];
+        let window=std::array::from_fn(|x|x%5==0);
+        let rows=UiBgRow {text:[TRANSPARENT;MAX_RENDER_WIDTH],backing:[TRANSPARENT;MAX_RENDER_WIDTH]};
+        for kind in [PanelKind::Stats,PanelKind::Actions,PanelKind::Notice] {
+            for extra in [false,true] {for backing in [false,true] {for mode in 0..4u16 {
+                let mut actual=crate::Machine::new(vec![0;192]);actual.bus=scene(false);
+                for obj in actual.bus.oam.chunks_exact_mut(8) {obj[..2].copy_from_slice(&0x0200u16.to_le_bytes());}
+                actual.bus.ffta_dialogue.action_layout=true;
+                actual.bus.ffta_dialogue.extra.kind=kind;
+                actual.bus.ffta_dialogue.extra.bounds=Some([128,16,240,144]);
+                for pixels in [&mut actual.bus.ffta_dialogue.pixels,&mut actual.bus.ffta_dialogue.backing,
+                    &mut actual.bus.ffta_dialogue.extra.pixels,&mut actual.bus.ffta_dialogue.extra.backing] {
+                    pixels.resize(LAYER_WIDTH*160,UiPixel::opaque(31));
+                }
+                for (offset,value) in [(0x40,0x0838u16),(0x42,0xf010),(0x44,0x0010),(0x46,0x9808),
+                    (0x48,0x152a),(0x4a,0x3f3f),(0x50,0x3f3f|(mode<<6)),(0x52,0x0808),(0x54,8)] {
+                    actual.bus.io[offset..offset+2].copy_from_slice(&value.to_le_bytes());
+                }
+                let mut reference=crate::Machine::new(vec![0;192]);reference.load_state(&actual.save_state().unwrap()).unwrap();
+                capture_dialogue_part::<true,true>(&mut actual.bus,0xff40,37,&backgrounds,&[true;4],&objects,&window,extra,backing,&rows);
+                capture_dialogue_part::<false,false>(&mut reference.bus,0xff40,37,&backgrounds,&[true;4],&objects,&window,extra,backing,&rows);
+                let target=if backing {if extra {&actual.bus.ffta_dialogue.extra.backing}else{&actual.bus.ffta_dialogue.backing}}
+                    else if extra {&actual.bus.ffta_dialogue.extra.pixels}else{&actual.bus.ffta_dialogue.pixels};
+                assert!(target[37*LAYER_WIDTH..38*LAYER_WIDTH].iter().all(|&p|p==UiPixel::default()));
+                assert_eq!(target[0],UiPixel::opaque(31));
+                assert!(!actual.bus.ffta_dialogue.capture && !actual.bus.ffta_dialogue.capture_extra && !actual.bus.ffta_dialogue.capture_backing);
+                assert!(actual.save_state().unwrap()==reference.save_state().unwrap(),"empty-row shortcut changed complete state");
+            }}}
+        }
+        crate::mem::set_extra(0);crate::mem::set_extra_y(0);
+    }
+
+    #[test]
+    fn shared_native_bg_rows_match_fresh_preparation_for_panels_and_backing() {
+        use crate::ffta_dialogue::{LAYER_WIDTH,PanelKind,Placement};
+        crate::mem::set_extra(164);crate::mem::set_extra_y(0);
+        let backgrounds=std::array::from_fn(|bg|std::array::from_fn(|x|((x+bg*7)%0x7fff)as u16));
+        let objects=[OBJ_EMPTY;MAX_RENDER_WIDTH];
+        let window=std::array::from_fn(|x|x%17==0);
+        for kind in [PanelKind::Stats,PanelKind::Actions,PanelKind::Notice] {
+            for primary in [false,true] {for action in [false,true] {for mask in 0..4 {
+                let used=[true,true,mask&1!=0,mask&2!=0];
+                let mut actual=crate::Machine::new(vec![0;192]);actual.bus=stats_scene();
+                actual.bus.ffta_dialogue.action_layout=action;
+                for (offset,value) in [(0x0c,0x5c08u16),(0x0e,0x4a09)] {
+                    actual.bus.io[offset..offset+2].copy_from_slice(&value.to_le_bytes());
+                }
+                actual.bus.vram[0x8020..0x8040].fill(0x11);
+                actual.bus.vram[0x80a0..0x80c0].fill(0x22);
+                actual.bus.palette[0x162..0x164].copy_from_slice(&31u16.to_le_bytes());
+                actual.bus.palette[0x164..0x166].copy_from_slice(&0x03e0u16.to_le_bytes());
+                for y in 0..20 {for x in 0..30 {
+                    let tile=[0xb005u16,0xb001,0][x%3];
+                    let offset=(y*32+x)*2;
+                    actual.bus.vram[0xe000+offset..0xe002+offset].copy_from_slice(&tile.to_le_bytes());
+                    actual.bus.vram[0x5000+offset..0x5002+offset].copy_from_slice(&0xb001u16.to_le_bytes());
+                }}
+                actual.bus.ffta_dialogue.placement=primary.then(|| {
+                    let mut p=Placement::new(false,568,0,Default::default());p.length_pixels=32;p
+                });
+                actual.bus.ffta_dialogue.extra.kind=kind;
+                actual.bus.ffta_dialogue.extra.bounds=Some([128,16,240,144]);
+                actual.bus.ffta_dialogue.pixels.resize(LAYER_WIDTH*160,crate::ffta_dialogue::UiPixel::opaque(31));
+                actual.bus.ffta_dialogue.extra.pixels.resize(LAYER_WIDTH*160,crate::ffta_dialogue::UiPixel::opaque(31));
+                actual.bus.ffta_dialogue.backing.resize(LAYER_WIDTH*160,crate::ffta_dialogue::UiPixel::opaque(31));
+                actual.bus.ffta_dialogue.extra.backing.resize(LAYER_WIDTH*160,crate::ffta_dialogue::UiPixel::opaque(31));
+                actual.bus.io[0x48..0x4c].fill(0x3f);
+                let mut reference=crate::Machine::new(vec![0;192]);
+                reference.load_state(&actual.save_state().unwrap()).unwrap();
+                let dispcnt=io16(&actual.bus,0);
+                for y in 0..160 {
+                    let rows=UiBgRow::new(&actual.bus,y,&used,primary || kind!=PanelKind::Stats);
+                    if (primary || kind!=PanelKind::Stats) && used[2] {
+                        assert!(rows.text[..240].iter().any(|&pixel|pixel!=TRANSPARENT));
+                    }
+                    if (primary || kind!=PanelKind::Stats) && used[3] {
+                        assert!(rows.backing[..240].iter().any(|&pixel|pixel!=TRANSPARENT));
+                    }
+                    for extra in [false,true] {
+                        if !extra && !primary {continue;}
+                        capture_dialogue_row(&mut actual.bus,dispcnt,y,&backgrounds,&used,&objects,&window,extra,&rows);
+                        // Before sharing, both normal/backing calls prepared native BGs afresh.
+                        for backing in [false,true] {
+                            if backing && !(action || (extra && kind==PanelKind::Stats)) {continue;}
+                            let fresh=UiBgRow::new(&reference.bus,y,&used,!extra || kind!=PanelKind::Stats);
+                            capture_dialogue_part::<false,false>(&mut reference.bus,dispcnt,y,&backgrounds,&used,&objects,&window,extra,backing,&fresh);
+                        }
+                    }
+                }
+                assert!(actual.save_state().unwrap()==reference.save_state().unwrap(),"shared rows changed panel/backing or machine state");
+            }}}
+        }
+        crate::mem::set_extra(0);crate::mem::set_extra_y(0);
+    }
+
     #[test]
     fn attack_forecast_keeps_obj_target_beside_bg_attacker_for_both_regions_and_zooms() {
         use crate::ffta_dialogue::{LAYER_WIDTH,LAYER_INSET,PanelKind};
@@ -1028,6 +1401,84 @@ mod dialogue_layout_tests {
         m.io[0x40..0x42].copy_from_slice(&0xa0f0u16.to_le_bytes());
         assert!(notice_bounds(&m).is_none()); // narrow action confirmation remains unchanged
         crate::mem::set_extra(0);crate::mem::set_extra_y(0);
+    }
+    fn laws_scene(help: bool, hud: bool) -> MemMap {
+        let mut m = scene(false);
+        m.ffta_dialogue.separate = true;
+        for (off, value) in [(12, 0x5c08u16), (14, 0x4a09)] {
+            m.io[off..off+2].copy_from_slice(&value.to_le_bytes());
+        }
+        m.vram[0x5000..0x5800].fill(0);
+        let mut tile = |x: usize, y: usize, value: u16| {
+            let off = 0x5000 + (y * 32 + x) * 2;
+            m.vram[off..off+2].copy_from_slice(&value.to_le_bytes());
+        };
+        for x in 2..26 { tile(x, 9, 0x70e2); tile(x, 15, 0x70ef); }
+        for (x, y, value) in [(1,9,0x70e1), (26,9,0x74e1), (1,15,0x70ee), (26,15,0x74ee)] { tile(x,y,value); }
+        for y in [11, 13] {
+            for x in 2..25 { tile(x,y,0x70f4); tile(x,y+1,0x70f7); }
+            for (x,dy,value) in [(1,0,0x70f3), (13,0,0x70fe), (25,0,0x80f5),
+                (1,1,0x70f6), (13,1,0x70ff), (25,1,0x80f8)] { tile(x,y+dy,value); }
+        }
+        if help {
+            for y in 2..8 { for x in 2..28 { tile(x,y,0xb003); } }
+            for (x,y,value) in [(2,2,0xb00d),(27,2,0xb00e),(2,7,0xb00f),(27,7,0xb010)] { tile(x,y,value); }
+        }
+        if hud { for x in 0..8 { tile(x,17,1); } }
+        for index in [1usize,3,13,14,15,16,0xe1,0xe2,0xee,0xef,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xfe,0xff] {
+            m.vram[0x8000+index*32..0x8000+(index+1)*32].fill(0x11);
+        }
+        for bank in [7usize,8,11] { m.palette[(bank*16+1)*2..(bank*16+1)*2+2].copy_from_slice(&0x3defu16.to_le_bytes()); }
+        // Distinct source text on both sides of the former action split.
+        for (x,y) in [(2,11),(23,11),(3,4),(24,5)] {
+            if help || y == 11 { let off=0xe000+(y*32+x)*2; m.vram[off..off+2].copy_from_slice(&1u16.to_le_bytes()); }
+        }
+        m.oam.fill(0);
+        for obj in m.oam.chunks_exact_mut(8) { obj[..2].copy_from_slice(&0x200u16.to_le_bytes()); }
+        for (off,value) in [(0,0x8058u16),(2,2),(4,0x2dc)] { m.oam[off..off+2].copy_from_slice(&value.to_le_bytes()); }
+        m.vram[0x10000+0x2dc*32..0x10000+0x2de*32].fill(0x11);
+        m.palette[0x202..0x204].copy_from_slice(&0x03e0u16.to_le_bytes());
+        if help {
+            for (off,value) in [(8,0x8035u16),(10,116),(12,0x2122)] { m.oam[off..off+2].copy_from_slice(&value.to_le_bytes()); }
+            m.vram[0x10000+0x122*32..0x10000+0x124*32].fill(0x11);
+            m.palette[0x242..0x244].copy_from_slice(&0x7c00u16.to_le_bytes());
+        }
+        m
+    }
+    #[test]
+    fn laws_table_and_help_remain_one_modal_with_or_without_hud() {
+        use crate::ffta_dialogue::{LAYER_WIDTH,LAYER_INSET,PanelKind};
+        for ex in [22,164,448] { for help in [false,true] { for hud in [false,true] {
+            crate::mem::set_extra(ex); crate::mem::set_extra_y(0);
+            let mut m=laws_scene(help,hud);
+            m.ffta_dialogue.separate=false;
+            for y in 0..160 { render_scanline(&mut m,y); }
+            let hardware=m.framebuffer.clone(); let oam=m.oam.clone(); let vram=m.vram.clone();
+            m.ffta_dialogue.separate=true;
+            for y in 0..160 { render_scanline(&mut m,y); }
+            assert!(m.ffta_dialogue.laws_layout);
+            assert_eq!(m.ffta_dialogue.extra.kind,PanelKind::Notice);
+            assert_eq!(m.ffta_dialogue.extra.bounds,Some(if help {[0,16,224,128]}else{[0,72,216,128]}));
+            let idx=|x,y| y*LAYER_WIDTH+x+LAYER_INSET as usize;
+            for (x,y) in [(16,88),(184,88),(2,88)] {
+                assert!(m.ffta_dialogue.extra.pixels[idx(x,y)].visible());
+                assert!(!m.ffta_dialogue.pixels[idx(x,y)].visible());
+            }
+            if help { assert!(m.ffta_dialogue.extra.pixels[idx(116,53)].visible()); }
+            if hud { assert!(m.ffta_dialogue.pixels[idx(0,136)].visible()); }
+            for y in 0..160 { for x in 0..240 {
+                let world=m.wide_framebuffer[y*(240+2*ex)+x+ex];
+                let restored=m.ffta_dialogue.extra.pixels[idx(x,y)].resolve(m.ffta_dialogue.pixels[idx(x,y)].resolve(world));
+                assert_eq!(restored,hardware[y*240+x],"help={help} hud={hud} ex={ex} x={x} y={y}");
+            }}
+            assert_eq!(m.framebuffer,hardware); assert_eq!(m.oam,oam); assert_eq!(m.vram,vram);
+            // Reject incomplete frames and clear the subtype on the next frame.
+            m.vram[0x5000+(9*32+1)*2]=0;
+            assert!(laws_bounds(&m).is_none());
+            for y in 0..160 { render_scanline(&mut m,y); }
+            assert!(!m.ffta_dialogue.laws_layout);
+        }}}
+        crate::mem::set_extra(0); crate::mem::set_extra_y(0);
     }
     #[test]
     fn long_ear_pieces_join_action_portrait_without_changing_hardware_pixels() {
@@ -1419,6 +1870,7 @@ pub fn dump_ffta_text_layers(mem: &MemMap) -> Result<(), String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) enum FftaBgEdge {
     Wrap,
     Transparent,
@@ -2590,7 +3042,8 @@ fn render_sprites_extent(
         }
         let bounded=(-64..240).contains(&x) && (-64..160).contains(&y);
         let notice_object=mem.ffta_dialogue.extra.kind==crate::ffta_dialogue::PanelKind::Notice
-            && crate::ffta_dialogue::notice_cursor([a0,a1,a2],x,y,mem.ffta_dialogue.extra.bounds);
+            && (crate::ffta_dialogue::notice_cursor([a0,a1,a2],x,y,mem.ffta_dialogue.extra.bounds)
+                || (mem.ffta_dialogue.laws_layout && crate::ffta_dialogue::laws_cursor([a0,a1,a2],x,y,mem.ffta_dialogue.extra.bounds)));
         let detached_cursor=mem.ffta_dialogue.town_layout && mem.ffta_dialogue.extra.kind==crate::ffta_dialogue::PanelKind::Actions
             && crate::ffta_dialogue::notice_cursor([a0,a1,a2],x,y,mem.ffta_dialogue.extra.bounds);
         let main_object=bounded && !notice_object && !detached_cursor && if mem.ffta_dialogue.action_layout {

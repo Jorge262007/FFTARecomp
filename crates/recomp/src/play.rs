@@ -14,8 +14,12 @@
 //! gated on `RedrawRequested`/vsync, which would couple game speed to the
 //! panel.
 
+#[path = "play_benchmark.rs"]
+mod benchmark;
+
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU32;
+use crate::perf::{Phase, PlayProfile};
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
@@ -202,6 +206,21 @@ fn display_frame<'a>(bus: &'a gba_core::mem::MemMap, padding: &'a mut Vec<u16>) 
     padding
 }
 
+/// Snapshots do not encode the global stride of their wide scratch framebuffer.
+/// Present the authoritative native image until a completed frame rebuilds the
+/// current view; never run or mutate the restored machine to manufacture a preview.
+fn restored_native_frame<'a>(bus: &gba_core::mem::MemMap, padding: &'a mut Vec<u16>) -> &'a [u16] {
+    let (width, height) = (wide_w(), wide_h());
+    let (x, y) = ((width - 240) / 2, (height - 160) / 2);
+    padding.resize(width * height, 0);
+    padding.fill(0);
+    for (row, pixels) in bus.framebuffer.chunks_exact(240).take(160).enumerate() {
+        let start = (y + row) * width + x;
+        padding[start..start + 240].copy_from_slice(pixels);
+    }
+    padding
+}
+
 /// Normalize one Gilrs event into semantic transitions for the capture
 /// router. Pressed and Changed may describe the same input; PadGesture
 /// coalesces those transitions by physical held state.
@@ -325,7 +344,7 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::{Fullscreen, Window, WindowId};
+use winit::window::{Window, WindowId};
 
 use recomp_core::fnv64;
 
@@ -352,9 +371,8 @@ struct NavEdges {
     /// menu is open — East is the player's B button during gameplay, so it
     /// must never open the menu.
     cancel: bool,
-    /// Open the menu from gameplay: keyboard Escape, or a dedicated pad
-    /// control that doesn't collide with any GBA button (the guide/Mode
-    /// button).
+    /// Open the menu from gameplay: configurable keyboard/pad shortcuts,
+    /// with Escape and Guide/Mode retained as fallback controls.
     open: bool,
 }
 
@@ -427,6 +445,11 @@ fn winit_key(name: &str) -> Option<KeyCode> {
         "Backspace" => Backspace,
         "LeftShift" => ShiftLeft,
         "RightShift" => ShiftRight,
+        "Escape" => Escape,
+        "LeftControl" => ControlLeft,
+        "RightControl" => ControlRight,
+        "LeftAlt" => AltLeft,
+        "RightAlt" => AltRight,
         _ => return None,
     })
 }
@@ -481,18 +504,9 @@ fn key_name(code: KeyCode) -> Option<&'static str> {
         "Backspace",
         "LeftShift",
         "RightShift",
+        "LeftControl", "RightControl", "LeftAlt", "RightAlt",
     ];
     NAMES.iter().copied().find(|n| winit_key(n) == Some(code))
-}
-
-/// Crossing the pause boundary, clear the audio defect counters so the
-/// drained-ring underruns during pause don't false-fire the DEGRADED alarm
-/// next report window.
-fn reset_audio_counters(streams: &Arc<Mutex<AudioStreams>>) {
-    let mut st = streams.lock().unwrap();
-    st.drops = 0;
-    st.holds = 0;
-    st.clipped = 0;
 }
 
 /// All play-session state. Pre-window state is built in [`cmd_play`] and moved
@@ -503,6 +517,9 @@ struct PlayApp {
     // Core machine + persistence.
     machine: Machine,
     sav_path: String,
+    state_slots: crate::save_state::Slots,
+    save_backups: crate::save_backups::Backups,
+    boot_state: Vec<u8>,
     sav_seen: Option<u64>,
     record: Option<(std::fs::File, u16)>,
     native: Option<(super::NativeLibrary, BlockTable)>,
@@ -523,6 +540,11 @@ struct PlayApp {
     active_controller: Option<ActiveController>,
     last_direct_activity: Option<(String, Vec<String>)>,
     pending_pad: Option<String>,
+    menu_key_capture: input_config::ComboCapture,
+    menu_pad_capture: input_config::ComboCapture,
+    menu_key_latch: input_config::ComboLatch,
+    menu_pad_latch: input_config::ComboLatch,
+    menu_shortcut_held: bool,
     #[cfg(not(target_os = "linux"))]
     gilrs_gestures: HashMap<gilrs::GamepadId, input_config::PadGesture>,
     #[cfg(target_os = "linux")]
@@ -549,14 +571,15 @@ struct PlayApp {
     grid_params: screen::present::GridParams,
     rgba: Vec<[u8; 4]>,
     pause_rgba: Vec<[u8; 4]>,
-    ui_pixels: Vec<[u8;4]>,
-    panel_pixels: Vec<[u8;4]>,
+    ui_pixels: crate::ui_pixels::Pixels,
+    panel_pixels: crate::ui_pixels::Pixels,
     padded_frame: Vec<u16>,
 
     // Window + presentation (created in `resumed`).
     title: String,
     status: bool,
     window: Option<Arc<Window>>,
+    fullscreen: crate::fullscreen::Controller,
     presenter: Option<screen::present::Presenter>,
     sb_context: Option<softbuffer::Context<Arc<Window>>>,
     sb_surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -572,12 +595,16 @@ struct PlayApp {
 
     // Perf + audio watchdog.
     show_stats: bool,
+    fps: crate::fps::Meter,
+    profile: PlayProfile,
+    benchmark: Option<benchmark::Benchmark>,
     emu_ema_ms: f64,
     frames_run: u64,
     slow_warned: bool,
     native_run: u64,
     fallback_run: u64,
     primed: bool,
+    clock_pacing: bool,
     next_frame: Instant,
     audio_watch: Instant,
     audio_consumed_last: u64,
@@ -614,6 +641,17 @@ struct PlayApp {
 }
 
 impl PlayApp {
+    fn set_fullscreen(&mut self, enabled: bool) {
+        let Some(window) = &self.window else { return; };
+        self.fullscreen.request(window, enabled);
+        self.av.video_fullscreen = enabled;
+        self.menu_dirty = true;
+        self.profile.presentation_boundary();
+        if let Err(error) = self.av.save() {
+            eprintln!("menu: could not save fullscreen preference ({error})");
+        }
+    }
+
     /// Width of the starting (x1) view, in frame pixels.
     fn base_w(&self) -> f32 {
         (240 + 2 * self.base_extra) as f32
@@ -643,6 +681,7 @@ impl PlayApp {
         let ex = (((vw - 240.0) / 2.0).ceil().max(0.0) as usize).min(gba_core::mem::MAX_EXTRA);
         let ey = (((vh - 160.0) / 2.0).ceil().max(0.0) as usize).min(gba_core::mem::MAX_EXTRA_Y);
         if ex != gba_core::mem::extra() || ey != gba_core::mem::extra_y() {
+            self.profile.presentation_boundary();
             if gba_core::ffta_log::enabled() {
                 eprintln!(
                     "FFTA_VIEW frame={} zoom_level={} zoom={z:.6} extra_x={ex} extra_y={ey} render_width={} render_height={} view_width={vw:.6} view_height={vh:.6}",
@@ -761,6 +800,8 @@ impl PlayApp {
         match result {Ok(())=>true,Err(e)=>{crate::rom_switch::show_error(&e);false}}
     }
     fn ui_layout(&self,physical:(u32,u32),index:usize)->Option<screen::ui_layer::Layout> {
+        let pixels = if index == 1 { &self.panel_pixels } else { &self.ui_pixels };
+        if pixels.is_empty() { return None; }
         let state=&self.machine.bus.ffta_dialogue;
         if index==1 {
             if !state.separate || !state.extra.active() {return None;}
@@ -786,7 +827,7 @@ impl PlayApp {
         }
     }
     fn ui_frame(&self,layout:screen::ui_layer::Layout,index:usize)->screen::ui_layer::Frame<'_> {
-        screen::ui_layer::Frame {pixels:if index==0 {&self.ui_pixels}else{&self.panel_pixels},
+        screen::ui_layer::Frame {pixels_revision:if index==0 {self.ui_pixels.revision()}else{self.panel_pixels.revision()},pixels:if index==0 {&self.ui_pixels}else{&self.panel_pixels},
             raw_world:if index==1 && self.machine.bus.ffta_dialogue.extra.kind==gba_core::ffta_dialogue::PanelKind::Stats {&self.machine.bus.ffta_dialogue.extra.background}else{&self.machine.bus.wide_framebuffer},
             world_dims:(wide_w() as u32,wide_h() as u32),lut:self.lut.table.as_slice(),
             layout,world_view:self.view}
@@ -801,25 +842,67 @@ impl PlayApp {
             return;
         };
         let size = window.inner_size();
-        let phys = (size.width.max(1), size.height.max(1));
+        self.profile.prepare_presentation(self.machine.bus.frames,
+            !self.paused && (self.primed || self.stream.is_none()) && !self.ff_active && size.width != 0 && size.height != 0);
+        // Do not enqueue UI/world copies or construct software surfaces while
+        // minimized to zero size. Guest/audio progress remains independent.
+        if size.width == 0 || size.height == 0 {
+            if self.benchmark.is_some() {
+                self.error = Some("GUI benchmark skipped a presentation".into());
+            }
+            return;
+        }
+        let phys = (size.width, size.height);
         let frame_dims = if self.paused {
-            let (w, h) = self.menu_dimensions();
-            (w as u32, h as u32)
+            // The window can resize while its menu canvas is being drawn.
+            // Upload the dimensions of that completed canvas, then scale to
+            // the latest physical window size; never reinterpret its stride.
+            (self.view[2] as u32, self.view[3] as u32)
         } else {
             (wide_w() as u32, wide_h() as u32)
         };
         if let Some(mut p) = self.presenter.take() {
+            p.enable_cpu_profiling(self.profile.enabled() && !self.paused);
             if !self.paused {
-                let layers=std::array::from_fn::<_,2,_>(|i|self.ui_layout(phys,i).map(|layout|self.ui_frame(layout,i)));
+                let ui_start = self.profile.start();
+                let layers = [
+                    self.ui_layout(phys, 0).map(|layout| self.ui_frame(layout, 0)),
+                    self.ui_layout(phys, 1).map(|layout| self.ui_frame(layout, 1)),
+                    self.fps.frame(phys, window.scale_factor()),
+                ];
                 p.set_ui_layers(&layers);
+                self.profile.record_ui_upload(p.ui_uploaded_bytes());
+                self.profile.finish(Phase::UiUpload, ui_start);
             } else {p.set_ui_layer(None);}
             let mut grid = self.grid_params;
             if self.paused {
                 grid.strength = 0.;
                 grid.scale_mode = 1;
             }
-            match p.present(&self.rgba, frame_dims, phys, &grid, self.view) {
-                Ok(()) => {self.presenter=Some(p);return;},
+            let result = p.present(&self.rgba, frame_dims, (size.width, size.height), &grid, self.view);
+            if let Some(times) = p.cpu_timings() {
+                self.profile.record(Phase::GpuSetupUpload, times.setup_upload);
+                self.profile.record(Phase::GpuAcquire, times.acquire);
+                self.profile.record(Phase::GpuEncode, times.encode);
+                self.profile.record(Phase::GpuSubmit, times.submit);
+                self.profile.record(Phase::GpuPresent, times.present);
+                self.profile.record(Phase::GpuReadback, times.timestamp_readback);
+            }
+            if let Some(batch) = p.take_gpu_timings() { self.profile.record_gpu(batch); }
+            match result {
+                Ok(outcome) => {
+                    if self.benchmark.is_some() && outcome == screen::present::PresentOutcome::Skipped {
+                        self.error = Some("GUI benchmark skipped a presentation".into());
+                    }
+                    self.presenter = Some(p);
+                    if outcome == screen::present::PresentOutcome::Skipped { self.profile.presentation_skipped(); }
+                    if outcome == screen::present::PresentOutcome::Presented && !self.paused {
+                        let now = Instant::now();
+                        self.fps.presented(now);
+                        self.profile.presented(now, false);
+                    }
+                    return;
+                },
                 Err(e) => {
                     eprintln!("video: GPU presenter failed ({e}); CPU scaling active");
                     self.presenter = None;
@@ -841,7 +924,7 @@ impl PlayApp {
         // Zoom crop, computed before `surf` borrows `self` mutably.
         let [vx0, vy0, vw, vh] = self.view;
         let (stride, frame_h) = if self.paused {
-            self.menu_dimensions()
+            (vw as usize, vh as usize)
         } else {
             (wide_w(), wide_h())
         };
@@ -913,7 +996,7 @@ impl PlayApp {
             }
         }
         for (i,layout) in ui_layouts.into_iter().enumerate() {if let Some(layout)=layout {
-            let ui=screen::ui_layer::Frame {pixels:if i==0 {&self.ui_pixels}else{&self.panel_pixels},raw_world:if i==1 && self.machine.bus.ffta_dialogue.extra.kind==gba_core::ffta_dialogue::PanelKind::Stats {&self.machine.bus.ffta_dialogue.extra.background}else{&self.machine.bus.wide_framebuffer},
+            let ui=screen::ui_layer::Frame {pixels_revision:None,pixels:if i==0 {&self.ui_pixels}else{&self.panel_pixels},raw_world:if i==1 && self.machine.bus.ffta_dialogue.extra.kind==gba_core::ffta_dialogue::PanelKind::Stats {&self.machine.bus.ffta_dialogue.extra.background}else{&self.machine.bus.wide_framebuffer},
                 world_dims:(wide_w() as u32,wide_h() as u32),lut:self.lut.table.as_slice(),layout,world_view:self.view};
             let x0=layout.rect[0].max(layout.clip[0]).max(0.) as usize;
             let y0=layout.rect[1].max(layout.clip[1]).max(0.) as usize;
@@ -926,12 +1009,36 @@ impl PlayApp {
             }}
         }
         }
-        let _ = buffer.present();
+        if !self.paused {
+            if let Some(hud) = self.fps.frame((w, h), window.scale_factor()) {
+                let [x, y, width, height] = hud.layout.clip;
+                for py in y as usize..((y + height) as usize).min(h as usize) {
+                    for px in x as usize..((x + width) as usize).min(w as usize) {
+                        if let Some(c) = hud.sample(px as f32 + 0.5, py as f32 + 0.5) {
+                            buffer[py * w as usize + px] = (c[0] as u32) << 16 | (c[1] as u32) << 8 | c[2] as u32;
+                        }
+                    }
+                }
+            }
+        }
+        let presented = buffer.present().is_ok();
+        if presented && !self.paused {
+            let now = Instant::now();
+            self.fps.presented(now);
+            self.profile.presented(now, true);
+        } else if !presented { self.profile.presentation_skipped(); }
     }
 
     /// Gather this frame's down-state into the active-low GBA `keys` mask and
     /// the host-menu [`NavEdges`], from the held-key set plus the gamepad.
     fn gather_input(&mut self) -> (u16, NavEdges) {
+        let capture_combo = self.menu.capturing() == Some(menu::Bind::GamepadMenu);
+        let mut combo_snapshot = None;
+        let mut pad_shortcut = (false, false);
+        let key_shortcut = input_config::combo_state(&self.icfg.menu_key, |token| {
+            winit_key(token).is_some_and(|key| self.held.contains(&key))
+        });
+        let key_menu_held = self.menu_key_latch.update(key_shortcut.0, key_shortcut.1);
         // KEYINPUT is active-low.
         let mut keys = 0x3FFu16;
         let mut pad_zoom_in = false;
@@ -952,12 +1059,13 @@ impl PlayApp {
             right: self.held.contains(&KeyCode::ArrowRight),
             confirm: self.held.contains(&KeyCode::Enter),
             cancel: self.held.contains(&KeyCode::Escape),
-            open: self.held.contains(&KeyCode::Escape),
+            open: self.held.contains(&KeyCode::Escape) || key_menu_held,
         };
         let capture_pad = matches!(
             self.menu.capturing(),
             Some(
                 menu::Bind::Gamepad(_)
+                    | menu::Bind::GamepadMenu
                     | menu::Bind::GamepadZoomIn
                     | menu::Bind::GamepadZoomOut
                     | menu::Bind::GamepadFastForward
@@ -991,7 +1099,7 @@ impl PlayApp {
                     #[cfg(not(target_os = "linux"))]
                     {
                     let gesture = self.gilrs_gestures.entry(event.id).or_default();
-                    gesture.arm_capture(capture_pad && !self.directinput_only);
+                    gesture.arm_capture(capture_pad && !capture_combo && !self.directinput_only);
                     for (token, pressed) in gilrs_control_transitions(event.event) {
                         if let Some(captured) = gesture.event(&token, pressed) {
                             if self.pending_pad.is_none() {
@@ -1071,7 +1179,7 @@ impl PlayApp {
                     for (id, gamepad) in g.gamepads() {
                         let pad=self.linux_pads.entry(id).or_default();
                         let snapshot=crate::linux_pad::Snapshot::read(&gamepad,self.icfg.stick_deadzone,pad.state);
-                        let update=pad.poll(snapshot,capture_pad,now);
+                        let update=pad.poll(snapshot,capture_pad && !capture_combo,now);
                         if self.pending_pad.is_none() {
                             self.pending_pad=update.capture.map(str::to_owned);
                         }
@@ -1166,7 +1274,7 @@ impl PlayApp {
         }
         for pad in &direct_states {
             let gesture = self.direct_gestures.entry(pad.name.clone()).or_default();
-            gesture.arm_capture(capture_pad && direct_requested);
+            gesture.arm_capture(capture_pad && !capture_combo && direct_requested);
             let captured = gesture.snapshot(pad.capture_tokens());
             if direct_requested && self.pending_pad.is_none() {
                 self.pending_pad = captured;
@@ -1227,7 +1335,7 @@ impl PlayApp {
                 .collect();
             let any_down = !all_tokens.is_empty();
             let mut captured = None;
-            if capture_pad && !capture_locked {
+            if capture_pad && !capture_combo && !capture_locked {
                 for slot in 0..4 {
                     if let Some(state) = current[slot] {
                         if let Some(token) =
@@ -1251,6 +1359,9 @@ impl PlayApp {
             }
             if let Some(slot) = active_slot {
                 if let Some(state) = current[slot] {
+                    if capture_combo {
+                        combo_snapshot = Some((format!("xinput:{slot}"), xinput_tokens(state, activity_threshold)));
+                    }
                     let blocked =
                         capture_locked || self.xinput.as_ref().is_some_and(|x| x.capture_locked);
                     if !blocked {
@@ -1290,7 +1401,9 @@ impl PlayApp {
                         nav.right |= pressed("DPadRight") || state.gamepad.left_x > dz_axis;
                         nav.confirm |= pressed("South");
                         nav.cancel |= pressed("East");
-                        nav.open |= pressed("Mode") || (pressed("Start") && pressed("Select"));
+                        pad_shortcut = input_config::combo_state(&self.icfg.menu_pad, pressed);
+                        pad_shortcut.0 |= pressed("Mode");
+                        pad_shortcut.1 |= pressed("Mode");
                     }
                 }
             }
@@ -1309,7 +1422,9 @@ impl PlayApp {
                         .find(|(_, gp)| gp.name() == self.icfg.gamepad_name)
                 })
                 .or_else(|| g.gamepads().next());
-            if let Some((id, gp)) = chosen {
+            if let Some((id, _gp)) = chosen {
+                #[cfg(not(target_os = "linux"))]
+                let gp = _gp;
                 standard_selected = true;
                 #[cfg(not(target_os = "linux"))]
                 let pad_blocked = self
@@ -1320,11 +1435,14 @@ impl PlayApp {
                 let pad_blocked=self.linux_pads.get(&id).is_some_and(crate::linux_pad::Pad::blocked);
                 #[cfg(not(target_os = "linux"))]
                 let dz = self.icfg.stick_deadzone;
-                if !pad_blocked {
                     #[cfg(not(target_os = "linux"))]
                     let pressed=|name:&str|pad_pressed(&gp,name,dz);
                     #[cfg(target_os = "linux")]
                     let pressed=|name:&str|self.linux_pads.get(&id).is_some_and(|pad|pad.state.pressed(name));
+                if capture_combo {
+                    combo_snapshot = Some((format!("gilrs:{id:?}"), input_config::PAD_CONTROLS.iter().filter(|token| pressed(token)).map(|s| s.to_string()).collect()));
+                }
+                if !pad_blocked {
                     pad_zoom_in = pressed(&self.icfg.zoom_in_pad);
                     pad_zoom_out = pressed(&self.icfg.zoom_out_pad);
                     pad_ff_held = pressed(&self.icfg.ff_pad);
@@ -1386,7 +1504,7 @@ impl PlayApp {
                         right: gp.is_pressed(Gb::DPadRight) || gp.value(Axis::LeftStickX) > dz,
                         confirm: gp.is_pressed(Gb::South),
                         cancel: gp.is_pressed(Gb::East),
-                        open: gp.is_pressed(Gb::Mode),
+                        open: false,
                     };
                     #[cfg(target_os = "linux")]
                     let pad_nav=NavEdges {
@@ -1395,7 +1513,7 @@ impl PlayApp {
                         left:pressed("DPadLeft")||pressed("LeftStickLeft"),
                         right:pressed("DPadRight")||pressed("LeftStickRight"),
                         confirm:pressed("South"),cancel:pressed("East"),
-                        open:pressed("Mode")||(pressed("Start")&&pressed("Select")),
+                        open:false,
                     };
                     nav.up |= pad_nav.up;
                     nav.down |= pad_nav.down;
@@ -1403,9 +1521,11 @@ impl PlayApp {
                     nav.right |= pad_nav.right;
                     nav.confirm |= pad_nav.confirm;
                     nav.cancel |= pad_nav.cancel;
-                    // Linux also accepts Start+Back when the desktop/Steam
-                    // intercepts Guide. Keyboard Escape remains available.
-                    nav.open |= pad_nav.open;
+                    // The configured shortcut works even when the desktop
+                    // intercepts Guide. Escape remains available too.
+                    pad_shortcut = input_config::combo_state(&self.icfg.menu_pad, pressed);
+                    pad_shortcut.0 |= pressed("Mode");
+                    pad_shortcut.1 |= pressed("Mode");
                 }
             }
         }
@@ -1417,6 +1537,7 @@ impl PlayApp {
                 .iter()
                 .find(|pad| pad.name == self.icfg.gamepad_name);
             if let Some(gp) = active.or(preferred).or_else(|| direct_states.first()) {
+                if capture_combo { combo_snapshot = Some((gp.name.clone(), gp.capture_tokens())); }
                 let pad_blocked = self
                     .direct_gestures
                     .get(&gp.name)
@@ -1445,7 +1566,7 @@ impl PlayApp {
                         right: gp.pressed("DPadRight", dz) || gp.axes[0] > dz,
                         confirm: gp.pressed("South", dz),
                         cancel: gp.pressed("East", dz),
-                        open: gp.pressed("Mode", dz),
+                        open: false,
                     };
                     nav.up |= pad_nav.up;
                     nav.down |= pad_nav.down;
@@ -1453,11 +1574,28 @@ impl PlayApp {
                     nav.right |= pad_nav.right;
                     nav.confirm |= pad_nav.confirm;
                     nav.cancel |= pad_nav.cancel;
-                    nav.open |= pad_nav.open;
+                    pad_shortcut = input_config::combo_state(&self.icfg.menu_pad, |token| gp.pressed(token, dz));
+                    pad_shortcut.0 |= gp.pressed("Mode", dz);
+                    pad_shortcut.1 |= gp.pressed("Mode", dz);
                 }
             }
         }
-        if capture_pad {
+        if capture_combo {
+            self.pending_pad = None;
+            if let Some((source, controls)) = combo_snapshot {
+                self.pending_pad = self.menu_pad_capture.poll(&source, controls);
+            } else { self.menu_pad_capture = input_config::ComboCapture::default(); }
+        } else { self.menu_pad_capture = input_config::ComboCapture::default(); }
+        let pad_menu_held = self.menu_pad_latch.update(pad_shortcut.0, pad_shortcut.1);
+        self.menu_shortcut_held = key_menu_held || pad_menu_held;
+        // Capture already suppresses toggle handling. Preserve the held state
+        // here so cancelling capture cannot turn it into a fresh menu press.
+        nav.open |= pad_menu_held;
+        if key_menu_held || pad_menu_held {
+            nav.up = false; nav.down = false; nav.left = false; nav.right = false;
+            nav.confirm = false; nav.cancel = false;
+        }
+        if capture_pad || key_menu_held || pad_menu_held {
             // Remapping is an exclusive input mode. Do not let the physical
             // button being captured also control the game or host zoom.
             // Keep nav's actual held state so nav_prev is primed; clearing it
@@ -1498,20 +1636,269 @@ impl PlayApp {
         self.key_pairs = pairs;
     }
 
+    fn refresh_ui_layers(&mut self) {
+        let state = &self.machine.bus.ffta_dialogue;
+        if let Some((pixels, _)) = state.layer() {
+            if state.action_layout {
+                self.ui_pixels.panel(pixels, &state.backing, state.style.length, false);
+            } else if state.town_layout || state.shop_layout {
+                self.ui_pixels.panel(pixels, &[], 1., true);
+            } else {
+                self.ui_pixels.raw(pixels);
+            }
+        } else {
+            self.ui_pixels.clear();
+        }
+        let extra = &state.extra;
+        if state.separate && extra.active() {
+            let b = gba_core::ffta_dialogue::panel_bounds(&extra.pixels, &extra.backing).unwrap_or([0; 4]);
+            self.panel_pixels.panel(
+                &extra.pixels, &extra.backing,
+                if state.town_layout || extra.kind == gba_core::ffta_dialogue::PanelKind::Notice { 1. } else { state.style.length },
+                state.town_layout || b[0] + b[2] >= 240,
+            );
+        } else {
+            self.panel_pixels.clear();
+        }
+    }
+
+    fn refresh_state_slots(&mut self) {
+        let slots = std::array::from_fn(|i| {
+            let info = self.state_slots.info(i as u8 + 1);
+            menu::StateSlot {
+                occupied: info.occupied,
+                preview: info.preview,
+                status: info.status,
+            }
+        });
+        self.menu.set_state_slots(slots);
+        self.menu.set_state_undo(self.state_slots.undo_label());
+        let expected = self.machine.bus.save_data().map_or(0, |data| data.len());
+        let choices = self.save_backups.choices(expected);
+        self.menu
+            .set_save_backups(choices.map(|choice| menu::BackupInfo {
+                generation: choice.generation,
+                status: choice.status,
+            }));
+    }
+
+    /// Capture the displayed game view plus native UI, excluding the pause menu and FPS HUD.
+    fn state_preview(&mut self) -> Vec<[u8; 4]> {
+        let (w, h) = (crate::save_state::PREVIEW_W, crate::save_state::PREVIEW_H);
+        self.temporal.compose(&self.lut, &mut self.rgba);
+        let mut pixels = vec![[0, 0, 0, 255]; w * h];
+        let [vx, vy, vw, vh] = self.view;
+        let (scale, ox, oy) = screen::present::letterbox_f((w as u32, h as u32), vw, vh);
+        for y in 0..h {
+            for x in 0..w {
+                let fx = (x as f32 - ox) / scale;
+                let fy = (y as f32 - oy) / scale;
+                if fx >= 0. && fy >= 0. && fx < vw && fy < vh {
+                    pixels[y * w + x] = self.rgba[((vy + fy) as usize).min(wide_h() - 1)
+                        * wide_w()
+                        + ((vx + fx) as usize).min(wide_w() - 1)];
+                }
+            }
+        }
+        for layer in 0..2 {
+            if let Some(layout) = self.ui_layout((w as u32, h as u32), layer) {
+                let ui = self.ui_frame(layout, layer);
+                for y in 0..h {
+                    for x in 0..w {
+                        if let Some(color) = ui.sample(x as f32 + 0.5, y as f32 + 0.5) {
+                            pixels[y * w + x] = color;
+                        }
+                    }
+                }
+            }
+        }
+        pixels
+    }
+
+    fn restore_save_backup(&mut self, generation: u64) {
+        if self.record.is_some() {
+            self.menu
+                .backup_result("Stop input recording before restoring a backup.".into());
+            self.menu_dirty = true;
+            return;
+        }
+        let message =
+            match self
+                .save_backups
+                .restore(generation, &mut self.machine, &self.boot_state)
+            {
+                Ok(()) => {
+                    self.sav_seen = self.machine.bus.save_data().map(fnv64);
+                    self.state_slots = crate::save_state::Slots::new(
+                        Path::new(&self.sav_path),
+                        &self.machine.bus.rom,
+                    );
+                    let enabled = self.icfg.mouse_keyboard
+                        || std::env::var("FFTA_MOUSE").as_deref() == Ok("1");
+                    self.game_mouse =
+                        gba_core::ffta_mouse::LanguageMouse::new(&self.machine.bus.rom, enabled);
+                    self.machine
+                        .bus
+                        .ffta_battle_mouse
+                        .set_enabled(self.icfg.mouse_keyboard);
+                    self.after_state_restore();
+                    "Backup restored. Resume to start the game.".into()
+                }
+                Err(error) => format!("Cannot restore backup: {error}"),
+            };
+        self.refresh_state_slots();
+        self.menu.backup_result(message);
+        self.menu_dirty = true;
+        self.next_frame = Instant::now();
+    }
+
+    fn after_state_restore(&mut self) {
+        self.profile.presentation_restored(self.machine.bus.frames);
+        // Discard consumer resamplers and queues from the old timeline.
+        drop(self.stream.take());
+        self.ff_latched = false;
+        {
+            let mut st = self.streams.lock().unwrap();
+            st.dead = false;
+            if let Some(profile) = st.profile.as_mut() {
+                profile.restored_frame(self.machine.bus.frames);
+            }
+        }
+        self.set_fast_forward(false, 1);
+        self.stream = start_audio(self.streams.clone());
+        self.audio_retry = if self.stream.is_none() {
+            Some(Instant::now())
+        } else {
+            None
+        };
+        self.game_mouse.cancel();
+        self.mouse_queue.clear();
+        self.machine.bus.keys = 0x3ff;
+        self.sync_view();
+        self.rebuild_temporal();
+        let frame = restored_native_frame(&self.machine.bus, &mut self.padded_frame);
+        self.temporal.push(frame, &self.lut);
+        // Native preview already includes the saved UI. Rebuild separated layers
+        // only after a completed frame has rendered them for the current view.
+        self.ui_pixels.clear();
+        self.panel_pixels.clear();
+        self.fps.reset(Instant::now());
+        self.profile.presentation_boundary();
+    }
+
+    fn undo_state_operation(&mut self) {
+        if self.record.is_some() && self.state_slots.undo_restores_machine() {
+            self.menu
+                .state_result("Stop input recording before undoing a load.".into());
+            self.menu_dirty = true;
+            return;
+        }
+        let message = match self.state_slots.undo(&mut self.machine) {
+            Ok(crate::save_state::UndoEffect::Save(slot)) => format!("Undid save in slot {slot}."),
+            Ok(crate::save_state::UndoEffect::Load(slot)) => {
+                self.after_state_restore();
+                format!("Undid load from slot {slot}.")
+            }
+            Err(error) => format!("Cannot undo: {error}"),
+        };
+        self.refresh_state_slots();
+        self.menu.state_result(message);
+        self.menu_dirty = true;
+        self.next_frame = Instant::now();
+    }
+
+    fn state_operation(&mut self, saving: bool, slot: u8, overwrite: bool) {
+        if !saving && self.record.is_some() {
+            self.menu
+                .state_result("Stop input recording before loading a state.".into());
+            self.menu_dirty = true;
+            return;
+        }
+        let result = if saving {
+            let preview = self.state_preview();
+            self.state_slots
+                .save(&self.machine, slot, &preview, overwrite)
+        } else {
+            self.state_slots.load(&mut self.machine, slot)
+        };
+        let message = match result {
+            Ok(()) => {
+                if !saving {
+                    self.after_state_restore();
+                }
+                format!("Slot {slot} {}.", if saving { "saved" } else { "loaded" })
+            }
+            Err(error) => format!(
+                "Cannot {} slot {slot}: {error}",
+                if saving { "save" } else { "load" }
+            ),
+        };
+        self.refresh_state_slots();
+        self.menu.state_result(message);
+        self.menu_dirty = true;
+        self.next_frame = Instant::now();
+    }
+
+    /// Developer workload cycle; normal interactive pacing stays in about_to_wait.
+    fn benchmark_tick(&mut self, event_loop: &ActiveEventLoop) {
+        if self.presenter.is_none() {
+            self.error = Some("GUI benchmark requires a GPU presenter; inspect adapter/surface errors".into());
+            event_loop.exit(); return;
+        }
+        let measuring = self.benchmark.as_ref().unwrap().measuring();
+        self.profile.set_measuring(measuring);
+        let start = Instant::now();
+        if let Err(error) = self.benchmark.as_ref().unwrap().apply_input(&mut self.machine) {
+            self.error = Some(error); event_loop.exit(); return;
+        }
+        let tick_start = self.profile.start();
+        if !self.run_one_frame() { event_loop.exit(); return; }
+        let compose_start = self.profile.start();
+        self.temporal.compose(&self.lut, &mut self.rgba);
+        self.profile.finish(Phase::TemporalCompose, compose_start);
+        let present_start = self.profile.start();
+        self.present_rgba();
+        self.profile.finish(Phase::Present, present_start);
+        self.profile.finish(Phase::Tick, tick_start);
+        if self.error.is_some() || self.presenter.is_none() {
+            self.error.get_or_insert_with(|| "GUI benchmark lost GPU presentation".into());
+            event_loop.exit(); return;
+        }
+        match self.benchmark.as_mut().unwrap().finish_frame(&self.machine, start) {
+            Ok(true) => event_loop.exit(),
+            Ok(false) => {},
+            Err(error) => { self.error = Some(error); event_loop.exit(); }
+        }
+    }
+
+    /// Pause/priming boundaries reset legacy alarms, but the optional session
+    /// profile retains independent totals labelled with the current context.
+    fn reset_audio_counters(&self) {
+        let mut st = self.streams.lock().unwrap();
+        st.drops = 0;
+        st.holds = 0;
+        st.clipped = 0;
+        if let Some(profile) = st.profile.as_mut() {
+            profile.set_context(crate::audio_profile::Context::of(self.paused, self.primed, self.ff_active));
+            profile.publish_frame(self.machine.bus.frames);
+        }
+    }
+
     /// Change fast-forward activation or audio speed. Flush stale audio on
     /// transitions and re-prime when returning to normal play.
     fn set_fast_forward(&mut self, on: bool, speed: u32) {
+        self.profile.presentation_boundary();
         self.ff_active = on;
         self.ff_audio_active = self.av.ff_audio.clone();
         {
             let mut st = self.streams.lock().unwrap();
+            st.discard_pending();
             st.muted = on && self.av.ff_audio == "silent";
             st.playback_speed = if on && self.av.ff_audio == "fast" {
                 speed as f64
             } else {
                 1.0
             };
-            st.normal_audio = None;
             if on && self.av.ff_audio == "normal" {
                 match super::ff_audio::NormalAudio::new() {
                     Ok(queue) => st.normal_audio = Some(queue),
@@ -1523,14 +1910,13 @@ impl PlayApp {
                     }
                 }
             }
-            st.mixed.clear();
-            st.psg.clear();
-            st.hle.clear();
-            st.fifo[0].clear();
-            st.fifo[1].clear();
             st.drops = 0;
             st.holds = 0;
             st.clipped = 0;
+            if let Some(profile) = st.profile.as_mut() {
+                profile.set_context(crate::audio_profile::Context::of(self.paused, false, on));
+                profile.publish_frame(self.machine.bus.frames);
+            }
         }
         self.primed = false;
         self.audio_watch = Instant::now();
@@ -1541,21 +1927,41 @@ impl PlayApp {
     /// One emulated frame plus its audio handoff to the rings. Counts native
     /// vs fallback dispatch, advances the screen's temporal response, surfaces
     /// the realtime / audio-defect alarms, and flushes backup media.
-    fn run_one_frame(&mut self) {
+    fn run_one_frame(&mut self) -> bool {
         // Apply a pending zoom change before the frame is emulated, so the
         // core renders (and we read back) the size the zoom needs.
         self.sync_view();
-        let keys=self.game_mouse.keys(&mut self.machine.bus,self.game_keys);
-        let keys=gba_core::ffta_battle_mouse::keys(&mut self.machine.bus,keys);
-        self.machine.bus.keys=keys;
-        if let Some(index)=self.machine.bus.ffta_battle_mouse.take_event(){if let Some((file,_))=&mut self.record{use std::io::Write;let _=writeln!(file,"{} mouse:{index}",self.machine.bus.frames);}}
-        if let Some(index)=self.game_mouse.take_selection_event() {if let Some((file,_))=&mut self.record {
-            use std::io::Write;let _=writeln!(file,"{} mouse:{index}",self.machine.bus.frames);
-        }}
-        if let Some((file,last))=&mut self.record {if keys!=*last {
-            use std::io::Write;let _=writeln!(file,"{} {keys:03x}",self.machine.bus.frames);*last=keys;
-        }}
+        if self.benchmark.is_none() {
+            let keys = self.game_mouse.keys(&mut self.machine.bus, self.game_keys);
+            let keys = gba_core::ffta_battle_mouse::keys(&mut self.machine.bus, keys);
+            self.machine.bus.keys = keys;
+            if let Some(index) = self.machine.bus.ffta_battle_mouse.take_event() {
+                if let Some((file, _)) = &mut self.record {
+                    use std::io::Write;
+                    let _ = writeln!(file, "{} mouse:{index}", self.machine.bus.frames);
+                }
+            }
+            if let Some(index) = self.game_mouse.take_selection_event() {
+                if let Some((file, _)) = &mut self.record {
+                    use std::io::Write;
+                    let _ = writeln!(file, "{} mouse:{index}", self.machine.bus.frames);
+                }
+            }
+            if let Some((file, last)) = &mut self.record {
+                if keys != *last {
+                    use std::io::Write;
+                    let _ = writeln!(file, "{} {keys:03x}", self.machine.bus.frames);
+                    *last = keys;
+                }
+            }
+        }
         let emu_t0 = Instant::now();
+        self.fps.configure(&self.av.video_fps, emu_t0);
+        let frames_before = self.machine.bus.frames;
+        let core_start = self.profile.start();
+        let ppu_capture = gba_core::ppu_profile::Capture::start_detailed(
+            self.profile.enabled(), self.profile.detailed_ppu(),
+        );
         match &self.native {
             Some((_lib, table)) => {
                 let mptr = &mut self.machine as *mut Machine as *mut std::ffi::c_void;
@@ -1565,28 +1971,27 @@ impl PlayApp {
             }
             None => self.machine.run_frame(5_000_000),
         }
+        let ppu_timings = ppu_capture.finish();
+        self.profile.finish(Phase::Core, core_start);
+        // A guard hit is an incomplete frame, not a new temporal-history entry.
+        // Stop cleanly instead of presenting/counting partially advanced state.
+        if self.machine.bus.frames == frames_before {
+            self.error = Some("emulation step guard exceeded before a complete frame".into());
+            return false;
+        }
+        self.profile.record_ppu(ppu_timings);
+        self.fps.emulated(self.machine.bus.frames.saturating_sub(frames_before));
         gba_core::ffta_sprites::trace_frame(&self.machine.bus);
-        if let Some((pixels,_))=self.machine.bus.ffta_dialogue.layer() {
-            self.ui_pixels.resize(pixels.len(),[0;4]);
-            let state=&self.machine.bus.ffta_dialogue;
-            if state.action_layout {
-                gba_core::ffta_dialogue::pack_panel(pixels,&state.backing,state.style.length,false,&mut self.ui_pixels);
-            } else if state.town_layout || state.shop_layout {
-                gba_core::ffta_dialogue::pack_panel(pixels,&[],1.,true,&mut self.ui_pixels);
-            } else {for (out,pixel) in self.ui_pixels.iter_mut().zip(pixels) {*out=pixel.packed();}}
-        } else {self.ui_pixels.clear();}
-        let extra=&self.machine.bus.ffta_dialogue.extra;
-        if self.machine.bus.ffta_dialogue.separate && extra.active() {
-            self.panel_pixels.resize(extra.pixels.len(),[0;4]);
-            let b=gba_core::ffta_dialogue::panel_bounds(&extra.pixels,&extra.backing).unwrap_or([0;4]);
-            let state=&self.machine.bus.ffta_dialogue;
-            gba_core::ffta_dialogue::pack_panel(&extra.pixels,&extra.backing,if state.town_layout || extra.kind==gba_core::ffta_dialogue::PanelKind::Notice {1.}else{state.style.length},state.town_layout || b[0]+b[2]>=240,&mut self.panel_pixels);
-        } else {self.panel_pixels.clear();}
+        let ui_start = self.profile.start();
+        self.refresh_ui_layers();
+        self.profile.finish(Phase::UiPrepare, ui_start);
         // Advance the screen's temporal response once per EMULATED frame —
         // never per presented frame, or flicker-transparency titles lock onto
         // one phase (the classic parity bug).
+        let temporal_start = self.profile.start();
         let wf = display_frame(&self.machine.bus, &mut self.padded_frame);
         self.temporal.push(wf, &self.lut);
+        self.profile.finish(Phase::TemporalPush, temporal_start);
 
         // Realtime alarm: the frame budget is 16.7 ms. If smoothed emulation
         // cost approaches it, the product promise is broken — say so once.
@@ -1597,7 +2002,7 @@ impl PlayApp {
             self.emu_ema_ms * 0.95 + dt_ms * 0.05
         };
         self.frames_run += 1;
-        if !self.slow_warned && self.frames_run > 120 && self.emu_ema_ms > 15.0 {
+        if self.benchmark.is_none() && !self.slow_warned && self.frames_run > 120 && self.emu_ema_ms > 15.0 {
             self.slow_warned = true;
             eprintln!(
                 "DEGRADED: emulation averaging {:.1} ms/frame (budget 16.7 ms) — below native speed",
@@ -1608,18 +2013,14 @@ impl PlayApp {
         // Live perf readout in the title, once a second. Developer tooling —
         // hidden from the release out-of-box experience unless requested.
         if self.show_stats && self.frames_run % 60 == 0 {
-            let total = self.native_run + self.fallback_run;
-            let share = if total == 0 {
-                0.0
-            } else {
-                self.native_run as f64 * 100.0 / total as f64
-            };
             if let Some(w) = self.window.as_ref() {
                 w.set_title(&format!(
-                    "{} · {:.2} ms/frame ({:.1}x headroom) · native {share:.0}%",
+                    "{} · {:.2} ms/frame ({:.1}x headroom) · native {} blocks · fallback {} steps",
                     self.title,
                     self.emu_ema_ms,
                     16.7 / self.emu_ema_ms.max(0.01),
+                    self.native_run,
+                    self.fallback_run,
                 ));
             }
             self.native_run = 0;
@@ -1628,7 +2029,7 @@ impl PlayApp {
 
         // Audio defect surfacing: ring drops and underrun holds are silent
         // corruption — say so, with numbers, per the product bar.
-        if self.frames_run % 300 == 0 {
+        if self.benchmark.is_none() && self.frames_run % 300 == 0 {
             let (d, h, c) = {
                 let mut st = self.streams.lock().unwrap();
                 let v = (st.drops, st.holds, st.clipped);
@@ -1649,9 +2050,10 @@ impl PlayApp {
             }
         }
 
+        let autosave_start = (self.benchmark.is_none() && self.frames_run % 300 == 0).then(|| self.profile.start()).flatten();
         // Flush backup media periodically when it changed, so an external
         // teardown (launcher kills us) can't lose more than ~5 s of progress.
-        if self.frames_run % 300 == 0 {
+        if self.benchmark.is_none() && self.frames_run % 300 == 0 {
             if let Some(data) = self.machine.bus.save_data() {
                 let h = fnv64(data);
                 if self.sav_seen != Some(h) && write_sav(&self.sav_path, data).is_ok() {
@@ -1660,7 +2062,11 @@ impl PlayApp {
             }
         }
 
+        self.profile.finish(Phase::Autosave, autosave_start);
+        let audio_start = self.profile.start();
         self.handoff_audio();
+        self.profile.finish(Phase::AudioHandoff, audio_start);
+        true
     }
 
     /// Hand this frame's audio taps to the consumer rings, refresh the routing
@@ -1670,6 +2076,13 @@ impl PlayApp {
     fn handoff_audio(&mut self) {
         let bus = &mut self.machine.bus;
         if self.stream.is_none() || (self.ff_active && self.av.ff_audio == "silent") {
+            // Silent fast-forward still advances guest frames. Only diagnostics
+            // need to publish them; keep the default discard path lock-free.
+            if self.benchmark.is_none() && self.profile.enabled() {
+                if let Some(profile) = self.streams.lock().unwrap().profile.as_mut() {
+                    profile.publish_frame(bus.frames);
+                }
+            }
             bus.audio_buf.clear();
             bus.psg_tap.clear();
             bus.hle_tap.clear();
@@ -1679,10 +2092,11 @@ impl PlayApp {
         }
         if self.ff_active && self.av.ff_audio == "normal" {
             let mut st = self.streams.lock().unwrap();
+            if let Some(profile) = st.profile.as_mut() { profile.publish_frame(bus.frames); }
             if let Some(queue) = st.normal_audio.as_mut() {
                 if let Err(error) = queue.push(&bus.audio_buf) {
                     eprintln!(
-                        "audio: normal-speed backlog write failed ({error}); muting fast-forward audio"
+                        "audio: invalid normal-speed PCM ({error}); muting fast-forward audio"
                     );
                     st.normal_audio = None;
                     st.muted = true;
@@ -1697,6 +2111,11 @@ impl PlayApp {
         }
         let cnt_h = bus.read16(0x0400_0082);
         let mut st = self.streams.lock().unwrap();
+        if let Some(profile) = st.profile.as_mut() { profile.publish_frame(bus.frames); }
+        let drops_before = st.profile.as_ref().map(|_| st.drops);
+        if st.playback_speed > 1. {
+            st.fast_produced = st.fast_produced.wrapping_add((bus.audio_buf.len() / 2) as u64);
+        }
         let audio_capacity = 65536 * st.playback_speed.max(1.0) as usize;
         st.route = [(cnt_h >> 8 & 3) as u8, (cnt_h >> 12 & 3) as u8];
         st.vol_half = [cnt_h & 4 == 0, cnt_h & 8 == 0];
@@ -1767,14 +2186,19 @@ impl PlayApp {
             st.hle_on = true;
         }
         for f in 0..2 {
-            let events = std::mem::take(&mut bus.fifo_tap[f]);
-            for e in events {
+            // Keep the producer's allocation for the next frame, preserving
+            // the same event order and overflow/drop behavior.
+            for e in bus.fifo_tap[f].drain(..) {
                 if st.fifo[f].len() < audio_capacity / 2 {
                     st.fifo[f].push_back(e);
                 } else {
                     st.drops += 1;
                 }
             }
+        }
+        if let Some(before) = drops_before {
+            let dropped = st.drops.saturating_sub(before);
+            if let Some(profile) = st.profile.as_mut() { profile.dropped(dropped); }
         }
     }
 
@@ -1800,15 +2224,10 @@ impl PlayApp {
                     if dead { "errored" } else { "stopped consuming" }
                 );
                 self.stream = None;
-                {
-                    let mut st = self.streams.lock().unwrap();
-                    st.dead = false;
-                    st.mixed.clear();
-                    st.psg.clear();
-                    st.hle.clear();
-                    st.fifo[0].clear();
-                    st.fifo[1].clear();
-                }
+                self.profile.presentation_boundary();
+                self.streams.lock().unwrap().dead = false;
+                // Recreate even Normal's backlog from the current timeline.
+                self.set_fast_forward(self.ff_active, self.ff_speed);
                 self.audio_stalls = 0;
                 self.audio_retry = Some(Instant::now());
                 self.next_frame = Instant::now();
@@ -1823,7 +2242,7 @@ impl PlayApp {
                         self.primed = false;
                         self.audio_consumed_last = 0;
                         self.audio_stalls = 0;
-                        reset_audio_counters(&self.streams);
+                        self.reset_audio_counters();
                     }
                 }
             }
@@ -1862,12 +2281,13 @@ impl ApplicationHandler for PlayApp {
         }
         // The texture is allocated for the largest frame; each present uploads
         // only the current (zoom-dependent) frame size and crop.
-        self.presenter = match screen::present::Presenter::new(
+        self.presenter = match screen::present::Presenter::new_profiled(
             window.clone(),
             (240 + 2 * gba_core::mem::MAX_EXTRA) as u32,
             (160 + 2 * gba_core::mem::MAX_EXTRA_Y) as u32,
             self.display_target,
             self.av.video_vsync,
+            self.profile.gpu_enabled(),
         ) {
             Ok(p) => Some(p),
             Err(e) => {
@@ -1876,6 +2296,7 @@ impl ApplicationHandler for PlayApp {
             }
         };
         self.window = Some(window);
+        if self.benchmark.is_none() && self.av.video_fullscreen { self.set_fullscreen(true); }
         // The window now exists: tell a supervising frontend we're live.
         if self.status {
             status_line("playing");
@@ -1883,6 +2304,13 @@ impl ApplicationHandler for PlayApp {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        if matches!(&event, WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }) {
+            self.profile.presentation_boundary();
+        }
+        if self.benchmark.is_some() {
+            if matches!(event, WindowEvent::CloseRequested) { event_loop.exit(); }
+            return; // Physical input must not alter a deterministic benchmark.
+        }
         self.menu_dirty = true;
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -1910,7 +2338,10 @@ impl ApplicationHandler for PlayApp {
                         if consumed {self.held.remove(&code);return;}
                     }
                     self.held.insert(code);
-                    if !self.paused && !repeat && winit_key(&self.icfg.ff_toggle_key) == Some(code)
+                    let menu_combo_down = input_config::combo_state(&self.icfg.menu_key, |token| {
+                        winit_key(token).is_some_and(|key| self.held.contains(&key))
+                    }).0;
+                    if !self.paused && !menu_combo_down && !repeat && winit_key(&self.icfg.ff_toggle_key) == Some(code)
                     {
                         self.ff_latched = !self.ff_latched;
                     }
@@ -1923,15 +2354,11 @@ impl ApplicationHandler for PlayApp {
                     // auto-repeat.
                     if code == KeyCode::F11 && !repeat {
                         if let Some(w) = self.window.as_ref() {
-                            let next = if w.fullscreen().is_some() {
-                                None
-                            } else {
-                                Some(Fullscreen::Borderless(None))
-                            };
-                            w.set_fullscreen(next);
+                            let next = !self.fullscreen.desired(w.fullscreen().is_some());
+                            self.set_fullscreen(next);
                         }
                     }
-                    if !self.paused {
+                    if !self.paused && !menu_combo_down {
                         // Zoom is gameplay-only; prevent it changing behind menus.
                         match code {
                             _ if key_name(code).is_some_and(|n| n == self.icfg.zoom_in_key) => {
@@ -2003,6 +2430,9 @@ impl ApplicationHandler for PlayApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.benchmark.is_some() && self.window.is_some() {
+            self.benchmark_tick(event_loop); return;
+        }
         if self.window.is_none() {
             return;
         }
@@ -2015,6 +2445,15 @@ impl ApplicationHandler for PlayApp {
             .window
             .as_ref()
             .is_some_and(|w| w.fullscreen().is_some());
+        if let Some(actual) = self.fullscreen.observe(fullscreen) {
+            if actual != self.av.video_fullscreen {
+                self.av.video_fullscreen = actual;
+                self.menu_dirty = true;
+                if let Err(error) = self.av.save() {
+                    eprintln!("menu: could not save fullscreen state ({error})");
+                }
+            }
+        }
         let want_cursor = self.paused || !fullscreen || self.machine.bus.ffta_battle_mouse.enabled || self.game_mouse.scene(&self.machine.bus).is_some();
         if want_cursor != self.cursor_visible {
             if let Some(w) = self.window.as_ref() {
@@ -2044,14 +2483,20 @@ impl ApplicationHandler for PlayApp {
                 return;
             }
             self.paused = !self.paused;
+            self.fps.reset(Instant::now());
+            self.profile.presentation_boundary();
             if self.paused {
+                // End the current audio timeline immediately. Keep the user's
+                // Fast latch; the effective speed is resolved again on resume.
+                self.set_fast_forward(false, 1);
                 self.game_mouse.cancel();self.machine.bus.ffta_battle_mouse.cancel();
                 self.menu.reset();
+                self.refresh_state_slots();
                 self.menu_dirty = true;
                 // Drop stale pointer events from before the menu opened.
                 self.mouse_queue.clear();
             }
-            reset_audio_counters(&self.streams);
+            self.reset_audio_counters();
             // A toggle press is fully consumed here — while paused, fall
             // through to the overlay redraw; the same press must not also be
             // fed to the menu as a Cancel.
@@ -2077,7 +2522,18 @@ impl ApplicationHandler for PlayApp {
             // can't also move the cursor.
             let was_capturing = self.menu.capturing().is_some();
             let captured = self.pending_key.take();
-            if let (Some(btn), Some(code)) = (self.menu.capturing(), captured) {
+            let capture_key_combo = self.menu.capturing() == Some(menu::Bind::Menu);
+            if capture_key_combo {
+                if captured == Some(KeyCode::Escape) {
+                    self.menu.end_capture();
+                    self.menu_key_capture = input_config::ComboCapture::default();
+                } else if let Some(combo) = self.menu_key_capture.poll("keyboard", self.held.iter().filter_map(|code| key_name(*code).map(str::to_owned)).collect()) {
+                    self.icfg.menu_key = combo;
+                    if let Err(error) = self.icfg.save() { eprintln!("menu: could not save input.cfg ({error})"); }
+                    self.menu.end_capture();
+                }
+            } else { self.menu_key_capture = input_config::ComboCapture::default(); }
+            if let (Some(btn), Some(code)) = (self.menu.capturing(), captured.filter(|_| !capture_key_combo)) {
                 if code == KeyCode::Escape {
                     self.menu.end_capture();
                 } else if let Some(name) = key_name(code) {
@@ -2122,8 +2578,9 @@ impl ApplicationHandler for PlayApp {
                         | menu::Bind::GamepadFastForward
                         | menu::Bind::GamepadFastForwardToggle => {}
                         menu::Bind::Gamepad(_) => {}
+                        menu::Bind::Menu | menu::Bind::GamepadMenu => {}
                     }
-                    if !matches!(btn, menu::Bind::Gamepad(_)) {
+                    if !matches!(btn, menu::Bind::Gamepad(_) | menu::Bind::GamepadMenu | menu::Bind::GamepadZoomIn | menu::Bind::GamepadZoomOut | menu::Bind::GamepadFastForward | menu::Bind::GamepadFastForwardToggle) {
                         self.rebuild_key_pairs();
                         if let Err(e) = self.icfg.save() {
                             eprintln!("menu: could not save input.cfg ({e})");
@@ -2156,6 +2613,8 @@ impl ApplicationHandler for PlayApp {
                     self.icfg.ff_pad = name;
                 } else if binding == menu::Bind::GamepadFastForwardToggle {
                     self.icfg.ff_toggle_pad = name;
+                } else if binding == menu::Bind::GamepadMenu {
+                    self.icfg.menu_pad = name;
                 }
                 if let Err(error) = self.icfg.save() {
                     eprintln!("menu: could not save input.cfg ({error})");
@@ -2242,6 +2701,10 @@ impl ApplicationHandler for PlayApp {
             for action in acts {
                 match action {
                     menu::MenuAction::Resume => self.paused = false,
+                    menu::MenuAction::SaveState { slot, overwrite } => self.state_operation(true, slot, overwrite),
+                    menu::MenuAction::LoadState(slot) => self.state_operation(false, slot, false),
+                    menu::MenuAction::UndoState => self.undo_state_operation(),
+                    menu::MenuAction::RestoreBackup(id) => self.restore_save_backup(id),
                     menu::MenuAction::Quit => quit = true,
                     menu::MenuAction::SwitchRom => {
                         if self.choose_rom() {quit=true;break;}
@@ -2276,6 +2739,7 @@ impl ApplicationHandler for PlayApp {
                         self.icfg.ff_pad = defaults.ff_pad;
                         self.icfg.ff_toggle_pad = defaults.ff_toggle_pad;
                         self.icfg.zoom_out_pad = defaults.zoom_out_pad;
+                        self.icfg.menu_pad = defaults.menu_pad;
                         self.icfg.dpad_source = defaults.dpad_source;
                         self.icfg.stick_deadzone = defaults.stick_deadzone;
                         if let Err(error) = self.icfg.save() {
@@ -2283,11 +2747,16 @@ impl ApplicationHandler for PlayApp {
                         }
                     }
                     menu::MenuAction::Changed(what) => {
+                        if what == menu::Changed::Fullscreen {
+                            self.set_fullscreen(self.av.video_fullscreen);
+                        }
                         // Vsync is the presenter's own knob; everything
                         // else routes through apply_av_change.
                         if what == menu::Changed::Vsync {
-                            if let Some(p) = self.presenter.as_mut() {
-                                p.set_vsync(self.av.video_vsync);
+                            let result = self.presenter.as_mut().map(|p| p.set_vsync(self.av.video_vsync));
+                            if let Some(Err(error)) = result {
+                                eprintln!("video: GPU VSync configuration failed ({error}); CPU scaling active");
+                                drop(self.presenter.take());
                             }
                         }
                         apply_av_change(
@@ -2303,11 +2772,15 @@ impl ApplicationHandler for PlayApp {
                         );
                         // apply_av_change may rebuild the temporal state for
                         // a 160-row frame; make it match the zoomed size.
-                        self.rebuild_temporal();
+                        if !matches!(what, menu::Changed::Overlay | menu::Changed::Audio | menu::Changed::Fullscreen) {
+                            self.rebuild_temporal();
+                        }
                         // apply_av_change rebuilds grid_params from scratch.
                         self.grid_params.scale_mode = scale_mode_of(&self.av.scaling);
-                        if let Err(e) = self.av.save() {
-                            eprintln!("menu: could not save av.cfg ({e})");
+                        if what != menu::Changed::Fullscreen {
+                            if let Err(e) = self.av.save() {
+                                eprintln!("menu: could not save av.cfg ({e})");
+                            }
                         }
                     }
                 }
@@ -2331,7 +2804,9 @@ impl ApplicationHandler for PlayApp {
                 // to select Resume/back out (South=A, East=B) so they don't
                 // buffer into the game. The cursor is re-hidden by the next
                 // reconcile if fullscreen.
-                reset_audio_counters(&self.streams);
+                self.reset_audio_counters();
+                self.fps.reset(Instant::now());
+                self.profile.presentation_boundary();
                 self.suppress = !keys & 0x3FF;
                 return;
             }
@@ -2394,8 +2869,8 @@ impl ApplicationHandler for PlayApp {
         // frame rate (handled below).
         // The multiplier never activates fast-forward by itself. Holding the
         // momentary key inverts the session's permanent-toggle state.
-        let ff_held = self.pad_ff_held
-            || winit_key(&self.icfg.ff_key).is_some_and(|k| self.held.contains(&k));
+        let ff_held = !self.menu_shortcut_held && (self.pad_ff_held
+            || winit_key(&self.icfg.ff_key).is_some_and(|k| self.held.contains(&k)));
         let ff_speed = input_config::fast_forward_speed(self.av.ff_speed, self.ff_latched, ff_held);
         let ff_now = ff_speed > 1;
         if ff_now != self.ff_active
@@ -2409,8 +2884,7 @@ impl ApplicationHandler for PlayApp {
         // those batches as video deadlines skips intermediate presentations.
         // Prime the audio normally, then present one frame per hardware tick.
         // Keep the original audio-driven path available for A/B comparison.
-        let clock_pacing = cfg!(any(target_os = "linux", windows))
-            && std::env::var("FFTA_FRAME_PACING").as_deref() != Ok("audio");
+        let clock_pacing = self.clock_pacing;
         let smooth_normal = clock_pacing && self.primed && !self.ff_active;
         let frame_cap = if self.ff_active {
             self.ff_speed
@@ -2419,6 +2893,9 @@ impl ApplicationHandler for PlayApp {
         } else {
             4
         };
+        // A tick can include multiple guest frames; keep its inclusive time
+        // separate from per-frame core/UI/audio phases. Pause polling is excluded.
+        let tick_start = self.profile.start();
         let mut ran = 0u32;
         while ran < frame_cap {
             if self.ff_active {
@@ -2438,7 +2915,10 @@ impl ApplicationHandler for PlayApp {
                 break;
             }
             ran += 1;
-            self.run_one_frame();
+            if !self.run_one_frame() {
+                event_loop.exit();
+                return;
+            }
         }
 
         // Once both rings first reach target, the buffer has primed: discard
@@ -2451,7 +2931,7 @@ impl ApplicationHandler for PlayApp {
                 if clock_pacing {
                     self.next_frame = Instant::now();
                 }
-                reset_audio_counters(&self.streams);
+                self.reset_audio_counters();
             }
         }
 
@@ -2462,14 +2942,19 @@ impl ApplicationHandler for PlayApp {
         if ran == 0 {
             // Ring is full: let the device drain a little before the next tick.
             // (winit pumps OS events between ticks; no explicit pump needed.)
+            let wait_start = self.profile.start();
             std::thread::sleep(Duration::from_millis(2));
+            self.profile.finish(Phase::PacingWait, wait_start);
+            self.profile.finish(Phase::Tick, tick_start);
             return;
         }
         if self.stream.is_none() || self.ff_active || smooth_normal {
             self.next_frame += Duration::from_nanos(16_742_706); // 59.7275 Hz
             let now = Instant::now();
             if self.next_frame > now {
+                let wait_start = self.profile.start();
                 std::thread::sleep(self.next_frame - now);
+                self.profile.finish(Phase::PacingWait, wait_start);
             } else {
                 self.next_frame = now;
             }
@@ -2477,11 +2962,36 @@ impl ApplicationHandler for PlayApp {
 
         // Resolve the visible image (temporal response + color LUT) and
         // present it (downstream of production, never the pacing source).
+        let compose_start = self.profile.start();
         self.temporal.compose(&self.lut, &mut self.rgba);
+        self.profile.finish(Phase::TemporalCompose, compose_start);
+        let present_start = self.profile.start();
         self.present_rgba();
+        self.profile.finish(Phase::Present, present_start);
+        self.profile.finish(Phase::Tick, tick_start);
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        // run_app consumes/drops the event loop before PlayApp is dropped.
+        // In particular, wgpu's EGL backend must release its Wayland objects
+        // while that display connection still exists (even with Vulkan selected).
+        // Tear down here on both success and error, with surfaces before windows.
+        drop(self.stream.take());
+        drop(self.presenter.take());
+        drop(self.sb_surface.take());
+        drop(self.sb_context.take());
+        drop(self.window.take());
+        crate::rom_data::report_usage(&self.machine);
+        self.profile.report();
+        let audio_profile = self.streams.lock().unwrap().profile.take();
+        if let Some(profile) = audio_profile { profile.report(); }
+        if let Some(benchmark) = self.benchmark.as_mut() {
+            if self.error.is_none() {
+                if let Err(error) = benchmark.report(&self.machine, self.native_run, self.fallback_run) { self.error = Some(error); }
+            }
+            return; // Developer replay never writes cartridge saves or backups.
+        }
+
         // Final teardown on a clean exit (window closed / menu Quit): this is
         // winit's guaranteed last callback, so it runs whether or not
         // `run_app` returns on a given platform. The in-loop periodic save
@@ -2514,10 +3024,12 @@ impl ApplicationHandler for PlayApp {
 /// Interactive play: resolve the image/BIOS/translation, set up audio, input,
 /// and screen simulation, then run the winit event loop until the window
 /// closes. Teardown (final save, fallback census, label recording) happens
-/// after the loop returns.
+/// in the final event-loop callback, before its display connection is dropped.
 pub fn cmd_play(args: &[String]) -> Result<(), String> {
     let mut rom_path = None;
     let mut interp_only = false;
+    // Opt-in decoded resources until the equivalence/cost gates pass.
+    let mut prepare_rom_data = false;
     // Machine-readable lifecycle lines on stdout for a supervising frontend
     // (the launcher): `STATUS building <pct>` / `STATUS playing`.
     let mut status = false;
@@ -2527,10 +3039,16 @@ pub fn cmd_play(args: &[String]) -> Result<(), String> {
     let mut bios_arg: Option<String> = None;
     let mut no_bios = false;
     let mut gamedb_arg: Option<String> = None;
+    let mut benchmark = None;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
+            "--benchmark" => {
+                if benchmark.is_some() { return Err("--benchmark may only be supplied once".into()); }
+                benchmark = Some(benchmark::Benchmark::load(Path::new(it.next().ok_or("--benchmark needs a TOML config path")?))?);
+            }
             "--interp" => interp_only = true,
+            "--rom-data" => prepare_rom_data = true,
             "--status" => status = true,
             "--stats" => show_stats = true,
             "--record-labels" => FALLBACK_COLLECT.store(true, Ordering::Relaxed),
@@ -2540,6 +3058,9 @@ pub fn cmd_play(args: &[String]) -> Result<(), String> {
             other if rom_path.is_none() => rom_path = Some(other.to_string()),
             other => return Err(format!("unexpected argument {other:?}")),
         }
+    }
+    if benchmark.is_some() && std::env::var_os("RECOMP_RECORD_INPUT").is_some() {
+        return Err("--benchmark cannot record input".into());
     }
     // The function-boundary source for a first-launch build: open it once
     // here so on-demand translation seeds exhaustively from the map (and
@@ -2578,7 +3099,18 @@ pub fn cmd_play(args: &[String]) -> Result<(), String> {
             ));
         }
     }
-    let sav_path = crate::save_path::resolve(Path::new(&rom_path))?.to_string_lossy().into_owned();
+    let prepared_resources = if prepare_rom_data {
+        Some(crate::rom_data::prepare_startup(&rom, status)?)
+    } else {
+        None
+    };
+    // A benchmark has no cartridge destination: avoid save discovery/pickers and
+    // directory creation. This inert path only constructs unused slot owners.
+    let sav_path = if benchmark.is_some() {
+        Path::new(&rom_path).with_extension("sav")
+    } else {
+        crate::save_path::resolve(Path::new(&rom_path))?
+    }.to_string_lossy().into_owned();
 
     // Product boot path: real BIOS when an image is installed (explicit --bios
     // > the launcher-installed image via the shared resolution), BIOS HLE
@@ -2669,9 +3201,15 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     };
 
     let mut machine = make_machine(rom, bios.as_deref());
-    if let Ok(sav) = std::fs::read(&sav_path) {
-        machine.bus.load_save_data(&sav);
-        eprintln!("loaded {sav_path}");
+    if let Some(prepared) = prepared_resources {
+        crate::rom_data::attach_from_directory(&mut machine, &prepared.directory)?;
+    }
+    let save_backups = crate::save_backups::Backups::new(Path::new(&sav_path));
+    if benchmark.is_none() {
+        if let Some(sav) = save_backups.capture_startup().map_err(|e| format!("Cannot protect cartridge save: {e}"))? {
+            machine.bus.load_save_data(&sav);
+            eprintln!("loaded {sav_path}; startup backup completed");
+        }
     }
 
     // Triage (RECOMP_RECORD_INPUT=<path>): record this session's input as a
@@ -2703,6 +3241,7 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     // instant it's selected; it's read-only, so arming it always is free of
     // correctness risk.
     let mut av = input_config::AvConfig::load();
+    if benchmark.is_some() { av.video_fps = "off".into(); show_stats = false; }
     if let Ok(aspect) = std::env::var("FFTA_WIDESCREEN") {
         if !aspect.trim().is_empty() {
             // Show the actual initial ratio in the menu, including when a
@@ -2727,8 +3266,16 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     );
     eprintln!("audio engine: {desc}");
     let streams = Arc::new(Mutex::new(AudioStreams::default()));
-    streams.lock().unwrap().enhanced_on = av.audio_enhanced;
-    let stream = start_audio(streams.clone());
+    {
+        let mut st = streams.lock().unwrap();
+        st.configure_audio(&av);
+        if benchmark.is_none() && std::env::var("FFTA_PROFILE").as_deref() == Ok("1") {
+            st.profile = Some(crate::audio_profile::Profile::with_frame_window(
+                std::env::var("FFTA_AUDIO_PROFILE_FRAMES").ok().as_deref(),
+            )?);
+        }
+    }
+    let stream = if benchmark.is_some() { None } else { start_audio(streams.clone()) };
 
     // Bindings come from the launcher-managed config (defaults match the
     // historical hardcoded map). Keyboard always works; a configured gamepad is
@@ -2838,11 +3385,19 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     let menu_enabled = manifest.as_ref().map(|m| m.menu).unwrap_or(true);
 
     let sav_seen = machine.bus.save_data().map(fnv64);
+    let state_slots = crate::save_state::Slots::new(Path::new(&sav_path), &machine.bus.rom);
     let game_mouse=gba_core::ffta_mouse::LanguageMouse::new(&machine.bus.rom,icfg.mouse_keyboard || std::env::var("FFTA_MOUSE").as_deref()==Ok("1"));
     if icfg.mouse_keyboard {machine.bus.ffta_battle_mouse.set_enabled(true);}
+    let boot_state = machine.save_state()?;
+    let benchmark_zoom = benchmark.as_ref().map_or(0, |b| b.zoom);
+    if benchmark_zoom > zoom_max { return Err("benchmark zoom exceeds the selected aspect's limit".into()); }
+    if let Some(benchmark) = benchmark.as_mut() { benchmark.restore(&mut machine)?; }
     let mut app = PlayApp {
         machine,
         sav_path,
+        state_slots,
+        save_backups,
+        boot_state,
         sav_seen,
         record,
         native,
@@ -2859,6 +3414,11 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
         active_controller: None,
         last_direct_activity: None,
         pending_pad: None,
+        menu_key_capture: input_config::ComboCapture::default(),
+        menu_pad_capture: input_config::ComboCapture::default(),
+        menu_key_latch: input_config::ComboLatch::default(),
+        menu_pad_latch: input_config::ComboLatch::default(),
+        menu_shortcut_held: false,
         #[cfg(not(target_os = "linux"))]
         gilrs_gestures: HashMap::new(),
         #[cfg(target_os = "linux")]
@@ -2878,12 +3438,13 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
         grid_params,
         rgba: vec![[0u8; 4]; wide_w() * wide_h()],
         pause_rgba: Vec::new(),
-        ui_pixels: Vec::new(),
-        panel_pixels: Vec::new(),
+        ui_pixels: Default::default(),
+        panel_pixels: Default::default(),
         padded_frame: Vec::new(),
         title,
         status,
         window: None,
+        fullscreen: Default::default(),
         presenter: None,
         sb_context: None,
         sb_surface: None,
@@ -2896,12 +3457,23 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
         suppress: 0,
         nav_prev: NavEdges::default(),
         show_stats,
+        fps: crate::fps::Meter::new(Instant::now()),
+        profile: {
+            let mut profile = PlayProfile::new(std::env::var("FFTA_PROFILE").as_deref() == Ok("1"));
+            if benchmark.is_none() && profile.enabled() {
+                profile.configure_cadence(std::env::var("FFTA_PRESENT_PROFILE_FRAMES").ok().as_deref())?;
+            }
+            profile
+        },
+        benchmark,
         emu_ema_ms: 0.0,
         frames_run: 0,
         slow_warned: false,
         native_run: 0,
         fallback_run: 0,
         primed: false,
+        clock_pacing: cfg!(any(target_os = "linux", windows))
+            && std::env::var("FFTA_FRAME_PACING").as_deref() != Ok("audio"),
         next_frame: Instant::now(),
         audio_watch: Instant::now(),
         audio_consumed_last: 0,
@@ -2913,7 +3485,7 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
         ff_audio_active: String::new(),
         pending_key: None,
         base_extra,
-        zoom_level: 0,
+        zoom_level: benchmark_zoom,
         zoom_max,
         view: [0.0, 0.0, (240 + 2 * base_extra) as f32, 160.0],
         mouse_pos: None,
@@ -3032,6 +3604,29 @@ mod gamepad_capture_simulation {
     }
 
     #[test]
+    fn restored_native_preview_ignores_wide_stride_and_preserves_machine() {
+        let mut machine=gba_core::Machine::new(vec![]);
+        for (index,pixel) in machine.bus.framebuffer.iter_mut().enumerate() {*pixel=(index%0x7fff)as u16;}
+        machine.bus.wide_framebuffer.fill(0x7fff); // Untrusted old layout.
+        let before=machine.save_state().unwrap();
+        let mut padding=vec![0xffff;123];
+        for (extra,ey) in [(0,0),(22,0),(165,81),(448,80)] {
+            gba_core::mem::set_extra(extra);gba_core::mem::set_extra_y(ey);
+            let width=super::wide_w();let height=super::wide_h();
+            let frame=super::restored_native_frame(&machine.bus,&mut padding);
+            assert_eq!(frame.len(),width*height);
+            for y in 0..height {for x in 0..width {
+                let expected=if (extra..extra+240).contains(&x) && (ey..ey+160).contains(&y) {
+                    machine.bus.framebuffer[(y-ey)*240+x-extra]
+                }else{0};
+                assert_eq!(frame[y*width+x],expected);
+            }}
+            assert!(machine.save_state().unwrap()==before,"preview advanced or mutated restored machine");
+        }
+        gba_core::mem::set_extra(0);gba_core::mem::set_extra_y(0);
+    }
+
+    #[test]
     fn scene_without_zoom_rows_cannot_show_stale_object_pixels() {
         gba_core::mem::set_extra(164);
         gba_core::mem::set_extra_y(80);
@@ -3089,7 +3684,7 @@ mod gamepad_capture_simulation {
 
         let mut av = input_config::AvConfig::default();
         let mut menu = menu::Menu::new(true, false);
-        for _ in 0..5 {
+        for _ in 0..7 {
             menu.handle(menu::MenuInput::Down, &mut av);
         }
         menu.handle(menu::MenuInput::Confirm, &mut av); // Input page.

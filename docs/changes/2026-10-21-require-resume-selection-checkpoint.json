@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "require-resume-selection-checkpoint",
+  "title": "Require an explicit task selection checkpoint after context resumption",
+  "kind": "changed",
+  "platforms": [
+    "Project agent workflow"
+  ],
+  "changes": [
+    "Extend the existing resume rules in all three local skills and AGENTS with a task selection checkpoint before mutations or expensive commands: current request, stable task ID, previous outcome, missing deliverable and next action.",
+    "Require a concrete reason to reopen completed or rejected work and validate already implemented requests without duplicating implementation or records.",
+    "Mark the workflow request complete in the handoff and replace stale running-benchmark guidance with the observed completed timing artifact; preserve the unaccepted runtime candidate as pending.",
+    "Require checking the selected ID against newer terminal records and immediately closing the handoff selection before moving on; remove the stale pre-wait-composition next action and preserve its recorded rejection without repeating runtime work."
+  ],
+  "validation": [
+    "All three local skills passed skill-creator quick_validate.py.",
+    "Read Git diff and existing memory records before editing; inspected the existing timing-summary status without restarting benchmarks or builds.",
+    "project_memory.py render, check and check --base HEAD passed; git diff whitespace check passed with core.whitespace=cr-at-eol.",
+    "On request reconciliation, verified the already implemented guidance without rewriting skills or repeating runtime validation; corrected the handoff latest-request checkpoint to keep pending performance work separate.",
+    "Revalidated all three skills with quick_validate.py after adding immediate terminal closure; reconciled the stale selection against the existing rejected-composition record without running builds, replays or benchmarks.",
+    "Rechecked the existing three skill entrypoints on the latest workflow-only request: all quick validators pass. Restored a completed workflow checkpoint above the pending performance queue; inspected the terminal integration log without rerunning it. Changelog rendering and whitespace checks pass. Both memory checks identify the pre-existing unfinished crates/gba-core/src/ffta_rom.rs implementation as lacking its own change record; this workflow change does not claim coverage of it."
+  ],
+  "limitations": [
+    "These instructions require the agent to read and maintain the handoff; no compaction hook enforces task selection automatically. Runtime candidate acceptance is outside this workflow change."
+  ],
+  "files": [
+    "AGENTS.md",
+    ".cursor/skills/ffta-development/SKILL.md",
+    ".cursor/skills/ffta-project-memory/SKILL.md",
+    ".cursor/skills/ffta-windows-validation/SKILL.md",
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

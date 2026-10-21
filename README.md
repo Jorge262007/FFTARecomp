@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Final Fantasy Tactics Advance, running natively on your Windows PC, Linux PC or Steam Deck.</b><br>
-  Widescreen, video and audio options, and a one-click installer.
+  Widescreen, video and audio options, and a portable Windows edition.
 </p>
 
 <p align="center">
@@ -37,14 +37,21 @@
 - 🖥️ **Widescreen:** Auto, 16:10, 16:9 (default), 20:9, 21:9 and 32:9.
 - 🔍 **Zoom in and out.**
 - 🎨 **Video options:** screen model, grid, scaling and vsync.
+- 📊 **FPS counter:** internal, external or both, configurable in the Video menu.
 - 🔊 **Audio options** and volume control.
 - 🔊 **Normal audio mode:** the game fast-forwards while the audio keeps playing at normal speed.
 - ⏩ **Fast forward.**
 - 🎛️ **Completely redesigned menu.**
 - 🎮 **Gamepad support** (generic XInput).
+- 🎮 **Configurable menu shortcuts:** keyboard and gamepad button combinations.
+- 💾 **Save states:** 9 controller-friendly slots with screenshot previews.
+- ↩️ **Undo save/load:** undo the last save-state operation.
+- 🛟 **Automatic save backups:** keep two startup copies and restore from the menu.
 - 🐧 **Native Linux version.**
 - 🕹️ **Steam Deck support.**
-- 📦 **One-click installer:** pick your ROM and you're done.
+- 📦 **Portable on Windows:** extract, pick your ROM and keep all data in one folder.
+- 📦 **Portable on Linux:** keep settings, saves and cache in the game folder.
+- 🐳 **Docker builds:** compile Linux and Windows editions with containerized build dependencies.
 - 🚫 **No console BIOS needed.**
 
 ## 🕹️ Controls
@@ -85,6 +92,11 @@ Controls can be remapped from the Options Menu.
 | Back / View | Select |
 | D-pad or left stick | Move |
 | Guide | Options Menu |
+| Start + Back | Options Menu (configurable combo) |
+
+Use **Input > Keyboard/Gamepad > Open menu** to bind a single control or a
+combination. Release the activation button, hold the desired combination,
+then release all its controls to save it. Escape and Guide remain available.
 
 ## ⏩ Fast forward modes
 
@@ -105,25 +117,54 @@ Controls can be remapped from the Options Menu.
 
 ### Windows
 
-1. Download `FFTARecomp-windows-x86_64.zip` from [Releases](https://github.com/Jorge262007/FFTARecomp/releases) and extract it.
-2. Run `FFTARecomp.exe`, choose your ROM and press **Recompile & Install**.
-3. Wait for the five steps to finish, then press **Play**. ▶️
+1. Extract `FFTARecomp-windows-portable.zip` to a writable folder.
+2. Run `FFTARecomp.exe` and choose your own FFTA USA/Europe ROM on first launch.
+3. Move the whole folder to keep ROM, settings, saves, backups and state slots.
+
+There is no installer. To import existing progress, close the game and copy your
+raw `.sav` to `Data/saves/ffta.sav`, keeping a copy of any existing destination.
+See [portable storage, migration and builds](docs/portable.md).
 
 ### Linux / Steam Deck
 
-Download `FFTARecomp-linux-x86_64.tar.gz` from [Releases](https://github.com/Jorge262007/FFTARecomp/releases) and run:
+Extract the native `FFTARecomp-linux-portable.tar.gz` and run:
 
 ```bash
-mkdir -p FFTARecomp-linux && tar -xzf FFTARecomp-linux-x86_64.tar.gz -C FFTARecomp-linux && cd FFTARecomp-linux && ./FFTAInstaller
+tar -xzf FFTARecomp-linux-portable.tar.gz
+cd FFTARecomp-portable
+./FFTARecomp
 ```
 
-On Steam Deck, run it from Desktop Mode.
-
-> 💡 You need your own copy of *Final Fantasy Tactics Advance (USA)*. This project does not include any game data.
+Choose your own FFTA USA/Europe ROM on first launch. Settings, cartridge saves,
+backups and state slots stay inside `Data`; move the whole folder while closed.
+No Wine or installation step is needed. The current native archive is tested
+on Ubuntu 26.04 x86_64; see [portable requirements and migration](docs/portable.md).
+Steam Deck compatibility for this host-built archive has not been verified.
 
 ## 🔨 Building from source
 
-You need [Rust](https://rustup.rs) and Windows PowerShell. Then run a single script from the repo root:
+For Linux, build with dependencies contained in Docker:
+
+```bash
+bash scripts/build_linux_docker.sh
+```
+
+The portable archive and build information appear in `dist/docker-linux/`.
+The host needs Docker with Buildx; compiler and development packages stay in the
+container. See [Docker builds and runtime requirements](docs/docker.md).
+
+For Windows with dependencies inside Docker Desktop (Linux containers), run
+from PowerShell:
+
+```powershell
+.\scripts\build_docker.ps1
+```
+
+The Windows ZIP appears in `dist/docker-windows/`. Add `-Platform linux` to
+build Linux from the same Windows host. No Rust, MSYS2 or Python host install
+is required for this Docker workflow. See [Docker builds](docs/docker.md).
+
+For native Windows builds outside Docker, you need [Rust](https://rustup.rs) and Windows PowerShell. Then run a single script from the repo root:
 
 ```powershell
 git clone https://github.com/Jorge262007/FFTARecomp.git
@@ -131,26 +172,16 @@ cd FFTARecomp
 .\build-all.ps1
 ```
 
-The script does everything in order:
-
-1. Builds the whole workspace (`cargo build --release`).
-2. Builds the installer (`cargo build --release -p installer`).
-3. Copies `installer.exe` into `Installer\`, next to the static `payload` folder.
-4. Downloads the compiler toolchain ([w64devkit](https://github.com/skeeto/w64devkit) 2.10.0) into `Installer\payload\toolchain`, only if it is missing.
-
-When it finishes, the final installer is in:
-
-```
-FFTARecomp\Installer\
-```
+The script builds the Windows workspace, bundles TinyCC and creates
+`dist/FFTARecomp-windows-portable.zip`. It also retains the separate Linux/Steam
+Deck installer and Android build steps. Use `-SkipAndroid` to omit the APK.
+For a Windows-only build, see [portable build commands](docs/portable.md).
 
 If PowerShell blocks the script, run it with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build-all.ps1
 ```
-
-To force a fresh toolchain download, delete `Installer\payload\toolchain` and run the script again.
 
 > ⏱️ The first build can take several minutes.
 
@@ -166,6 +197,34 @@ To force a fresh toolchain download, delete `Installer\payload\toolchain` and ru
 > **The executables are not code-signed**, so Windows SmartScreen or your antivirus may show a warning. Click **More info → Run anyway**, or right-click the `.zip` → Properties → tick **Unblock** before extracting.
 >
 > If you have any doubts, you can check the **VirusTotal report** included in each release.
+
+## Cartridge save backups
+
+Launching a game automatically backs up its selected `.sav`, keeping the **two
+most recent startup copies**. Use **Save backups** in the pause menu to restore
+one with the controller; confirm Restore and restart, then Resume to boot the
+restored game. See [backup storage and recovery](docs/save_backups.md).
+
+## Save states
+
+Open the pause menu > **Save states**. Choose one of **9 slots** with Left/Right,
+then Save state or Load state. Each slot shows a screenshot preview; controller
+navigation, overwrite confirmation and feedback stay inside the menu.
+**Undo last operation** restores the previous slot file after saving, or the
+pre-load game state after loading (one level, current session only).
+Files are named `slot-1.ffstate` through `slot-9.ffstate` under
+`SaveStates/<ROM SHA-256>/` beside the selected cartridge `.sav`.
+See [save state behavior and compatibility](docs/save_states.md); use ordinary
+in-game `.sav` saves for transfer to a GBA or another emulator.
+
+## Development history and project skills
+
+See [CHANGELOG.md](CHANGELOG.md) for implemented changes and validation.
+See the [desktop performance TODO](docs/development/PERFORMANCE_TODO.md) for
+prioritized optimization work, CPU/GPU candidates and correctness gates.
+[AGENTS.md](AGENTS.md) routes the local development, Windows validation and
+project memory skills. Follow the [memory workflow](docs/development/MEMORY_WORKFLOW.md)
+to record changes and run `python3 scripts/project_memory.py check` before handoff.
 
 ## 📜 License and credits
 

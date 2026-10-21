@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "record-observed-enemy-activation-replay",
+  "title": "Record a deterministic battle replay with observed enemy activation",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux headless and isolated Xvfb/llvmpipe desktop"
+  ],
+  "changes": [
+    "Derive an isolated in-game suspend save from the supplied battle snapshot, then resume in a new input-recording session. Save a checkpoint before player waits and rebase subsequent input events to replay the observed enemy activation and return to a player menu.",
+    "Document the suspend-save recording procedure without weakening the existing prohibition on loading snapshots during recording. Keep all fixture bytes, recordings and results ignored under target."
+  ],
+  "validation": [
+    "Original cartridge save and snapshot copies remain byte-equal to their ZIP entries; the original archive SHA-256 is unchanged. The new input recording sidecar equals the derived suspend save.",
+    "A 3530-frame headless replay from the intermediate snapshot reaches the desktop endpoint guest frame and framebuffer hash; its final image was visually inspected. The first A/B verification matched framebuffer and OAM on every frame.",
+    "The completed rerun passed five alternating native 3530-frame pairs with 120 warm-up frames: baseline/candidate medians 8.346306/8.290120 ms. Every verification framebuffer/OAM capture, final serialized machine state and dispatch count matched. Both executables are the same production baseline; the difference is measurement variation, not a code speedup.",
+    "Separate 3410-frame profiles had zero frames over 16.742706 ms, p99 10.055213/10.128802 ms and maxima 12.534930/16.518197 ms. Hardware scanline means 6.072459/6.078200 ms account for about 73 percent of core time; core remainder means 2.247905/2.235117 ms, with no zoom rows or invalid captures.",
+    "Recorded profiling overhead estimates versus uninstrumented medians were -0.2971/+0.2935 percent; these single-run estimates include noise and do not establish a negative profiling cost. Host checks during comparison showed CPU 15 busy and its SMT sibling CPU 14 idle.",
+    "Git ignore checks confirm the derived suspend save, snapshot, recording and original ZIP remain excluded. The earlier interrupted comparison is explicitly failed with Broken pipe and retained separately; the rerun summary is passed."
+  ],
+  "limitations": [
+    "The interval includes player waits, enemy movement, animations and idle frames, not isolated AI computation or proof of the originally reported slow turn. Native Windows and Radeon timings remain unverified."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

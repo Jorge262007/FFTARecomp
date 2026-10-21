@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-compact-ui-layer-ids",
+  "title": "Reject compact UI layer IDs after modest inconsistent GUI benefit",
+  "kind": "performance",
+  "platforms": [
+    "Native Linux evaluation",
+    "Windows GNU / Wine core tests"
+  ],
+  "changes": [
+    "Complete current optimized host CPU triage after retained PPU changes, reusing the existing enemy replay and preserving the normal runtime.",
+    "Evaluate u8 instead of usize temporary UI IDs with unchanged sorting/blending/serialization. Reject the candidate after modest inconsistent GUI benefit and contrary tail observations; restore source and native runtime byte-for-byte from their exact accepted baselines. Preserve trial binaries/source/evidence; no export or ABI change."
+  ],
+  "validation": [
+    "New199Hz user CPU sample after120-frame warm-up captured3798 samples with0 lost; final full state and execution counts match. Source/fixture and restored normal runtime hashes match. UI capture31.20%, sprite renderer9.19%, composition8.85%, interpreter7.64% self samples; this is attribution, not speedup.",
+    "Compact-ID candidate passes174 serial core tests,5 optional ignored and native runtime/launcher build. All3530frame/OAM hashes, final state and counts match. Five headless pairs favor candidate, median5.756819 to5.679220ms (-1.3480%). Separate instrumented profile run is slower5.755066 to5.833724ms; do not infer tail improvements or hide this contrary observation. GUI evaluation pending.",
+    "Windows GNU build and Wine174core tests pass,5 optional ignored. GUI verification matches all3530 framebuffer/OAM lines, full final state and execution counts against the existing reference and preserves private Data. GUI timing pending; no concurrent compilation during timing.",
+    "Five GUI CPU-profile-on pairs pass state/count/input/private-data checks: median7.552612 to7.518334ms (-0.4539%), one pair slower; median maximum11.518421 to15.911304ms. Diagnostic-off comparison, required by contrary instrumented core data, also passes:7.563614 to7.505102ms (-0.7736%), one pair slower, paired differences range+0.1469% to-1.4330%; median maximum12.100617 to16.226909ms. These observations do not prove a universal causal regression or robust useful normal-path gain.",
+    "Verified frozen candidate source/binary/input hashes before preserving the evaluated candidate, then restored ppu.rs and normal native runtime exactly by bytes/hashes. Completed jobs are terminal; no prior benchmark/fixture recreated and canonical portable archives unchanged.",
+    "Refreshed restored source mtime to invalidate stale Cargo candidate artifacts on future builds while verifying exact baseline bytes. Memory/changelog checks and whitespace verification complete at handoff."
+  ],
+  "limitations": [
+    "Current host sample excludes window/audio callbacks and does not isolate missing versus intentional interpreter work or diagnose the original rare stall. Native Windows performance was not measured. The rejected layout must not be reactivated without distinct evidence. GUI worldmap/zoom/lifecycle/export gates were intentionally not run after the acceptance decision failed."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

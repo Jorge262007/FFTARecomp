@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "reuse-desktop-uploads-and-audio-buffers",
+  "title": "Reuse unchanged color/FPS uploads and preserve audio producer buffers",
+  "kind": "performance",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Retain a bounded per-layer LUT copy and upload colors only when actual contents differ, including in-place mutations. Give FPS textures process-unique render revisions so unchanged text avoids repeated uploads while layout uniforms and dynamic worlds remain current.",
+    "Count submitted UI payload bytes in opt-in CPU profiling. Keep unversioned game UI updates unconditional, recreate empty caches with GPU resources, and preserve the CPU sampler and guest/save-state contracts.",
+    "Drain FIFO audio events while retaining producer Vec capacity, preserving ordering and overflow/drop behavior; resolve FFTA_FRAME_PACING once at startup instead of querying the environment every gameplay tick."
+  ],
+  "validation": [
+    "44 native runtime tests and 36 screen tests passed; the runtime examples compile. The extended ignored GPU equivalence test passed explicitly on AMD Radeon 780M / RADV across nine update/cache/mutation/recreation cases at three world sizes, with pixel-exact CPU/GPU comparison and exact upload-byte assertions.",
+    "For unchanged 480x160 UI with a 1x1 world, the GPU test verifies 438338 initial scheduled bytes versus 66 repeated bytes; changed UI/LUT inputs and recreated resources still upload their required bytes. This is payload reduction, not a frame-rate or AI-turn speedup.",
+    "With the final buffer/pacing changes, 44 runtime and 36 screen tests passed. Profiling-enabled actual-launcher save/load/move smoke passed on Xvfb; native Xwayland/RADV window close also exited normally and emitted reduced UI payload counters.",
+    "Same-host pre-upload baseline/candidate replay passed framebuffer/OAM and full final serialized-state equality on 3000 frames, plus five alternating timing pairs. Medians were 3.436691/3.470794 ms per frame, within the observed run variability; no headless speedup is claimed.",
+    "Final GPU parity also covers changed layout with unchanged pixel revision. Native runtime/screen suites passed after test cleanup, and actual RADV launcher profiling reported 1063034 payload bytes across 157 layer-update calls with clean window close."
+  ],
+  "limitations": [
+    "The slow AI-turn fixture is unavailable. PERF-05/06 remain partially open for broader UI/world reuse, bounds/packing work and controlled scene-level performance checks; no AI or overall FPS gain is claimed."
+  ],
+  "files": [
+    "crates/screen/src/ui_layer.rs",
+    "crates/screen/src/present.rs",
+    "crates/recomp/src/fps.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/perf.rs",
+    "crates/recomp/examples/dialogue_layout.rs"
+  ],
+  "references": [
+    "docs/fps_overlay.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

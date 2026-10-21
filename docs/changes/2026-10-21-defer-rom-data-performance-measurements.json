@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "defer-rom-data-performance-measurements",
+  "title": "Defer ROM-data performance measurements and prioritize functional migration",
+  "kind": "docs",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Apply updated explicit user steering: avoid measuring performance regressions now and optimize later, alongside the existing preference against extracted-data space tuning. Historical benchmark/RSS gates and queued next actions do not authorize new measurements or block functional resource migration. Guest clock/state/audio, source provenance and native/save/lifecycle correctness remain required."
+  ],
+  "validation": [
+    "Stopped the current task timing runner and only its benchmark/runtime descendants; runner terminated143 as an intentional user-requested stop. Namespace-local process lookup saw no runner; exact task matching with host-process access stopped the three task processes. No other process was selected. Existing startup/nativeRSS/Wine-launch/worldmap and partial battle outputs retained in target/rom-data-bg-palette-validation/performance-deferred.json and logs; no complete battle performance result or acceptance claimed."
+  ],
+  "limitations": [
+    "This defers performance work; it neither completes the seven-phase ROM data TODO nor waives remaining functional/catalog/language/native-Windows validation. No new benchmark, profile, startup/RSS run, compression campaign, runtime rebuild, archive/export, agent commit/push or AndroidPort update follows this steering."
+  ],
+  "files": [
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/rom_data.md",
+    "docs/rom_data_runtime.md"
+  ]
+}

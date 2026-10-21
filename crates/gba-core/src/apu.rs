@@ -20,6 +20,7 @@ const DUTY: [[i16; 8]; 4] = [
 ];
 
 #[derive(Default, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Envelope {
     volume: u8,
     increase: bool,
@@ -52,6 +53,7 @@ impl Envelope {
 }
 
 #[derive(Default, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Square {
     on: bool,
     duty: usize,
@@ -127,6 +129,7 @@ impl Square {
 }
 
 #[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Apu {
     sq: [Square; 2],
     // Wave channel.

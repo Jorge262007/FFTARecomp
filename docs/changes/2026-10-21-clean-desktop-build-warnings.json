@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "clean-desktop-build-warnings",
+  "title": "Compile desktop helpers only on their intended platforms and tests",
+  "kind": "fixed",
+  "platforms": [
+    "Linux desktop and Windows GNU/Wine"
+  ],
+  "changes": [
+    "Limit DirectInput normalization/POV helpers to Windows and tests, PPU reference helpers and unobserved audio test wrappers to tests, and runtime Gilrs binding helpers to the non-Linux controller path. Bind the selected Gilrs object only where needed and remove the unused private FIFO speed wrapper.",
+    "Keep the RTC fallback constant off Windows and in tests. Restrict Linux snapshot hardware reads/button tables to Linux while retaining pure snapshot-state regressions on Windows. Preserve runtime DSP, input selection, clock behavior, guest semantics and snapshot/cache formats.",
+    "Select DEBIAN_FRONTEND=noninteractive only for apt installation in both Dockerfiles. Document the remaining apt-utils, certificate-bundle rehash and omitted-manpage notices from Debian slim without disabling warnings or removing certificates."
+  ],
+  "validation": [
+    "Native Linux release production build for recomp/ffta-play passes without Rust warnings. Serial affected suites pass:184core/5optionalignored,26input,69runtime/4optionalignored. After the additional platform cfg changes, targeted4hostclock and4Linux snapshot tests pass without warnings.",
+    "Windows GNU release production and final affected test compilation pass without Rust warnings, including Cargo JSON diagnostics. Under Wine,26input,184core/5optionalignored and70runtime/4optionalignored pass. Intermediate compilation exposed additional RTC/Linux-hardware unused items, which were corrected before final validation.",
+    "Canonical native and Windows runtime/launcher bytes were restored and checked by SHA-256 after validation. Local build/test logs, Cargo JSON and restoration manifests are retained under target/build-warning-cleanup/.",
+    "Local Debconf configuration reports noninteractive for the same scoped environment assignment. Inspected the package-maintenance messages in the supplied log: release compilation and archive creation finish, but the pasted text ends during test compilation and does not prove final export/test success.",
+    "git -c core.whitespace=cr-at-eol diff --check passes while preserving existing CRLF core sources. Project-memory validation passes after generating this record and the changelog."
+  ],
+  "limitations": [
+    "No complete Docker image rebuild or Debian package installation was repeated; the pinned Rust base image was not available locally. The scoped apt frontend selection is checked locally, and code compilation/tests are checked separately from container export.",
+    "Windows tests ran through Wine; native Windows hardware and interactive GUI were not retested for this conditional-compilation cleanup. Existing portable archives and separate AndroidPort remain untouched.",
+    "Harmless slim-image apt-utils/certificate/manpage notices may still appear. The Fast audio effective-rate/backlog work remains pending and was not resumed by this build-warning request."
+  ],
+  "files": [
+    "Dockerfile.linux",
+    "Dockerfile.windows",
+    "crates/gba-core/src/hostclock.rs",
+    "crates/gba-core/src/ppu.rs",
+    "crates/input-config/src/directinput.rs",
+    "crates/recomp/src/linux_pad.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "docs/docker.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/docker.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

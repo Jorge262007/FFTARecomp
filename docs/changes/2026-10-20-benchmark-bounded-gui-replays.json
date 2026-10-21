@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "benchmark-bounded-gui-replays",
+  "title": "Add bounded GUI replay workloads with warm-up exclusion and read-only cartridge behavior",
+  "kind": "added",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Add explicit developer play --benchmark TOML configuration for existing snapshots and gba-input v1 recordings. Run one guest frame and GPU presentation per cycle with a bounded endpoint, named scene and warm-up gating for CPU and GPU profiling.",
+    "Keep the normal interactive path intact. Benchmark mode ignores physical gameplay/menu input, disables the FPS HUD/audio callbacks/pacing, skips cartridge backups/autosave/exit save, and rejects incomplete/skipped presentations. Optional per-frame framebuffer/OAM verification and final state hashes are outside the cycle timer.",
+    "Document the developer command in CLI help and bypass cartridge-path discovery/pickers during benchmark startup. Only formatting of the normal input-recording block changed after the measured binary was built; the measured GUI cycle body is unchanged."
+  ],
+  "validation": [
+    "Release runtime tests passed 53 cases (3 optional ignored), covering strict config bounds/types/relative paths, warm-up and frame guards, machine immutability during measurement bookkeeping, and independent profiling feature versus measurement gates. Native release build passed.",
+    "Existing 3530-frame enemy replay passed new GUI off/GPU verification: all native framebuffer/OAM hashes, final machine SHA-256 and dispatch counts agree. Both runs start at frame 8476, finish at 12006, retain 3410 measured cycles and leave private data/config files unchanged. GPU capture submits exactly 3410 pairs after warm-up, with 3409 completed and 1 pending, zero failures/invalid/busy skips.",
+    "Five alternating off/CPU/GPU timing triplets passed on llvmpipe Vulkan with 3530 frames and 120 warm-up: median run means 8.316094/8.333123/8.423674 ms; observed CPU +0.204772%, CPU+GPU +1.293636% versus off. Paired GPU overhead ranges +0.468841% to +1.653155%. All 15 endpoints/full-state hashes and dispatch counts agree; binary/config/input/translation identities and no private-data writes verified. These are scoped unpaced software-Vulkan overhead estimates, not a game speedup or hardware-GPU benchmark.",
+    "Final native source passed 53 release runtime tests and release build after startup/help polish. Physical AMD Radeon 780M/RADV Vulkan on native Wayland passed all 3530 per-frame hashes against the verified software-GUI run, identical final state/counts, private data unchanged and automatic clean close with timestamp queries active. This is functional cross-backend/teardown evidence; its verification timings are not an overhead comparison.",
+    "Final Docker exports passed 323 Windows/Wine and 324 Linux tests (10 optional ignored each). Integrity/privacy, BUILD-INFO hashes, PE resources/unchanged imports and GLIBC 2.35 checks passed. Actual Linux archive passed cold-cache normal interactive load/Undo/zoom/reload/close with profiling off, plus the new command on 240 reference-verified frames with no private-data writes. Canonical local archives updated only after the full normal-GUI gate, with prior exports preserved; command smoke then passed as well."
+  ],
+  "limitations": [
+    "Native Windows GUI/performance, realtime audio callback/pacing/compositor overhead and an older-binary disabled-path comparison remain unverified. Local portable outputs are not a published release.",
+    "The measured binary predates startup save-discovery bypass, help text and equivalent input-block formatting polish. Measured source copies and hashes are preserved; no GUI cycle behavior changed in that polish. Older binaries lacking this mode cannot be used as equivalent disabled-path overhead baselines."
+  ],
+  "files": [
+    "crates/recomp/src/play_benchmark.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/perf.rs",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "crates/recomp/src/main.rs",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

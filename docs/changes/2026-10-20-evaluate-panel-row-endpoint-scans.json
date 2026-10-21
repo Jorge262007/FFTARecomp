@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "evaluate-panel-row-endpoint-scans",
+  "title": "Evaluate and withhold panel-bound optimization after end-to-end regression",
+  "kind": "performance",
+  "platforms": [
+    "Root workspace core and desktop"
+  ],
+  "changes": [
+    "Preserve a test-only row-endpoint scan candidate with full-scan equivalence coverage and an opt-in release microbenchmark using five alternating pairs. Inputs cover empty, dense, sparse and rectangular-panel layers.",
+    "Keep production pixel_bounds unchanged. Although the candidate reduced synthetic panel-bound cost, integrated 3000-frame replays were slower, so the runtime optimization was withheld pending representative end-to-end benefit. No guest state, serialization or native translation ABI changes."
+  ],
+  "validation": [
+    "All 164 core tests passed serially. Equivalence coverage includes empty layers, partially filled final rows, dense data, varying blend weights/colors, individual endpoints and inputs beyond the standard canvas.",
+    "Release diagnostic medians in microseconds per call (reference/candidate): empty 31.922/32.422, dense 118.480/0.240, sparse 33.309/9.211, rectangular panel 42.388/28.798. Empty input was about 1.6 percent slower; gains are function-level synthetic measurements.",
+    "Integrated candidate 3000-frame comparison (bounds-headless) passed framebuffer/OAM, full serialized final-state and execution-count equality with five alternating timing pairs. Baseline/candidate medians: 2.370355/2.422693 ms/frame; emulation-time reduction -2.208 percent. Pinned comparisons used CPU 15; the negative 3000-frame results prevented production integration.",
+    "Integrated candidate 1200-frame comparison (bounds-headless-pinned) passed framebuffer/OAM, full serialized final-state and execution-count equality with five alternating timing pairs. Baseline/candidate medians: 1.197299/1.195935 ms/frame; emulation-time reduction 0.114 percent. Pinned comparisons used CPU 15; the negative 3000-frame results prevented production integration.",
+    "Integrated candidate 3000-frame comparison (bounds-headless-pinned-3000) passed framebuffer/OAM, full serialized final-state and execution-count equality with five alternating timing pairs. Baseline/candidate medians: 2.424893/2.464699 ms/frame; emulation-time reduction -1.642 percent. Pinned comparisons used CPU 15; the negative 3000-frame results prevented production integration.",
+    "After withholding the production change, the rebuilt native release runtime is byte-identical by SHA-256 to the saved pre-experiment binary. Only test/diagnostic code remains in gba-core.",
+    "Final test-only candidate and reference equivalence coverage passed in the expanded Windows/Wine core suite: 164 passed, five optional cases ignored.",
+    "Final test-only candidate also passed the expanded Linux container core suite: 164 passed, five optional cases ignored."
+  ],
+  "limitations": [
+    "Enemy-turn fixtures remain unavailable. Microbenchmark results do not establish whole-game FPS or AI-turn gains; broader panel packing and revision caching remain pending.",
+    "The integrated candidate was tested in an introductory headless replay, which does not measure desktop panel packing. The experiment remains disabled; synthetic function-level savings are not sufficient to ship it."
+  ],
+  "files": [
+    "crates/gba-core/src/ffta_dialogue.rs"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

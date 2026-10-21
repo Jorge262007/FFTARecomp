@@ -3,19 +3,21 @@ struct Params { rect:vec4f, clip:vec4f, world_view:vec4f, flags:vec4f }
 @group(0) @binding(1) var world:texture_2d<u32>;
 @group(0) @binding(2) var colors:texture_2d<f32>;
 @group(0) @binding(3) var<uniform> P:Params;
+@group(0) @binding(4) var coordinates:texture_2d<u32>;
 @vertex fn vs_main(@builtin(vertex_index) i:u32)->@builtin(position) vec4f {
     var p=array<vec2f,3>(vec2f(-1.,-1.),vec2f(3.,-1.),vec2f(-1.,3.));
     return vec4f(p[i],0.,1.);
 }
 @fragment fn fs_main(@builtin(position) pos:vec4f)->@location(0) vec4f {
-    let q=(pos.xy-P.rect.xy)/P.rect.zw;
-    let c=(pos.xy-P.clip.xy)/P.clip.zw;
-    if(any(q<vec2f(0.)) || any(q>=vec2f(1.)) || any(c<vec2f(0.)) || any(c>=vec2f(1.))) {discard;}
-    let data=textureLoad(ui,vec2i(floor(q*vec2f(textureDimensions(ui)))),0);
+    let at=vec2i(pos.xy)-vec2i(P.flags.yz);
+    let extent=i32(textureDimensions(coordinates).x);
+    if(any(at<vec2i(0)) || any(at>=vec2i(extent))) {discard;}
+    let xc=textureLoad(coordinates,vec2i(at.x,0),0).rg;
+    let yc=textureLoad(coordinates,vec2i(at.y,1),0).rg;
+    if(xc.x==0xffffffffu || yc.x==0xffffffffu) {discard;}
+    let data=textureLoad(ui,vec2i(i32(xc.x),i32(yc.x)),0);
     if(data.z==0u && data.w==16u) {discard;}
-    let wp=vec2i(floor(P.world_view.xy+c*P.world_view.zw));
-    let dims=vec2i(textureDimensions(world));
-    let raw=textureLoad(world,clamp(wp,vec2i(0),dims-vec2i(1)),0).r;
+    let raw=textureLoad(world,vec2i(i32(xc.y),i32(yc.y)),0).r;
     let front=data.x|(data.y<<8u);
     var mixed=0u;
     for(var shift=0u;shift<=10u;shift+=5u) {

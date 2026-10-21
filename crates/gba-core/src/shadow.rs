@@ -14,6 +14,7 @@
 /// Both streams are rectified and lowpassed into envelopes, decimated,
 /// and Pearson-correlated over a coarse lag range covering the
 /// driver's output pipeline delay.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct SelfCheck {
     /// One-pole envelope followers (per side, canon and shadow).
     lp_x: (f32, f32),
@@ -163,6 +164,7 @@ pub enum Judgement {
 }
 
 /// The engine-agnostic verification state machine.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Verifier {
     check: SelfCheck,
     /// Differentially calibrated output gain (1.0 = stock scale):

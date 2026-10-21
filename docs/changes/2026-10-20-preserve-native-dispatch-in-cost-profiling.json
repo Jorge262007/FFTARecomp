@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "preserve-native-dispatch-in-cost-profiling",
+  "title": "Preserve native runtime behavior during guest-cycle profiling",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop runtime and headless native runners"
+  ],
+  "changes": [
+    "Replace the separate runc cost loop with an observer of the normal native dispatch loop, preserving sprite/mouse interpreter gates, audio HLE, BIOS/IRQ behavior and fallback tracing. Normal execution specializes the same loop with a no-op observer.",
+    "Report native, missing-translation, system and intentional-hook dispatch counts separately while retaining legacy per-PC guest-cycle attribution. Add fixture-free guard/state/cycle equivalence and optional 3000-frame full-state/frame/OAM/audio transcript checks."
+  ],
+  "validation": [
+    "45 native runtime tests passed serially, with three optional fixture tests ignored. The synthetic test covers actual translated dispatch, missing translation, halted system steps, complete frames and exhausted zero/one-step guards.",
+    "The initial 3000-frame fixture comparison passed equal frames/OAM/audio transcript, full serialized machine state and native/fallback counts. Observed 15470867 native blocks, 43198679 missing steps, 5984 system steps and 19823865 intentional-hook steps; attributed cycles summed to the actual 842604235 guest-clock advance.",
+    "The strengthened fixture transcript includes per-frame guest clock and channel lengths. Final replay passed with 6582846 mixed samples, 6582846 PSG samples, 791212 events on each FIFO and 6561508 HLE samples, equal across observation modes.",
+    "Actual runc CLI comparison with RECOMP_COST_FROM=240, RECOMP_MP2K=1 and fallback tracing passed all 3000 framebuffer/OAM hashes, final serialized-state SHA-256, execution totals and MP2K diagnostics. Both modes recorded 2990 live MP2K hooks and matching fallback census.",
+    "Profiling-disabled same-host release A/B passed 3000-frame framebuffer/OAM, final-state and execution-count equality with five alternating timing pairs pinned to CPU 15. Baseline/candidate medians were 2.419853/2.411346 ms/frame (0.352 percent difference, within observed variability); no AI or whole-game speedup is claimed.",
+    "Expanded final container suites passed 308 Linux tests (164 core, 26 input/config, 33 menu, 45 runtime, 40 screen) and 307 Windows/Wine tests (164 core, 26 input/config, 33 menu, 46 runtime, 38 screen); nine optional cases remained ignored per target. Both portable archives passed integrity, private-data and translation-cache exclusions, library whitelist and BUILD-INFO SHA-256 checks; Linux executable modes were preserved.",
+    "The explicit native save-state replay/load/Undo fixture regression passed with the shared dispatcher.",
+    "The final exported Linux portable launcher passed isolated Xvfb slot save/load after folder relocation, unchanged translation-cache bytes/mtime, two startup backups, unchanged per-user data and normal close. The loaded-state screenshot showed Slot 1 loaded and the undo-load entry."
+  ],
+  "limitations": [
+    "Guest-cycle attribution is not host CPU timing. The introductory fixture does not establish AI-turn performance or coverage of every BIOS, audio-engine and input-hook path. Native Windows and physical-controller validation remain separate."
+  ],
+  "files": [
+    "crates/recomp/src/main.rs"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

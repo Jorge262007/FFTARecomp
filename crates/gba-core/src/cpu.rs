@@ -59,6 +59,7 @@ pub enum Exception {
 }
 
 #[repr(C)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Cpu {
     /// Active register view for the current mode. `regs[15]` holds the
     /// *fetch* address of the next instruction between steps; during

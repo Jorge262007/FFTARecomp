@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-composition-before-deadline",
+  "title": "Reject pre-wait composition after contrary presentation-tail measurements",
+  "kind": "performance",
+  "platforms": [
+    "Native Linux evaluation"
+  ],
+  "changes": [
+    "Audit the temporal/LUT composition as host-only immutable-input work and evaluate moving it before the existing deadline wait without changing guest/history/audio production or deadline policy.",
+    "Reject this reorder after five alternating realtime cadence pairs show worse p99 in4/5pairs. Restore exact accepted play.rs and native runtime, preserving candidate source/binary and results; portable exports unchanged."
+  ],
+  "validation": [
+    "Audited Temporal::compose and ColorLut use: immutable Temporal/history/LUT inputs, writes only the private RGBA buffer, no clock, IO or shared mutable state. Sleep pumps no events; temporal advancement remains in push before both orders.",
+    "Native runtime66 tests and screen46 tests pass,4/6optional ignored, native runtime/launcher build passes. Five alternating realtime clock/immediate pairs each capture600successes/599intervals over the same guest window,1anchor,0skips/repeats/multi-guest/backend changes/omissions and0faithful holds, with private slot hashes unchanged. Baseline/candidate scene captures inspected; Vulkan/no fallback/clean exit.",
+    "Median interval means16.742582/16.742562ms; p95 improves17.509748 to17.464329ms but p99 worsens17.959623 to18.020603ms and median maximum18.189055 to18.331738ms. Four of five paired p99 results worse; no cadence benefit accepted.",
+    "Source/input hashes verified before preserving trial artifacts. Source restored by exact bytes with fresh mtime for Cargo invalidation; normal runtime restored by exact bytes/hash. No additional Windows/export gates or unpaced benchmark used to justify the rejected normal-loop reorder."
+  ],
+  "limitations": [
+    "One idle scene with native CPAL/Xvfb/llvmpipe, not physical scanout/high-Hz/native Windows or original AI-stall evidence. Results do not prove universal regression; they do not justify this pacing change. Further validation of rejected code is not pending work."
+  ],
+  "files": [
+    "crates/recomp/src/play.rs",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "crates/screen/src/blend.rs"
+  ]
+}

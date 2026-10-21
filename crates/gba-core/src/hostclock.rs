@@ -33,6 +33,7 @@ pub struct Civil {
 
 /// Fallback used if the platform call fails or the target has no clock API.
 /// 2000-01-01 was a Saturday (dow = 6).
+#[cfg(any(not(windows), test))]
 const FALLBACK: Civil = Civil {
     year: 2000,
     month: 1,

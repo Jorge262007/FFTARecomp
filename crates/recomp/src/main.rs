@@ -10,10 +10,20 @@ use std::process::ExitCode;
 use recomp_core::{analyze, build_library, labels, Compiler, FileLabels, LabelSource};
 
 mod ff_audio;
+mod fast_audio_rate;
+mod audio_profile;
+mod profile_window;
+mod fps;
+mod fullscreen;
+mod ui_pixels;
+mod perf;
 mod packfile;
 mod play;
 mod rom_switch;
+mod rom_data;
 mod save_path;
+mod save_state;
+mod save_backups;
 #[cfg(any(target_os = "linux", test))]
 mod linux_pad;
 
@@ -87,6 +97,7 @@ fn main() -> ExitCode {
         Some("build") => cmd_build(&args[1..]),
         Some("mp2k-scan") => cmd_mp2k_scan(&args[1..]),
         Some("engine-scan") => cmd_engine_scan(&args[1..]),
+        Some("rom-data") => rom_data::cmd(&args[1..]),
         Some("runc") => cmd_runc(&args[1..]),
         Some("verify") => cmd_verify(&args[1..]),
         Some("labels") => cmd_labels(&args[1..]),
@@ -110,6 +121,8 @@ fn main() -> ExitCode {
 /// `(name, synopsis, flag lines, description)` per command — the single
 /// source for both the overview listing and per-command help.
 const HELP: &[(&str, &str, &[&str], &str)] = &[
+    ("rom-data", "recomp rom-data <extract|verify> <rom> <dataset-directory> | prepare <rom> [resources-root]", &[],
+     "Extract, verify or prepare source-authenticated decoded OBJ dimensions, BG descriptors and base palettes for exact FFTA EUR/USA images. Managed preparation reuses or repairs versioned application data. Use --rom-data with play/frames/runc to consume verified base data; the source ROM is still required."),
     ("controllers", "recomp controllers [--poll]", &["--poll    sample each DirectInput controller"], "List detected gilrs and Windows DirectInput controllers without loading a ROM."),
     ("build", "recomp build <rom> [--ram] [--bios file] [--labels file] [--gamedb file]", &[
         "--ram    profile a short interpreter run first, translating the RAM-resident \
@@ -124,7 +137,9 @@ image's sha256) instead of label files; mutually exclusive with --labels",
     ], "Translate a ROM image to a native shared library at out/<stem>.<dylib|so|dll> (host platform). \
 Emits C11 in bounded chunks and compiles them with cc. Label files (<rom>.labels \
 or the recorder's accumulator) contribute extra entry-point seeds automatically."),
-    ("play", "recomp play <rom> [--interp] [--stats] [--status] [--record-labels] [--bios file] [--no-bios]", &[
+    ("play", "recomp play <rom> [--interp] [--stats] [--status] [--record-labels] [--bios file] [--no-bios] [--benchmark config.toml]", &[
+        "--rom-data        opt-in verified decoded game data (normal enablement awaits equivalence/cost gates)",
+        "--benchmark FILE   developer-only bounded GUI replay (TOML config; no cartridge writes)",
         "--interp           force the interpreter (skip/ignore native translation)",
         "--stats            print performance readouts (frame time, native vs fallback)",
         "--status           emit machine-readable lifecycle lines on stdout (used by the launcher)",
@@ -138,10 +153,13 @@ setup installs it); BIOS HLE otherwise. First launch translates the image into t
 per-user cache (one-time, progress printed); later launches load it instantly. Reads \
 input.cfg/av.cfg from the shared config directory."),
     ("runc", "recomp runc <rom> [--frames N] [--out img.ppm] [--input file] [--record-labels] [--bios file]", &[
+        "--rom-data         prepare and consume source-verified decoded base game data",
         "--frames N         frames to run (default 600)",
         "--out PATH         write the final frame as a PPM",
         "--input FILE       replay a recorded input script (see play's RECOMP_RECORD_INPUT)",
         "--sav FILE         preload a save copy; runc never writes it",
+        "--state FILE       resume a snapshot read-only, mutually exclusive with --sav",
+        "                   frames/input/zoom/warm-up are relative to the loaded frame",
         "--record-labels    record fallback entry points as labels (headless soak runs)",
         "--bios FILE     run a real-BIOS build (loads out/<stem>-bios.<dylib|so|dll>; no BIOS HLE)",
     ], "Run the recompiled output from out/<stem>.<dylib|so|dll> headless (build first); \
@@ -161,6 +179,7 @@ frame hashes, print MATCH or MISMATCH (exit code follows)."),
         "--bios FILE      execute a real 16 KB BIOS image (boot from the reset vector; no HLE)",
     ], "Headless interpreter run; the conformance-suite driver (a pass parks with r12=0)."),
     ("frames", "recomp frames <rom> [--frames N] [--out img.ppm] [--keys MASK] [--demo] [--input file] [--sav file] [--bios file]", &[
+        "--rom-data         prepare and consume source-verified decoded base game data",
         "--frames N      frames to run (default 600)",
         "--out PATH      write the final frame as a PPM",
         "--keys MASK     hold a KEYINPUT mask for the whole run (hex)",
@@ -521,6 +540,7 @@ fn cmd_run(args: &[String]) -> Result<(), String> {
 fn cmd_frames(args: &[String]) -> Result<(), String> {
     configure_headless_widescreen();
     let mut rom_path = None;
+    let mut use_rom_data = false;
     let mut frames = 60u64;
     let mut out: Option<String> = None;
     let mut keys = 0x3FFu16; // active-low: nothing pressed
@@ -532,6 +552,7 @@ fn cmd_frames(args: &[String]) -> Result<(), String> {
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
+            "--rom-data" => use_rom_data = true,
             "--frames" => {
                 frames = it
                     .next()
@@ -557,6 +578,7 @@ fn cmd_frames(args: &[String]) -> Result<(), String> {
     let rom = std::fs::read(&rom_path).map_err(|e| format!("{rom_path}: {e}"))?;
 
     let mut m = make_machine(rom, bios.as_deref());
+    if use_rom_data { rom_data::prepare_and_attach(&mut m, false)?; }
     m.bus.keys = keys;
     if let Some(p) = &sav {
         let data = std::fs::read(p).map_err(|e| format!("{p}: {e}"))?;
@@ -820,6 +842,7 @@ fn cmd_frames(args: &[String]) -> Result<(), String> {
         std::fs::write(&path, ppm).map_err(|e| format!("{path}: {e}"))?;
         println!("wrote {path}");
     }
+    rom_data::report_usage(&m);
     Ok(())
 }
 
@@ -1040,9 +1063,9 @@ fn apply_av_change(
             // Live: the producer keeps both rings filled; the callback
             // crossfades to the selected path over ~40 ms.
             let mut st = streams.lock().unwrap();
-            st.enhanced_on = av.audio_enhanced;
-            st.vol_cut = 1.0 - av.audio_volume.clamp(0.0, 1.0);
+            st.configure_audio(av);
         }
+        menu::Changed::Overlay | menu::Changed::Fullscreen => {}
         menu::Changed::Gamut => {
             // Restart-required: persisted to av.cfg by the caller, applied
             // on the next launch. Live rebuild would tear down the GPU
@@ -1102,7 +1125,9 @@ fn status_line(s: &str) {
 /// FIFO/DMA timing fixes (profiled state shifts); 4 = SWI ends blocks
 /// (halt ordering vs following instructions — scanline-effect timing).
 // Regional EUR sprite guards require rebuilding translations made by older engines.
-const TRANSLATION_REV: u32 = 6;
+// Event-budget entry/continuation guards require regenerating native blocks.
+// Rev 8 carries a cycle allowance across native chain groups.
+const TRANSLATION_REV: u32 = 8;
 
 // Keep the owning context alive for every translated function pointer.
 #[allow(dead_code)] // These fields retain native allocations until emulation stops.
@@ -1123,9 +1148,9 @@ fn ensure_native(
     gamedb: Option<&gamedb::GameDb>,
 ) -> Result<(NativeLibrary, BlockTable), String> {
     let sha = rom_sha256(rom);
-    let base = dirs::cache_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join("FFTARecomp");
+    let base = input_config::storage::portable_root()
+        .map(|root| root.join("Data").join("cache"))
+        .unwrap_or_else(|| dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("FFTARecomp"));
     let dir = base.join(format!("t{TRANSLATION_REV}"));
     // Sweep superseded revision directories — they can only hold stale
     // translations no current binary will ever load.
@@ -1178,10 +1203,10 @@ fn ensure_native(
     // BOTH the build and the cache key, so a gamedb build and a file build
     // never shadow each other and grown coverage retranslates.
     let from_gamedb = gamedb.filter(|db| db.function_count(&sha).map(|n| n > 0).unwrap_or(false));
-    let lbl = match from_gamedb {
+    let lbl = translation_labels(&sha, match from_gamedb {
         Some(db) => db.labels(&sha, rom.len())?,
         None => labels::load_all(rom_path, &sha, rom.len()),
-    };
+    });
     let lsuffix = if lbl.is_empty() {
         String::new()
     } else {
@@ -1289,6 +1314,7 @@ fn load_native(lib_path: &Path) -> Result<(NativeLibrary, BlockTable), String> {
 /// per-channel taps live. `mixed` and `psg` are interleaved stereo.
 #[derive(Default)]
 struct AudioStreams {
+    profile: Option<audio_profile::Profile>,
     mixed: std::collections::VecDeque<i16>,
     psg: std::collections::VecDeque<f32>,
     fifo: [std::collections::VecDeque<(i8, u32)>; 2],
@@ -1300,10 +1326,17 @@ struct AudioStreams {
     /// volume, 1.0 = silent). Stored as a cut so the derived `Default`
     /// means "full volume". Set from av.cfg and the in-game menu.
     vol_cut: f32,
-    /// Hard mute (reserved for fast-forward); the callback slews to it.
+    /// Temporary Fast silent/fallback mute; independent of the saved user choice.
     muted: bool,
+    user_muted: bool,
     playback_speed: f64,
+    /// Guest PCM pairs produced in the current Fast timeline, measured against
+    /// the device sample clock by the callback (no host timestamp required).
+    fast_produced: u64,
     normal_audio: Option<ff_audio::NormalAudio>,
+    /// Producer invalidation also resets callback-owned DSP history. Accessed
+    /// only under the existing stream mutex; not part of guest/save state.
+    epoch: u64,
     /// MP2K HLE shadow-mixer stereo (65536 Hz grid, hardware-rail
     /// units like `psg`). When `hle_on`, the callback substitutes this
     /// for the FIFO A/B channels; reverting mid-session falls straight
@@ -1330,6 +1363,29 @@ struct AudioStreams {
     /// Set by the stream error callback; the play loop's watchdog turns
     /// it into a loud wall-clock fallback plus periodic retry.
     dead: bool,
+}
+
+impl AudioStreams {
+    fn configure_audio(&mut self, av: &input_config::AvConfig) {
+        self.enhanced_on = av.audio_enhanced;
+        self.vol_cut = 1.0 - av.audio_volume.clamp(0.0, 1.0);
+        self.user_muted = av.audio_mute;
+    }
+
+    fn volume_target(&self) -> f32 {
+        if self.muted || self.user_muted { 0. } else { 1. - self.vol_cut }
+    }
+
+    /// Discard output from a timeline/speed that is no longer being played.
+    fn discard_pending(&mut self) {
+        self.mixed.clear();
+        self.psg.clear();
+        self.hle.clear();
+        self.fifo.iter_mut().for_each(std::collections::VecDeque::clear);
+        self.normal_audio = None;
+        self.fast_produced = 0;
+        self.epoch = self.epoch.wrapping_add(1);
+    }
 }
 
 /// The premium path's consumer state: one interpolator per Direct Sound
@@ -1428,8 +1484,51 @@ fn build_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
     streams: std::sync::Arc<std::sync::Mutex<AudioStreams>>,
 ) -> Result<cpal::Stream, String> {
     use cpal::traits::DeviceTrait;
-    let rate = cfg.sample_rate().0 as f64;
-    let channels = cfg.channels() as usize;
+    let mut output = output_callback::<T>(cfg.sample_rate().0 as f64, cfg.channels() as usize, streams.clone());
+    device
+        .build_output_stream(
+            &cfg.config(),
+            move |out: &mut [T], _| output(out),
+            move |e| {
+                eprintln!("audio error: {e}");
+                let mut st = streams.lock().unwrap();
+                st.dead = true;
+                if let Some(profile) = st.profile.as_mut() {
+                    profile.device_errors += 1;
+                }
+            },
+            None,
+        )
+        .map_err(|e| e.to_string())
+}
+
+/// The actual device renderer, also callable without a device for parity and
+/// starvation checks. Diagnostics only observe; DSP and queue policy are shared.
+fn output_callback<T: cpal::SizedSample + cpal::FromSample<f32>>(
+    rate: f64,
+    channels: usize,
+    streams: std::sync::Arc<std::sync::Mutex<AudioStreams>>,
+) -> impl FnMut(&mut [T]) + Send + 'static {
+    // Select once per stream; no diagnostic branches/counters in default
+    // resampler loops and no boxed callback or per-buffer allocation.
+    enum Callback<A, B> { Plain(A), Observed(B) }
+    let profiling = streams.lock().unwrap().profile.is_some();
+    let mut callback = if profiling {
+        Callback::Observed(output_callback_impl::<T, true>(rate, channels, streams))
+    } else {
+        Callback::Plain(output_callback_impl::<T, false>(rate, channels, streams))
+    };
+    move |out: &mut [T]| match &mut callback {
+        Callback::Plain(callback) => callback(out),
+        Callback::Observed(callback) => callback(out),
+    }
+}
+
+fn output_callback_impl<T: cpal::SizedSample + cpal::FromSample<f32>, const OBSERVE: bool>(
+    rate: f64,
+    channels: usize,
+    streams: std::sync::Arc<std::sync::Mutex<AudioStreams>>,
+) -> impl FnMut(&mut [T]) + Send + 'static {
     let src = gba_core::mem::AUDIO_RATE_HZ as f64;
 
     // Both paths run every callback; the menu crossfades between them.
@@ -1444,10 +1543,12 @@ fn build_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
     // Faithful↔enhanced crossfade: start matched to the loaded setting so
     // there's no fade at launch, then slew (~40 ms) whenever the menu
     // flips `enhanced_on`.
-    let mut mode_x: f32 = if streams.lock().unwrap().enhanced_on {
-        1.0
-    } else {
-        0.0
+    let mut mode_x = {
+        let mut st = streams.lock().unwrap();
+        if OBSERVE {
+            if let Some(profile) = st.profile.as_mut() { profile.attach(rate as u32, channels); }
+        }
+        if st.enhanced_on { 1.0f32 } else { 0.0 }
     };
     let mode_k = (1.0 / (0.040 * rate)) as f32;
     let step = src / rate;
@@ -1457,159 +1558,204 @@ fn build_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
     // the speaker. Model it on the faithful path too, or PSG duty
     // offsets thump on every note edge.
     let mut faithful_dc = [DcBlock::new(rate), DcBlock::new(rate)];
-    let err_streams = streams.clone();
     // Master volume, slewed (~20 ms) so menu changes and mutes never click.
     let mut vol_cur: f32 = {
         let st = streams.lock().unwrap();
-        if st.muted {
-            0.0
-        } else {
-            1.0 - st.vol_cut
-        }
+        st.volume_target()
     };
     let vol_k = (1.0 / (0.020 * rate)) as f32;
-    device
-        .build_output_stream(
-            &cfg.config(),
-            move |out: &mut [T], _| {
-                let mut st = streams.lock().unwrap();
-                let playback_speed = st.playback_speed.max(1.0);
-                let normal_audio = st.normal_audio.is_some();
-                // Liveness signal for the play loop's device watchdog.
-                st.consumed += (out.len() / channels.max(1)) as u64;
-                for frame in out.chunks_mut(channels) {
-                    // Enhanced output (always computed so the ring stays
-                    // drained and the path is warm for a live switch).
-                    let (el, er) = {
-                        let e = &mut eng;
-                        let (pl, pr) = e.psg.next_with_speed(&mut st.psg, playback_speed);
-                        let mut l = pl;
-                        let mut r = pr;
-                        {
-                            // BOTH Direct Sound paths stay warm — the
-                            // per-channel interpolators and the MP2K
-                            // shadow stream — and a short equal-power-
-                            // ish crossfade moves between them, so an
-                            // HLE engage or pause is never an audible
-                            // seam (both render the same music).
-                            let a = e.fifo[0].next_with_speed(&mut st.fifo[0], playback_speed)
-                                * if st.vol_half[0] { 0.5 } else { 1.0 };
-                            let b = e.fifo[1].next_with_speed(&mut st.fifo[1], playback_speed)
-                                * if st.vol_half[1] { 0.5 } else { 1.0 };
-                            let (hl, hr) = e.hle.next_with_speed(&mut st.hle, playback_speed);
-                            let hr = hr * if st.vol_half[0] { 0.5 } else { 1.0 };
-                            let hl = hl * if st.vol_half[1] { 0.5 } else { 1.0 };
-                            let target = if st.hle_on { 1.0 } else { 0.0 };
-                            e.xfade += (target - e.xfade) * e.xfade_k;
-                            let xf = e.xfade;
-                            let mut fl = 0.0;
-                            let mut fr = 0.0;
-                            if st.route[0] & 2 != 0 {
-                                fl += a;
-                            }
-                            if st.route[0] & 1 != 0 {
-                                fr += a;
-                            }
-                            if st.route[1] & 2 != 0 {
-                                fl += b;
-                            }
-                            if st.route[1] & 1 != 0 {
-                                fr += b;
-                            }
-                            let mut gl = 0.0;
-                            let mut gr = 0.0;
-                            if st.route[0] & 2 != 0 || st.route[1] & 2 != 0 {
-                                gl = hl;
-                            }
-                            if st.route[0] & 1 != 0 || st.route[1] & 1 != 0 {
-                                gr = hr;
-                            }
-                            l += fl * (1.0 - xf) + gl * xf;
-                            r += fr * (1.0 - xf) + gr * xf;
-                            // Stage 2: where the hardware would hard-clip
-                            // the over-rail sum, saturate it softly
-                            // instead — before the DC block, matching the
-                            // hardware order (rail precedes the output
-                            // coupling). Below the rail this is exact
-                            // identity, so unclipped material is
-                            // bit-identical to the pre-Stage-2 path.
-                            if l.abs() > RAIL || r.abs() > RAIL {
-                                st.clipped += 1;
-                            }
-                        }
-                        (e.dc[0].next(soft_clip(l)), e.dc[1].next(soft_clip(r)))
-                    };
-                    // Faithful output (also always computed, also drained).
-                    let (fl, fr) = {
-                        // The emulated DAC runs on the 59.73 Hz frame
-                        // grid while the window paces 60 — steer the
-                        // faithful path too, or the ring overflows
-                        // into a burst-drop buzz at the cap.
-                        let pairs = (st.mixed.len() / 2) as f64;
-                        let target_pairs = RING_TARGET as f64 * playback_speed;
-                        let err = if normal_audio { 0.0 } else { (pairs - target_pairs) / target_pairs };
-                        frac += step * playback_speed * (1.0 + 0.02 * err.clamp(-1.0, 1.0));
-                        while frac >= 1.0 {
-                            frac -= 1.0;
-                            let queued = st.normal_audio.as_mut().map(|queue| queue.next_pair());
-                            match queued {
-                                Some(Ok(Some(pair))) => last = pair,
-                                Some(Ok(None)) => st.holds += 1,
-                                Some(Err(error)) => {
-                                    eprintln!("audio: normal-speed backlog read failed ({error}); muting fast-forward audio");
-                                    st.normal_audio = None;
-                                    st.muted = true;
-                                }
-                                None => match (st.mixed.pop_front(), st.mixed.pop_front()) {
-                                    (Some(l), Some(r)) => last = (l, r),
-                                    _ => st.holds += 1,
-                                },
-                            }
-                        }
-                        (
-                            faithful_dc[0].next(last.0 as f32 / 32768.0),
-                            faithful_dc[1].next(last.1 as f32 / 32768.0),
-                        )
-                    };
-                    // Crossfade between the two finished paths. Both are
-                    // level-matched (shared OUT_GAIN below), so a linear
-                    // blend across the ~40 ms slew is seam-free — the
-                    // music is the same, only the rendering differs.
-                    let target = if st.enhanced_on && !normal_audio { 1.0 } else { 0.0 };
-                    mode_x += (target - mode_x) * mode_k;
-                    let l = fl + (el - fl) * mode_x;
-                    let r = fr + (er - fr) * mode_x;
-                    // Calibrate the hardware rail (±0x200 units = ±0.5
-                    // here) toward device full scale. Both paths share
-                    // the gain so the A/V toggle stays level-matched;
-                    // it leaves ~2 dB above the rail for the enhanced
-                    // path's soft knee. The clamp is a safety net for
-                    // DC-block overshoot — faithful content was already
-                    // rail-clipped at the mix (the canon hard clip).
-                    let vol_target = if st.muted { 0.0 } else { 1.0 - st.vol_cut };
-                    vol_cur += (vol_target - vol_cur) * vol_k;
-                    let l = (l * OUT_GAIN * vol_cur).clamp(-1.0, 1.0);
-                    let r = (r * OUT_GAIN * vol_cur).clamp(-1.0, 1.0);
-                    match frame {
-                        [m] => *m = T::from_sample((l + r) * 0.5),
-                        [fl, fr, rest @ ..] => {
-                            *fl = T::from_sample(l);
-                            *fr = T::from_sample(r);
-                            for ch in rest {
-                                *ch = T::from_sample((l + r) * 0.5);
-                            }
-                        }
-                        [] => {}
+    let mut epoch = streams.lock().unwrap().epoch;
+    let mut fast_clock = fast_audio_rate::Clock::new(src, rate);
+    move |out: &mut [T]| {
+        let begin = OBSERVE.then(std::time::Instant::now);
+        let mut st = streams.lock().unwrap();
+        let acquired = begin.map(|_| std::time::Instant::now());
+        let observation = OBSERVE.then(|| (st.holds, st.mixed.len() / 2));
+        let mut source_reads = [audio_profile::SourceReads::default(); 4];
+        let normal_observation = if OBSERVE {
+            st.normal_audio.as_ref().map(|queue| (st.epoch, queue.stats()))
+        } else { None };
+        let requested_speed = st.playback_speed.max(1.0);
+        let normal_audio = st.normal_audio.is_some();
+        let fast_audio = requested_speed > 1. && !normal_audio;
+        if epoch != st.epoch {
+            epoch = st.epoch;
+            fast_clock.reset();
+            eng.psg.reset();
+            eng.hle.reset();
+            eng.fifo.iter_mut().for_each(FifoInterp::reset);
+            eng.dc.iter_mut().for_each(DcBlock::reset);
+            eng.xfade = 0.0;
+            faithful_dc.iter_mut().for_each(DcBlock::reset);
+            frac = 0.0;
+            last = (0, 0);
+            mode_x = if st.enhanced_on && !normal_audio { 1.0 } else { 0.0 };
+            // Ramp new audio in through the existing volume slew. No samples
+            // from the abandoned timeline participate in this transition.
+            vol_cur = 0.0;
+        }
+        // Liveness signal for the play loop's device watchdog.
+        st.consumed += (out.len() / channels.max(1)) as u64;
+        let fast_plan = fast_audio.then(|| fast_clock.begin(
+            st.fast_produced, st.mixed.len() / 2, out.len() / channels.max(1), requested_speed));
+        let waiting = fast_plan.is_some_and(|plan| !plan.ready);
+        if waiting {
+            // Explicit, observable re-priming; never repeat old source samples.
+            // Keep the history reset while there is no new audible timeline.
+            eng.psg.reset(); eng.hle.reset();
+            eng.fifo.iter_mut().for_each(FifoInterp::reset);
+            eng.dc.iter_mut().for_each(DcBlock::reset);
+            faithful_dc.iter_mut().for_each(DcBlock::reset);
+            eng.xfade = 0.; frac = 0.; last = (0, 0); vol_cur = 0.;
+            out.fill(T::EQUILIBRIUM);
+        } else {
+        for frame in out.chunks_mut(channels) {
+            let playback_speed = if fast_audio { fast_clock.next() } else { requested_speed };
+            // Enhanced output (always computed so the ring stays
+            // drained and the path is warm for a live switch).
+            let (el, er) = {
+                let e = &mut eng;
+                let (pl, pr) = e.psg.next_clocked::<OBSERVE>(&mut st.psg, playback_speed, &mut source_reads[0], !fast_audio);
+                let mut l = pl;
+                let mut r = pr;
+                {
+                    // BOTH Direct Sound paths stay warm — the
+                    // per-channel interpolators and the MP2K
+                    // shadow stream — and a short equal-power-
+                    // ish crossfade moves between them, so an
+                    // HLE engage or pause is never an audible
+                    // seam (both render the same music).
+                    let a = e.fifo[0].next_with_clock::<OBSERVE>(&mut st.fifo[0], playback_speed, &mut source_reads[2], !fast_audio)
+                        * if st.vol_half[0] { 0.5 } else { 1.0 };
+                    let b = e.fifo[1].next_with_clock::<OBSERVE>(&mut st.fifo[1], playback_speed, &mut source_reads[3], !fast_audio)
+                        * if st.vol_half[1] { 0.5 } else { 1.0 };
+                    let (hl, hr) = e.hle.next_clocked::<OBSERVE>(&mut st.hle, playback_speed, &mut source_reads[1], !fast_audio);
+                    let hr = hr * if st.vol_half[0] { 0.5 } else { 1.0 };
+                    let hl = hl * if st.vol_half[1] { 0.5 } else { 1.0 };
+                    let target = if st.hle_on { 1.0 } else { 0.0 };
+                    e.xfade += (target - e.xfade) * e.xfade_k;
+                    let xf = e.xfade;
+                    let mut fl = 0.0;
+                    let mut fr = 0.0;
+                    if st.route[0] & 2 != 0 {
+                        fl += a;
+                    }
+                    if st.route[0] & 1 != 0 {
+                        fr += a;
+                    }
+                    if st.route[1] & 2 != 0 {
+                        fl += b;
+                    }
+                    if st.route[1] & 1 != 0 {
+                        fr += b;
+                    }
+                    let mut gl = 0.0;
+                    let mut gr = 0.0;
+                    if st.route[0] & 2 != 0 || st.route[1] & 2 != 0 {
+                        gl = hl;
+                    }
+                    if st.route[0] & 1 != 0 || st.route[1] & 1 != 0 {
+                        gr = hr;
+                    }
+                    l += fl * (1.0 - xf) + gl * xf;
+                    r += fr * (1.0 - xf) + gr * xf;
+                    // Stage 2: where the hardware would hard-clip
+                    // the over-rail sum, saturate it softly
+                    // instead — before the DC block, matching the
+                    // hardware order (rail precedes the output
+                    // coupling). Below the rail this is exact
+                    // identity, so unclipped material is
+                    // bit-identical to the pre-Stage-2 path.
+                    if l.abs() > RAIL || r.abs() > RAIL {
+                        st.clipped += 1;
                     }
                 }
-            },
-            move |e| {
-                eprintln!("audio error: {e}");
-                err_streams.lock().unwrap().dead = true;
-            },
-            None,
-        )
-        .map_err(|e| e.to_string())
+                (e.dc[0].next(soft_clip(l)), e.dc[1].next(soft_clip(r)))
+            };
+            // Faithful output (also always computed, also drained).
+            let (fl, fr) = {
+                // The emulated DAC runs on the 59.73 Hz frame
+                // grid while the window paces 60 — steer the
+                // faithful path too, or the ring overflows
+                // into a burst-drop buzz at the cap.
+                let pairs = (st.mixed.len() / 2) as f64;
+                let target_pairs = RING_TARGET as f64 * playback_speed;
+                let err = if normal_audio || fast_audio { 0.0 } else { (pairs - target_pairs) / target_pairs };
+                frac += step * playback_speed * (1.0 + 0.02 * err.clamp(-1.0, 1.0));
+                while frac >= 1.0 {
+                    frac -= 1.0;
+                    let queued = st.normal_audio.as_mut().map(|queue| queue.next_pair());
+                    match queued {
+                        Some(Some(pair)) => last = pair,
+                        Some(None) => st.holds += 1,
+                        None => match (st.mixed.pop_front(), st.mixed.pop_front()) {
+                            (Some(l), Some(r)) => last = (l, r),
+                            _ => st.holds += 1,
+                        },
+                    }
+                }
+                (
+                    faithful_dc[0].next(last.0 as f32 / 32768.0),
+                    faithful_dc[1].next(last.1 as f32 / 32768.0),
+                )
+            };
+            // Crossfade between the two finished paths. Both are
+            // level-matched (shared OUT_GAIN below), so a linear
+            // blend across the ~40 ms slew is seam-free — the
+            // music is the same, only the rendering differs.
+            let target = if st.enhanced_on && !normal_audio { 1.0 } else { 0.0 };
+            mode_x += (target - mode_x) * mode_k;
+            let l = fl + (el - fl) * mode_x;
+            let r = fr + (er - fr) * mode_x;
+            // Calibrate the hardware rail (±0x200 units = ±0.5
+            // here) toward device full scale. Both paths share
+            // the gain so the A/V toggle stays level-matched;
+            // it leaves ~2 dB above the rail for the enhanced
+            // path's soft knee. The clamp is a safety net for
+            // DC-block overshoot — faithful content was already
+            // rail-clipped at the mix (the canon hard clip).
+            let vol_target = st.volume_target();
+            vol_cur += (vol_target - vol_cur) * vol_k;
+            // Finish the exponential mute tail below -100 dB instead of
+            // leaving tiny nonzero floating-point output indefinitely.
+            if vol_target == 0. && vol_cur < 0.00001 { vol_cur = 0.; }
+            let l = (l * OUT_GAIN * vol_cur).clamp(-1.0, 1.0);
+            let r = (r * OUT_GAIN * vol_cur).clamp(-1.0, 1.0);
+            match frame {
+                [m] => *m = T::from_sample((l + r) * 0.5),
+                [fl, fr, rest @ ..] => {
+                    *fl = T::from_sample(l);
+                    *fr = T::from_sample(r);
+                    for ch in rest {
+                        *ch = T::from_sample((l + r) * 0.5);
+                    }
+                }
+                [] => {}
+            }
+        }
+        }
+        if let (Some(begin), Some(acquired), Some((holds, mixed))) = (begin, acquired, observation) {
+            let end = std::time::Instant::now();
+            let holds = st.holds.saturating_sub(holds);
+            let enhanced_target = st.enhanced_on && !normal_audio;
+            let configured_target = [
+                enhanced_target,
+                enhanced_target && st.hle_on && st.route.iter().any(|&route| route != 0),
+                enhanced_target && !st.hle_on && st.route[0] != 0,
+                enhanced_target && !st.hle_on && st.route[1] != 0,
+            ];
+            if let Some(profile) = st.profile.as_mut() {
+                if let Some((epoch, stats)) = normal_observation {
+                    profile.normal_audio(epoch, stats);
+                }
+                if let Some(plan) = fast_plan {
+                    profile.fast_audio(plan, out.len() / channels.max(1), mixed);
+                }
+                profile.callback([begin, acquired, end], out.len() / channels.max(1), holds, mixed);
+                profile.sources(source_reads, configured_target);
+            }
+        }
+    }
 }
 
 const SINC_TAPS: usize = 24;
@@ -1679,6 +1825,11 @@ struct DcBlock {
 }
 
 impl DcBlock {
+    fn reset(&mut self) {
+        self.x1 = 0.0;
+        self.y1 = 0.0;
+    }
+
     fn new(out_hz: f64) -> DcBlock {
         DcBlock {
             r: 1.0 - (2.0 * std::f64::consts::PI * 10.0 / out_hz) as f32,
@@ -1703,6 +1854,9 @@ impl DcBlock {
 struct SincResampler {
     table: Vec<f32>,
     fast_tables: [Vec<f32>; 3],
+    /// 1..8.25 in 1/8 steps. Built once with the stream, never in the callback.
+    /// Adjacent conservative cutoffs blend continuously at fractional speeds.
+    adaptive_tables: Vec<Vec<f32>>,
     /// Last SINC_TAPS source samples per side, oldest first.
     hist: [[f32; SINC_TAPS]; 2],
     ratio: f64,
@@ -1710,6 +1864,11 @@ struct SincResampler {
 }
 
 impl SincResampler {
+    fn reset(&mut self) {
+        self.hist = [[0.0; SINC_TAPS]; 2];
+        self.frac = 0.0;
+    }
+
     fn new(src_hz: f64, out_hz: f64) -> SincResampler {
         // 10% under the narrower Nyquist leaves the window transition
         // band room.
@@ -1717,32 +1876,59 @@ impl SincResampler {
             table: build_sinc_table(0.45 * (out_hz / src_hz).min(1.0)),
             fast_tables: [2.0, 4.0, 8.0]
                 .map(|speed| build_sinc_table(0.45 * (out_hz / (src_hz * speed)).min(1.0))),
+            adaptive_tables: (0..=58).map(|i| {
+                let speed = 1. + i as f64 / 8.;
+                build_sinc_table(0.45 * (out_hz / (src_hz * speed)).min(1.0))
+            }).collect(),
             hist: [[0.0; SINC_TAPS]; 2],
             ratio: src_hz / out_hz,
             frac: 0.0,
         }
     }
 
+    #[cfg(test)]
     fn next(&mut self, q: &mut std::collections::VecDeque<f32>) -> (f32, f32) {
         self.next_with_speed(q, 1.0)
     }
 
+    #[cfg(test)]
     fn next_with_speed(
         &mut self,
         q: &mut std::collections::VecDeque<f32>,
         speed: f64,
     ) -> (f32, f32) {
+        self.next_observed::<false>(q, speed, &mut audio_profile::SourceReads::default())
+    }
+
+    #[cfg(test)]
+    fn next_observed<const OBSERVE: bool>(
+        &mut self,
+        q: &mut std::collections::VecDeque<f32>,
+        speed: f64,
+        reads: &mut audio_profile::SourceReads,
+    ) -> (f32, f32) {
+        self.next_clocked::<OBSERVE>(q, speed, reads, true)
+    }
+
+    fn next_clocked<const OBSERVE: bool>(
+        &mut self, q: &mut std::collections::VecDeque<f32>, speed: f64,
+        reads: &mut audio_profile::SourceReads, steer: bool,
+    ) -> (f32, f32) {
         // Steer consumption toward the target fill; an underrun repeats
         // the newest pair (a one-sample ZOH the DC blocker smooths).
         let pairs = (q.len() / 2) as f64;
         let target = RING_TARGET as f64 * speed;
-        let err = (pairs - target) / target;
+        let err = if steer { (pairs - target) / target } else { 0. };
         self.frac += self.ratio * speed * (1.0 + 0.02 * err.clamp(-1.0, 1.0));
         while self.frac >= 1.0 {
             self.frac -= 1.0;
+            if OBSERVE { reads.requests += 1; }
             let (l, r) = match (q.pop_front(), q.pop_front()) {
                 (Some(l), Some(r)) => (l, r),
-                _ => (self.hist[0][SINC_TAPS - 1], self.hist[1][SINC_TAPS - 1]),
+                _ => {
+                    if OBSERVE { reads.empty += 1; }
+                    (self.hist[0][SINC_TAPS - 1], self.hist[1][SINC_TAPS - 1])
+                }
             };
             for (h, s) in self.hist.iter_mut().zip([l, r]) {
                 h.copy_within(1.., 0);
@@ -1756,6 +1942,23 @@ impl SincResampler {
             _ => &self.table,
         };
         let row = &table[(self.frac * SINC_PHASES as f64) as usize * SINC_TAPS..][..SINC_TAPS];
+        if !steer {
+            let position = (speed.clamp(1., 8.25) - 1.) * 8.;
+            let index = position.floor() as usize;
+            // Both filters are at or below the current output Nyquist. Using
+            // floor(speed) alone admitted aliasing at fractional Fast speeds.
+            let first = &self.adaptive_tables[(index + 1).min(58)];
+            let second = &self.adaptive_tables[(index + 2).min(58)];
+            let offset = (self.frac * SINC_PHASES as f64) as usize * SINC_TAPS;
+            let weight = position.fract() as f32;
+            let mut output = [0.; 2];
+            for k in 0..SINC_TAPS {
+                let coefficient = first[offset + k] + (second[offset + k] - first[offset + k]) * weight;
+                output[0] += coefficient * self.hist[0][k];
+                output[1] += coefficient * self.hist[1][k];
+            }
+            return (output[0], output[1]);
+        }
         (
             row.iter()
                 .zip(self.hist[0].iter())
@@ -1801,14 +2004,32 @@ struct FifoInterp {
 }
 
 impl FifoInterp {
-    fn next_with_speed(
+    fn reset(&mut self) {
+        self.fut.fill(0.0);
+        self.pos = 0;
+        self.y = 0.0;
+        self.level = 0.0;
+        self.t_next = 512.0;
+        self.period = 512.0;
+    }
+
+    #[cfg(test)]
+    fn next_with_speed_observed<const OBSERVE: bool>(
         &mut self,
         q: &mut std::collections::VecDeque<(i8, u32)>,
         speed: f64,
+        reads: &mut audio_profile::SourceReads,
+    ) -> f32 {
+        self.next_with_clock::<OBSERVE>(q, speed, reads, true)
+    }
+
+    fn next_with_clock<const OBSERVE: bool>(
+        &mut self, q: &mut std::collections::VecDeque<(i8, u32)>, speed: f64,
+        reads: &mut audio_profile::SourceReads, steer: bool,
     ) -> f32 {
         let base = self.out_step;
         self.out_step = base * speed;
-        let sample = self.next(q);
+        let sample = self.next_clocked::<OBSERVE>(q, reads, steer);
         self.out_step = base;
         sample
     }
@@ -1825,10 +2046,25 @@ impl FifoInterp {
         }
     }
 
+    #[cfg(test)]
     fn next(&mut self, q: &mut std::collections::VecDeque<(i8, u32)>) -> f32 {
+        self.next_observed::<false>(q, &mut audio_profile::SourceReads::default())
+    }
+    #[cfg(test)]
+    fn next_observed<const OBSERVE: bool>(
+        &mut self, q: &mut std::collections::VecDeque<(i8, u32)>,
+        reads: &mut audio_profile::SourceReads,
+    ) -> f32 {
+        self.next_clocked::<OBSERVE>(q, reads, true)
+    }
+
+    fn next_clocked<const OBSERVE: bool>(
+        &mut self, q: &mut std::collections::VecDeque<(i8, u32)>,
+        reads: &mut audio_profile::SourceReads, steer: bool,
+    ) -> f32 {
         // Steer toward ~62 ms queued at the channel's current rate.
         let target = ((1u64 << 24) as f64 / self.period / 16.0).max(64.0);
-        let err = (q.len() as f64 - target) / target;
+        let err = if steer { (q.len() as f64 - target) / target } else { 0. };
         let stepc = self.out_step * (1.0 + 0.02 * err.clamp(-1.0, 1.0));
 
         self.t_next -= stepc;
@@ -1836,12 +2072,16 @@ impl FifoInterp {
             // The event fires inside this output sample, at fraction phi
             // of the sample period.
             let phi = (1.0 + self.t_next / stepc).clamp(0.0, 1.0);
+            if OBSERVE { reads.requests += 1; }
             let new_level = match q.pop_front() {
                 Some((s, p)) => {
                     self.period = (p as f64).max(1.0);
                     s as f32 * (64.0 / 32768.0)
                 }
-                None => self.level, // DAC holds on underrun
+                None => {
+                    if OBSERVE { reads.empty += 1; }
+                    self.level // DAC holds; an inactive warm channel can be empty.
+                }
             };
             let delta = new_level - self.level;
             self.level = new_level;
@@ -1883,6 +2123,7 @@ fn build_gilrs() -> Option<gilrs::Gilrs> {
 /// Gilrs button name (the launcher stores `{:?}` of the button) to a
 /// gilrs `Button`. Stick-direction tokens are handled elsewhere (they
 /// read axes, not buttons) and return `None` here.
+#[cfg(not(target_os = "linux"))]
 fn gilrs_button(name: &str) -> Option<gilrs::Button> {
     use gilrs::Button::*;
     Some(match name {
@@ -1912,6 +2153,7 @@ fn gilrs_button(name: &str) -> Option<gilrs::Button> {
 /// Is a stick token pushed past the deadzone right now? `(horizontal,
 /// positive)` from the token; gilrs reports both sticks' Y as up-positive,
 /// matching the token directions.
+#[cfg(not(target_os = "linux"))]
 fn stick_token_active(gp: &gilrs::Gamepad, tok: input_config::StickToken, deadzone: f32) -> bool {
     use gilrs::Axis::*;
     let (horizontal, positive) = tok.axis();
@@ -1930,6 +2172,7 @@ fn stick_token_active(gp: &gilrs::Gamepad, tok: input_config::StickToken, deadzo
 }
 
 /// Is the configured pad binding (button name or stick token) active?
+#[cfg(not(target_os = "linux"))]
 fn pad_pressed(gp: &gilrs::Gamepad, name: &str, deadzone: f32) -> bool {
     match input_config::pad_binding(name) {
         input_config::PadBinding::Button(b) => {
@@ -2006,6 +2249,13 @@ fn cmd_build(args: &[String]) -> Result<(), String> {
     );
     eprintln!();
     r
+}
+
+/// Use identical hint unions for cache identity and compilation. Existing
+/// file/database entries and metadata remain intact; growth changes the digest.
+fn translation_labels(sha: &str, mut source: labels::Labels) -> labels::Labels {
+    source.rom.extend(gba_core::ffta_rom::native_rom_entries(sha).iter().copied());
+    source
 }
 
 /// The build pipeline behind `cmd_build`, parameterized on the output
@@ -2187,7 +2437,7 @@ fn build_dylib(
     let sha = rom_sha256(&rom);
     let mut seeds = seeds;
     let mut iwram = iwram;
-    let lbl = label_source.labels(&sha, rom.len())?;
+    let lbl = translation_labels(&sha, label_source.labels(&sha, rom.len())?);
     if !lbl.is_empty() {
         let mut set: std::collections::BTreeSet<u32> = seeds.iter().copied().collect();
         let before = set.len();
@@ -2416,17 +2666,44 @@ fn run_frame_native(
     mptr: *mut std::ffi::c_void,
     max_steps: u64,
 ) -> (u64, u64) {
+    run_frame_native_observed(m, table, mptr, max_steps, |_, _, _| {})
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NativeDispatch {
+    Native = 0,
+    Missing = 1,
+    System = 2,
+    Hook = 3,
+}
+
+/// The cost census observes the same dispatch sequence as normal execution.
+/// The no-op specialization removes observation work from the release hot path.
+fn run_frame_native_observed(
+    m: &mut Machine,
+    table: &BlockTable,
+    mptr: *mut std::ffi::c_void,
+    max_steps: u64,
+    mut observe: impl FnMut(NativeDispatch, u32, u64),
+) -> (u64, u64) {
     use gba_core::capi::RT_API;
     m.bus.frame_ready = false;
     let mut native = 0u64;
     let mut fallback = 0u64;
     let mut steps = 0u64;
+    // Diagnostics are configured for the frame, not for each guest block.
+    // In particular, querying the Windows environment used to add an
+    // environment lookup to every successful native dispatch.
+    let trace_iwram = std::env::var_os("RECOMP_TRACE_IWRAM").is_some();
+    let trace_fallback = trace_fallback();
     // Fallback-entry detection state (RECOMP_TRACE_FALLBACK): end address
     // of the previous fallback instruction; MAX = last step wasn't a
     // straight-line fallback continuation.
     let mut fb_prev_end = u32::MAX;
     while !m.bus.frame_ready && steps < max_steps {
         steps += 1;
+        let observed_pc = m.cpu.regs[15];
+        let observed_clock = m.bus.clock;
         // Interrupt machinery and sleep states go through Machine::step.
         // (The IRQ-return-stub check is HLE-only: under a real BIOS that
         // address is ordinary BIOS code.)
@@ -2437,12 +2714,24 @@ fn run_frame_native(
             || (m.bus.irq_pending() && !m.cpu.flag(gba_core::cpu::FLAG_I))
         {
             m.step();
+            observe(
+                NativeDispatch::System,
+                observed_pc,
+                m.bus.clock - observed_clock,
+            );
             continue;
         }
         let key = m.cpu.regs[15] | m.cpu.thumb() as u32;
         m.ffta_log_sprite_entry(key);
-        if m.bus.ffta_battle_mouse.interprets(m.cpu.regs[15]) || m.ffta_sprite_interpret(m.cpu.regs[15]) {
+        if m.bus.ffta_battle_mouse.interprets(m.cpu.regs[15])
+            || m.ffta_sprite_interpret(m.cpu.regs[15])
+        {
             m.step();
+            observe(
+                NativeDispatch::Hook,
+                observed_pc,
+                m.bus.clock - observed_clock,
+            );
             continue;
         }
         // Real-BIOS mode: native blocks bypass the interpreter's fetch
@@ -2471,15 +2760,16 @@ fn run_frame_native(
                 m.bus.rdrv_frame_hook(key);
             }
         }
-        match table.get(key) {
+        let kind = match table.get(key) {
             Some(f) => {
                 // Diagnostic: census of executed IWRAM natives.
-                if std::env::var_os("RECOMP_TRACE_IWRAM").is_some() && key >> 24 == 3 {
+                if trace_iwram && key >> 24 == 3 {
                     IWRAM_HITS.with(|h| *h.borrow_mut().entry(key).or_insert(0u64) += 1);
                 }
                 f(&RT_API, mptr);
                 native += 1;
                 fb_prev_end = u32::MAX;
+                NativeDispatch::Native
             }
             None => {
                 if NO_INTERP.load(std::sync::atomic::Ordering::Relaxed) {
@@ -2497,7 +2787,7 @@ packager (it becomes a label; the rebuilt package covers it).",
                 // Straight-line continuation inside a fallback run is not
                 // an entry; the same discontinuity filter as the build
                 // profiler applies.
-                if trace_fallback() {
+                if trace_fallback {
                     if key & !1 != fb_prev_end {
                         let new = FALLBACK_ENTRIES.with(|h| {
                             let mut h = h.borrow_mut();
@@ -2520,8 +2810,10 @@ packager (it becomes a label; the rebuilt package covers it).",
                     m.step();
                 }
                 fallback += 1;
+                NativeDispatch::Missing
             }
-        }
+        };
+        observe(kind, observed_pc, m.bus.clock - observed_clock);
     }
     (native, fallback)
 }
@@ -2821,15 +3113,25 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
     configure_headless_widescreen();
     let zoom_schedule = HeadlessZoom::from_env(gba_core::mem::extra())?;
     let verify_frames = std::env::var("FFTA_PATCH_VERIFY_FRAMES").as_deref() == Ok("1");
+    let verify_state = std::env::var("FFTA_BENCH_STATE").as_deref() == Ok("1");
+    let mut frame_times = perf::FrameTimes::new(
+        std::env::var("FFTA_BENCH_FRAME_TIMES").as_deref() == Ok("1"),
+    );
+    let mut ppu_profile = perf::PpuProfile::new(
+        std::env::var("FFTA_BENCH_PPU").as_deref() == Ok("1"),
+    );
     let mut rom_path = None;
+    let mut use_rom_data = false;
     let mut frames = 600u64;
     let mut out: Option<String> = None;
     let mut input: Option<InputScript> = None;
     let mut sav: Option<String> = None;
+    let mut state: Option<String> = None;
     let mut bios: Option<Vec<u8>> = None;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
+            "--rom-data" => use_rom_data = true,
             "--frames" => {
                 frames = it
                     .next()
@@ -2845,9 +3147,21 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
             }
             "--record-labels" => FALLBACK_COLLECT.store(true, std::sync::atomic::Ordering::Relaxed),
             "--sav" => sav = Some(it.next().ok_or("--sav needs a value")?.to_string()),
+            "--state" => state = Some(it.next().ok_or("--state needs a value")?.to_string()),
             "--bios" => bios = Some(load_bios_file(it.next().ok_or("--bios needs a value")?)?),
             other if rom_path.is_none() => rom_path = Some(other.to_string()),
             other => return Err(format!("unexpected argument {other:?}")),
+        }
+    }
+    if state.is_some() && sav.is_some() {
+        return Err("--state and --sav are mutually exclusive".into());
+    }
+    // Avoid writing a diagnostic image over a supplied snapshot, including symlinks.
+    if let (Some(state), Some(out)) = (&state, &out) {
+        if std::fs::canonicalize(state).ok().is_some_and(|source| {
+            std::fs::canonicalize(out).ok().as_ref() == Some(&source)
+        }) {
+            return Err("--out would overwrite the supplied --state file".into());
         }
     }
     let rom_path = rom_path.ok_or("missing ROM path")?;
@@ -2875,6 +3189,7 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
     }
 
     let mut m = make_machine(rom, bios.as_deref());
+    if use_rom_data { rom_data::prepare_and_attach(&mut m, false)?; }
     if let Some(path) = sav {
         let data = std::fs::read(&path).map_err(|e| format!("{path}: {e}"))?;
         println!(
@@ -2890,6 +3205,14 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
         m.bus.tap_channels = true;
         eprintln!("hle: {}", arm_audio_hle(&mut m, None));
     }
+    if let Some(path) = state {
+        save_state::load(&mut m, Path::new(&path))?;
+        println!("FFTA_REPLAY_STATE frame={} machine_sha256={}",
+            m.bus.frames, gba_core::ffta_rom::digest(&m.save_state()?));
+    }
+    // Preserve guest frame/clock values: only the replay controls use an offset.
+    let replay_first = m.bus.frames;
+    let replay_end = replay_first.checked_add(frames).ok_or("replay frame range overflow")?;
     let mptr = &mut m as *mut Machine as *mut std::ffi::c_void;
 
     let mut native_blocks = 0u64;
@@ -2897,7 +3220,9 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
     let mut edge_capture = FftaEdgeCapture::new();
     let bench_from = std::env::var("FFTA_BENCH_FROM")
         .ok()
-        .and_then(|v| v.parse::<u64>().ok());
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|offset| replay_first.checked_add(offset).ok_or("benchmark frame range overflow"))
+        .transpose()?;
     // Benchmark-only common warm-up: reach the same guest scene before enabling
     // the requested sprite setting. Normal play/runc behaviour is unchanged.
     let mut character_csv=std::env::var("FFTA_CHARACTER_CSV").ok().map(std::fs::File::create).transpose().map_err(|e|e.to_string())?;
@@ -2915,11 +3240,12 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
         .ok()
         .and_then(|v| v.parse().ok());
     let mut cost: std::collections::HashMap<u32, u64> = std::collections::HashMap::new();
-    while m.bus.frames < frames {
+    let mut cost_dispatches = [0u64; 4];
+    while m.bus.frames < replay_end {
         let before = m.bus.frames;
         if character_csv.is_some(){gba_core::ffta_sprites::set_character_metrics(before+1>=character_from&&before+1<=character_to);}
         if let Some(zoom) = &zoom_schedule {
-            zoom.apply(before);
+            zoom.apply(before - replay_first);
         }
         if bench_start.is_none() && bench_from.is_some_and(|from| before >= from) {
             let mut scene = m.bus.ewram.clone();
@@ -2934,48 +3260,36 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
             bench_start = Some((before, std::time::Instant::now()));
         }
         if let Some(s) = &input {
-            m.bus.keys = s.keys_at(before);
-            s.apply_mouse(&mut m.bus,before)?;
+            m.bus.keys = s.keys_at(before - replay_first);
+            s.apply_mouse(&mut m.bus,before - replay_first)?;
         }
-        if cost_from.is_some_and(|n| m.bus.frames >= n) {
-            use gba_core::capi::RT_API;
-            m.bus.frame_ready = false;
-            let mut steps = 0u64;
-            while !m.bus.frame_ready && steps < FRAME_STEP_GUARD {
-                steps += 1;
-                let pc = m.cpu.regs[15];
-                let c0 = m.bus.clock;
-                if m.bus.halted
-                    || (!m.bus.real_bios
-                        && m.cpu.regs[15] == gba_core::machine::IRQ_RETURN_ADDR
-                        && m.cpu.mode() == gba_core::Mode::Irq)
-                    || (m.bus.irq_pending() && !m.cpu.flag(gba_core::cpu::FLAG_I))
-                {
-                    m.step();
-                    *cost.entry(pc).or_insert(0) += m.bus.clock - c0;
-                    continue;
-                }
-                let key = m.cpu.regs[15] | m.cpu.thumb() as u32;
-                if m.bus.real_bios {
-                    m.bus.pc_in_bios = key < 0x4000;
-                }
-                match table.get(key) {
-                    Some(f) => {
-                        f(&RT_API, mptr);
-                        native_blocks += 1;
-                    }
-                    None => {
-                        m.step();
-                        fallback_steps += 1;
-                    }
-                }
-                *cost.entry(pc).or_insert(0) += m.bus.clock - c0;
-            }
+        let frame_start = frame_times.start(bench_from.is_none_or(|from| before >= from));
+        let ppu_capture = gba_core::ppu_profile::Capture::start_detailed(
+            ppu_profile.enabled() && bench_from.is_none_or(|from| before >= from),
+            ppu_profile.detailed(),
+        );
+        let (n, f) = if cost_from.is_some_and(|n| m.bus.frames >= n) {
+            run_frame_native_observed(
+                &mut m,
+                &table,
+                mptr,
+                FRAME_STEP_GUARD,
+                |kind, pc, cycles| {
+                    *cost.entry(pc).or_insert(0) += cycles;
+                    cost_dispatches[kind as usize] += 1;
+                },
+            )
         } else {
-            let (n, f) = run_frame_native(&mut m, &table, mptr, FRAME_STEP_GUARD);
-            native_blocks += n;
-            fallback_steps += f;
+            run_frame_native(&mut m, &table, mptr, FRAME_STEP_GUARD)
+        };
+        native_blocks += n;
+        fallback_steps += f;
+        let ppu_timings = ppu_capture.finish();
+        frame_times.finish(frame_start);
+        if m.bus.frames == before {
+            return Err("step guard exceeded before a complete frame".into());
         }
+        ppu_profile.record(ppu_timings);
         if let Some(capture) = edge_capture.as_mut() {
             capture.sample(&m);
         }
@@ -2997,11 +3311,10 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
                 gba_core::ffta_rom::digest(&m.bus.oam)
             );
         }
-        if m.bus.frames == before {
-            return Err("step guard exceeded".into());
-        }
     }
     if !cost.is_empty() {
+        eprintln!("COST_DISPATCH native={} missing={} system={} hook={}",
+            cost_dispatches[0], cost_dispatches[1], cost_dispatches[2], cost_dispatches[3]);
         let mut v: Vec<(u32, u64)> = cost.into_iter().collect();
         v.sort_by_key(|&(_, c)| std::cmp::Reverse(c));
         let total: u64 = v.iter().map(|&(_, c)| c).sum();
@@ -3015,6 +3328,13 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
         let elapsed = start.elapsed().as_secs_f64();
         let measured = m.bus.frames - first;
         println!("FFTA_BENCH first={first} last={} frames={measured} seconds={elapsed:.6} ms_per_frame={:.6} width={}",m.bus.frames,elapsed*1000.0/measured as f64,gba_core::mem::render_width());
+    }
+    frame_times.report();
+    ppu_profile.report();
+    // Snapshot hashing is opt-in and outside the measured interval. It covers
+    // serialized CPU/hardware/save state, unlike a final framebuffer hash.
+    if verify_state {
+        println!("FFTA_FINAL_STATE sha256={}", gba_core::ffta_rom::digest(&m.save_state()?));
     }
     gba_core::ppu::dump_ffta_text_layers(&m.bus)?;
 
@@ -3104,6 +3424,7 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
         record_labels(m.bus.rom.len(), &rom_sha256(&m.bus.rom))?;
     }
     dump_frame(&m, out)?;
+    rom_data::report_usage(&m);
     Ok(())
 }
 
@@ -3565,6 +3886,578 @@ mod tests {
     use super::*;
 
     #[test]
+    fn translation_hints_preserve_sources_and_change_cache_identity_once() {
+        let mut source = labels::Labels::default();
+        source.rom.insert(0x0800_0101);
+        source.iwram.insert(0x0300_0001);
+        source.names.insert(0x0800_0101, "existing".into());
+        source.ends.insert(0x0800_0101, 0x0800_0108);
+        source.reserved.push("ewram 02000000 a".into());
+        source.skipped = 2;
+        let unknown = translation_labels(&"0".repeat(64), source);
+        assert_eq!(unknown.rom.len(), 1);
+        let before = unknown.digest(None);
+        let merged = translation_labels(gba_core::ffta_rom::EUROPE_SHA256, unknown);
+        assert_ne!(merged.digest(None), before);
+        assert!(merged.rom.contains(&0x0800_0101));
+        assert_eq!(merged.iwram.into_iter().collect::<Vec<_>>(), [0x0300_0001]);
+        assert_eq!(merged.names[&0x0800_0101], "existing");
+        assert_eq!(merged.ends[&0x0800_0101], 0x0800_0108);
+        assert_eq!(merged.reserved, ["ewram 02000000 a"]);
+        assert_eq!(merged.skipped, 2);
+        // Rebuild a whole label value after the checks above consumed iwram.
+        let mut again = labels::Labels::default();
+        again.rom = merged.rom;
+        let digest = again.digest(None);
+        assert_eq!(translation_labels(gba_core::ffta_rom::EUROPE_SHA256, again).digest(None), digest);
+        assert!(translation_labels(gba_core::ffta_rom::SHA256, labels::Labels::default()).rom.is_empty());
+    }
+
+    #[test]
+    fn headless_state_rejects_conflicting_save_and_output_before_running() {
+        let args = |values: &[&str]| values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(cmd_runc(&args(&["missing.gba", "--state", "state.ffstate", "--sav", "save.sav"]))
+            .unwrap_err().contains("mutually exclusive"));
+        let dir = tempfile::tempdir().unwrap();
+        let state = dir.path().join("slot.ffstate");
+        std::fs::write(&state, b"source snapshot").unwrap();
+        let path = state.to_str().unwrap();
+        assert!(cmd_runc(&args(&["missing.gba", "--state", path, "--out", path]))
+            .unwrap_err().contains("overwrite"));
+        #[cfg(unix)]
+        {
+            let output = dir.path().join("image.ppm");
+            std::os::unix::fs::symlink(&state, &output).unwrap();
+            assert!(cmd_runc(&args(&["missing.gba", "--state", path, "--out", output.to_str().unwrap()]))
+                .unwrap_err().contains("overwrite"));
+        }
+        assert_eq!(std::fs::read(state).unwrap(), b"source snapshot");
+    }
+
+    #[test]
+    fn native_cost_observer_preserves_dispatch_and_guard_behavior() {
+        extern "C" fn translated_step(
+            _: *const gba_core::capi::RtApi,
+            machine: *mut std::ffi::c_void,
+        ) -> u32 {
+            gba_core::capi::rt_interp_one(machine)
+        }
+        let blocks = [gba_core::capi::RcgBlock {
+            key: ROM_BASE,
+            func: translated_step,
+        }];
+        for (translated, halted, limit) in [
+            (false, false, 100_000),
+            (true, false, 100_000),
+            (false, true, 1000),
+            (true, false, 0),
+            (true, false, 1),
+        ] {
+            let table = BlockTable::from_blocks(if translated { &blocks } else { &[] }).unwrap();
+            // ARM branch to itself; no copyrighted game fixture required.
+            let mut machine = Machine::new(0xeafffffeu32.to_le_bytes().to_vec());
+            machine.bus.halted = halted;
+            let checkpoint = machine.save_state().unwrap();
+            let pointer = &mut machine as *mut Machine as *mut std::ffi::c_void;
+            let expected_counts = run_frame_native(&mut machine, &table, pointer, limit);
+            let expected_state = machine.save_state().unwrap();
+            machine.load_state(&checkpoint).unwrap();
+            let before = machine.bus.clock;
+            let mut cycles = 0;
+            let mut dispatches = [0; 4];
+            let observed_counts = run_frame_native_observed(
+                &mut machine,
+                &table,
+                pointer,
+                limit,
+                |kind, pc, charged| {
+                    assert_eq!(pc, ROM_BASE);
+                    cycles += charged;
+                    dispatches[kind as usize] += 1;
+                },
+            );
+            assert_eq!(observed_counts, expected_counts);
+            assert!(
+                machine.save_state().unwrap() == expected_state,
+                "observer changed machine state"
+            );
+            assert_eq!(cycles, machine.bus.clock - before);
+            assert_eq!(
+                dispatches[NativeDispatch::Native as usize],
+                observed_counts.0
+            );
+            assert_eq!(
+                dispatches[NativeDispatch::Missing as usize],
+                observed_counts.1
+            );
+            if halted {
+                assert!(dispatches[NativeDispatch::System as usize] > 0);
+                assert!(dispatches[NativeDispatch::System as usize] <= limit);
+                assert_eq!(observed_counts, (0, 0));
+            }
+            if limit <= 1 {
+                assert!(!machine.bus.frame_ready);
+            } else if !halted {
+                assert!(machine.bus.frame_ready);
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "requires FFTA_STATE_TEST_ROM and FFTA_STATE_TEST_NATIVE local fixtures"]
+    fn native_cost_observer_matches_game_frames_audio_and_full_state() {
+        use sha2::Digest;
+        let rom =
+            std::fs::read(std::env::var_os("FFTA_STATE_TEST_ROM").expect("ROM fixture")).unwrap();
+        let library =
+            std::env::var_os("FFTA_STATE_TEST_NATIVE").expect("Native translation fixture");
+        let (_library, table) = load_native(Path::new(&library)).unwrap();
+        let mut machine = Machine::new(rom);
+        arm_audio_hle(&mut machine, None);
+        machine.bus.tap_channels = true;
+        let checkpoint = machine.save_state().unwrap();
+        let replay = |machine: &mut Machine, observed: bool| {
+            let mut digest = sha2::Sha256::new();
+            let mut counts = (0, 0);
+            let mut dispatches = [0u64; 4];
+            let mut charged = 0;
+            let mut audio_counts = [0u64; 5];
+            let start_clock = machine.bus.clock;
+            let pointer = machine as *mut Machine as *mut std::ffi::c_void;
+            for _ in 0..3000 {
+                machine.bus.keys = demo_keys(machine.bus.frames);
+                let before = machine.bus.frames;
+                let ppu_capture = gba_core::ppu_profile::Capture::start(observed);
+                let (n, f) = if observed {
+                    run_frame_native_observed(
+                        machine,
+                        &table,
+                        pointer,
+                        FRAME_STEP_GUARD,
+                        |kind, _, cycles| {
+                            dispatches[kind as usize] += 1;
+                            charged += cycles;
+                        },
+                    )
+                } else {
+                    run_frame_native(machine, &table, pointer, FRAME_STEP_GUARD)
+                };
+                if let Some(ppu) = ppu_capture.finish() {
+                    assert_eq!(ppu.scanline_calls, 160);
+                    assert!(ppu.zoom_calls <= 1);
+                    assert!(ppu.scanlines + ppu.zoom <= ppu.frame);
+                }
+                assert_eq!(machine.bus.frames, before + 1);
+                counts.0 += n;
+                counts.1 += f;
+                digest.update(machine.bus.frames.to_le_bytes());
+                digest.update(machine.bus.clock.to_le_bytes());
+                for (total, len) in audio_counts.iter_mut().zip([
+                    machine.bus.audio_buf.len(), machine.bus.psg_tap.len(),
+                    machine.bus.fifo_tap[0].len(), machine.bus.fifo_tap[1].len(),
+                    machine.bus.hle_tap.len(),
+                ]) {
+                    *total += len as u64;
+                    digest.update((len as u64).to_le_bytes());
+                }
+                for pixel in &machine.bus.framebuffer {
+                    digest.update(pixel.to_le_bytes());
+                }
+                for pixel in &machine.bus.wide_framebuffer {
+                    digest.update(pixel.to_le_bytes());
+                }
+                digest.update(&machine.bus.oam);
+                for sample in machine.bus.audio_buf.drain(..) {
+                    digest.update(sample.to_le_bytes());
+                }
+                for sample in machine.bus.psg_tap.drain(..) {
+                    digest.update(sample.to_le_bytes());
+                }
+                for tap in &mut machine.bus.fifo_tap {
+                    for (sample, period) in tap.drain(..) {
+                        digest.update(sample.to_le_bytes());
+                        digest.update(period.to_le_bytes());
+                    }
+                }
+                for sample in machine.bus.hle_tap.drain(..) {
+                    digest.update(sample.to_bits().to_le_bytes());
+                }
+            }
+            if observed {
+                assert_eq!(charged, machine.bus.clock - start_clock);
+                assert_eq!(dispatches[NativeDispatch::Native as usize], counts.0);
+                assert_eq!(dispatches[NativeDispatch::Missing as usize], counts.1);
+                eprintln!(
+                    "Observed native={:?} dispatches={dispatches:?} cycles={charged}",
+                    counts
+                );
+                eprintln!("Observed audio samples mixed/PSG/FIFO0/FIFO1/HLE={audio_counts:?}");
+            }
+            (
+                digest.finalize().to_vec(),
+                machine.save_state().unwrap(),
+                counts,
+            )
+        };
+        let expected = replay(&mut machine, false);
+        assert!(expected.2 .0 > 0, "Fixture must execute translated code");
+        machine.load_state(&checkpoint).unwrap();
+        let actual = replay(&mut machine, true);
+        assert_eq!(actual.0, expected.0, "frame/OAM/audio transcript differs");
+        assert!(
+            actual.1 == expected.1,
+            "full serialized machine state differs"
+        );
+        assert_eq!(actual.2, expected.2, "native/fallback counts differ");
+    }
+
+    #[test]
+    #[ignore = "requires FFTA_STATE_TEST_ROM and FFTA_STATE_TEST_NATIVE local fixtures"]
+    fn native_save_state_replays_identical_frames_and_machine_state() {
+        use sha2::Digest;
+        let rom = std::fs::read(std::env::var_os("FFTA_STATE_TEST_ROM").expect("ROM fixture")).unwrap();
+        let library = std::env::var_os("FFTA_STATE_TEST_NATIVE").expect("Native translation fixture");
+        let (_library, table) = load_native(Path::new(&library)).unwrap();
+        let mut machine = Machine::new(rom.clone());
+        arm_audio_hle(&mut machine, None);
+        machine.bus.tap_channels = true;
+        let advance = |machine: &mut Machine| {
+            machine.bus.keys = demo_keys(machine.bus.frames);
+            let pointer = machine as *mut Machine as *mut std::ffi::c_void;
+            let counts = run_frame_native(machine, &table, pointer, FRAME_STEP_GUARD);
+            machine.bus.audio_buf.clear(); machine.bus.psg_tap.clear(); machine.bus.hle_tap.clear();
+            machine.bus.fifo_tap.iter_mut().for_each(Vec::clear);
+            counts.0
+        };
+        let mut native_blocks = 0;
+        for _ in 0..600 { native_blocks += advance(&mut machine); }
+        assert!(native_blocks > 0, "Fixture must actually execute native code");
+        let checkpoint = machine.save_state().unwrap();
+        let replay = |machine: &mut Machine| {
+            let mut hashes = Vec::new();
+            for _ in 0..120 {
+                advance(machine);
+                let bytes: Vec<u8> = machine.bus.framebuffer.iter().flat_map(|v| v.to_le_bytes()).collect();
+                hashes.push(sha2::Sha256::digest(bytes).to_vec());
+            }
+            hashes
+        };
+        let expected_frames = replay(&mut machine);
+        let expected_state = machine.save_state().unwrap();
+        machine.load_state(&checkpoint).unwrap();
+        assert_eq!(replay(&mut machine), expected_frames);
+        assert_eq!(machine.save_state().unwrap(), expected_state);
+        // A fresh machine represents a later launch with the same ROM.
+        let mut fresh = Machine::new(rom);
+        fresh.load_state(&checkpoint).unwrap();
+        assert_eq!(replay(&mut fresh), expected_frames);
+        assert_eq!(fresh.save_state().unwrap(), expected_state);
+        // Exercise the actual slot undo path with native blocks and live HLE audio.
+        let dir = tempfile::tempdir().unwrap();
+        let mut slots = crate::save_state::Slots::new(&dir.path().join("test.sav"), &fresh.bus.rom);
+        let preview = vec![[0,0,0,255]; crate::save_state::PREVIEW_W*crate::save_state::PREVIEW_H];
+        slots.save(&fresh,1,&preview,false).unwrap();
+        replay(&mut fresh);
+        let before_load = fresh.save_state().unwrap();
+        slots.load(&mut fresh,1).unwrap();
+        assert_eq!(slots.undo(&mut fresh).unwrap(),crate::save_state::UndoEffect::Load(1));
+        assert_eq!(fresh.save_state().unwrap(),before_load);
+        let undone_frames = replay(&mut fresh);
+        let undone_state = fresh.save_state().unwrap();
+        let mut reference = Machine::new(fresh.bus.rom.clone());
+        reference.load_state(&before_load).unwrap();
+        assert_eq!(replay(&mut reference),undone_frames);
+        assert_eq!(reference.save_state().unwrap(),undone_state);
+    }
+
+    #[test]
+    fn discarded_audio_cannot_survive_in_callback_history() {
+        use std::sync::{Arc, Mutex};
+        // Each audible path has separate history: faithful DAC, PSG/HLE sinc,
+        // FIFO future impulses/integrator, then the per-path DC blockers.
+        for source in ["mixed", "psg", "hle", "fifo", "normal"] {
+            for speed in [1., 2., 4., 8.] {
+                let streams = Arc::new(Mutex::new(AudioStreams {
+                    enhanced_on: source != "mixed" && source != "normal",
+                    hle_on: source == "hle",
+                    route: [3, 3],
+                    playback_speed: speed,
+                    ..Default::default()
+                }));
+                {
+                    let mut st = streams.lock().unwrap();
+                    match source {
+                        "mixed" => st.mixed.extend(vec![8_000; 32_768]),
+                        "psg" => st.psg.extend(vec![0.25; 32_768]),
+                        "hle" => st.hle.extend(vec![0.25; 32_768]),
+                        "fifo" => st.fifo[0].extend(vec![(64, 512); 16_384]),
+                        "normal" => {
+                            let mut queue = ff_audio::NormalAudio::new().unwrap();
+                            queue.push(&vec![8_000; 32_768]).unwrap();
+                            st.normal_audio = Some(queue);
+                        }
+                        _ => unreachable!(),
+                    }
+                    if source != "mixed" && source != "normal" {
+                        // Production always supplies the faithful grid too;
+                        // it is the authoritative Fast clock even in Enhanced.
+                        st.mixed.extend(vec![0; 32_768]);
+                    }
+                }
+                let mut callback = output_callback::<f32>(48_000., 2, streams.clone());
+                let mut output = [0.; 1024];
+                callback(&mut output);
+                assert!(output.iter().any(|v| v.abs() > 0.001), "{source}/{speed} not primed");
+                streams.lock().unwrap().discard_pending();
+                callback(&mut output);
+                let peak = output.iter().map(|v| v.abs()).fold(0., f32::max);
+                assert_eq!(peak, 0., "old {source}/{speed} audio survives queue invalidation");
+            }
+        }
+    }
+
+    #[test]
+    fn audio_transition_matches_fresh_history_with_new_samples() {
+        use std::sync::{Arc, Mutex};
+        fn feed(st: &mut AudioStreams, speed: f64, mode: &str) {
+            st.playback_speed = speed;
+            st.enhanced_on = mode == "enhanced" || mode == "hle";
+            st.hle_on = mode == "hle";
+            st.muted = mode == "silent";
+            st.vol_cut = 0.3;
+            st.route = [3, 3];
+            st.vol_half = [true, false];
+            let pcm: Vec<_> = (0..32_768).map(|i| ((i * 137 % 16_000) - 8_000) as i16).collect();
+            if mode == "normal" {
+                let mut queue = ff_audio::NormalAudio::new().unwrap();
+                queue.push(&pcm).unwrap();
+                st.normal_audio = Some(queue);
+            } else if mode != "silent" {
+                st.mixed.extend(&pcm);
+                st.psg.extend(pcm.iter().map(|&s| s as f32 / 32768.));
+                st.hle.extend(pcm.iter().map(|&s| -s as f32 / 32768.));
+                for q in &mut st.fifo {
+                    q.extend((0..16_384).map(|i| ((i % 127 - 64) as i8, 768)));
+                }
+            }
+        }
+        for rate in [44_100., 48_000.] {
+            for observed in [false, true] {
+                let streams = Arc::new(Mutex::new(AudioStreams {
+                    profile: observed.then(crate::audio_profile::Profile::new),
+                    ..Default::default()
+                }));
+                let mut callback = output_callback::<f32>(rate, 2, streams.clone());
+                for (speed, mode) in [(4., "hle"), (2., "enhanced"), (8., "faithful"),
+                    (1., "normal"), (1., "silent"), (1., "enhanced"), (4., "faithful")] {
+                    let fresh = Arc::new(Mutex::new(AudioStreams::default()));
+                    let mut reference = output_callback::<f32>(rate, 2, fresh.clone());
+                    for shared in [&streams, &fresh] {
+                        let mut st = shared.lock().unwrap();
+                        // Also exercise multiple boundaries between callbacks.
+                        st.discard_pending();
+                        st.discard_pending();
+                        feed(&mut st, speed, mode);
+                    }
+                    let mut actual = [0.; 1024];
+                    let mut expected = [0.; 1024];
+                    callback(&mut actual);
+                    reference(&mut expected);
+                    assert_eq!(actual, expected, "{rate}/{observed}/{mode}/{speed}");
+                    if mode == "silent" {
+                        assert!(actual.iter().all(|&s| s == 0.));
+                    } else {
+                        assert!(actual.iter().any(|s| s.abs() > 0.001));
+                    }
+                    let a = streams.lock().unwrap();
+                    let b = fresh.lock().unwrap();
+                    assert_eq!((&a.mixed, &a.psg, &a.hle, &a.fifo), (&b.mixed, &b.psg, &b.hle, &b.fifo));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn user_mute_ramps_output_but_keeps_consumption_volume_and_temporary_mute() {
+        use std::sync::{Arc, Mutex};
+        for mode in ["faithful", "enhanced", "fast", "normal"] {
+            let mut av = input_config::AvConfig {
+                audio_volume: 0.6, audio_enhanced: mode == "enhanced",
+                audio_mute: true, ..Default::default()
+            };
+            let make = || {
+                let mut st = AudioStreams { playback_speed: if mode == "fast" { 4. } else { 1. },
+                    ..Default::default() };
+                st.configure_audio(&av);
+                if mode == "normal" { st.normal_audio = Some(ff_audio::NormalAudio::new().unwrap()); }
+                Arc::new(Mutex::new(st))
+            };
+            let muted = make();
+            let reference = make();
+            reference.lock().unwrap().user_muted = false;
+            let mut a = output_callback::<f32>(48_000., 2, muted.clone());
+            let mut b = output_callback::<f32>(48_000., 2, reference.clone());
+            let pcm: Vec<i16> = (0..if mode == "fast" {8192} else {2048})
+                .map(|i| if i % 64 < 32 { 6000 } else { -6000 }).collect();
+            let mut out_a = [0.; 1024];
+            let mut out_b = [0.; 1024];
+            for tick in 0..240 {
+                av.audio_mute = tick < 5 || (30..90).contains(&tick) || (120..150).contains(&tick);
+                if tick >= 60 { av.audio_volume = 0.3; }
+                for shared in [&muted, &reference] {
+                    let mut st = shared.lock().unwrap();
+                    st.configure_audio(&av);
+                    if Arc::ptr_eq(shared, &reference) { st.user_muted = false; }
+                    st.muted = (120..180).contains(&tick);
+                    if let Some(queue) = st.normal_audio.as_mut() { queue.push(&pcm).unwrap(); }
+                    else {
+                        st.mixed.extend(&pcm);
+                        st.psg.extend(pcm.iter().map(|&v| v as f32 / 32768.));
+                        st.fast_produced += (pcm.len() / 2) as u64;
+                    }
+                }
+                a(&mut out_a); b(&mut out_b);
+                if tick == 30 || tick == 90 {
+                    let gain = |range: std::ops::Range<usize>| {
+                        let values: Vec<_> = range.filter(|&i| out_b[i].abs() > 0.0001)
+                            .map(|i| out_a[i] / out_b[i]).collect();
+                        assert!(!values.is_empty());
+                        values.iter().sum::<f32>() / values.len() as f32
+                    };
+                    let first = gain(0..40); let last = gain(984..1024);
+                    if tick == 30 {
+                        assert!(first > 0.98 && first <= 1.);
+                        assert!((0.55..0.65).contains(&last));
+                    } else {
+                        assert!(first < 0.03);
+                        assert!((0.35..0.45).contains(&last));
+                    }
+                }
+                if tick < 5 || (85..90).contains(&tick) || (175..180).contains(&tick) {
+                    assert!(out_a.iter().all(|&s| s == 0.), "{mode}/{tick} not silent");
+                }
+                if (85..90).contains(&tick) {
+                    assert!(out_b.iter().any(|s| s.abs() > 0.001), "{mode} reference not audible");
+                }
+                if tick > 225 {
+                    assert!(out_a.iter().any(|s| s.abs() > 0.001));
+                    assert!(out_a.iter().zip(out_b).all(|(a,b)| (a-b).abs() < 0.00001));
+                }
+                let st = muted.lock().unwrap(); let other = reference.lock().unwrap();
+                assert_eq!((st.consumed, st.holds), (other.consumed, other.holds));
+                assert_eq!(st.mixed, other.mixed); assert_eq!(st.psg, other.psg);
+                assert_eq!(st.normal_audio.as_ref().map(|q| q.stats().queued_pairs),
+                    other.normal_audio.as_ref().map(|q| q.stats().queued_pairs));
+            }
+            let mut st = muted.lock().unwrap();
+            av.audio_mute = true;
+            st.configure_audio(&av);
+            st.discard_pending(); // Fast/pause/load reset must retain user choice.
+            assert!(st.user_muted);
+            assert_eq!(st.volume_target(), 0.);
+            av.audio_mute = false;
+            st.muted = true; // Silent/fallback must survive user unmute/config edits.
+            st.configure_audio(&av);
+            assert_eq!(st.volume_target(), 0.);
+            st.muted = false;
+            assert!((st.volume_target() - 0.3).abs() < 0.00001);
+        }
+    }
+
+    #[test]
+    fn bounded_normal_audio_is_1x_and_profile_parity_survives_resync_and_discard() {
+        use std::sync::{Arc, Mutex};
+        let make = |observed: bool| Arc::new(Mutex::new(AudioStreams {
+            profile: observed.then(crate::audio_profile::Profile::new),
+            normal_audio: Some(ff_audio::NormalAudio::new().unwrap()),
+            enhanced_on: true, playback_speed: 1., ..Default::default()
+        }));
+        let plain = make(false);
+        let observed = make(true);
+        let mut a = output_callback::<f32>(48_000., 2, plain.clone());
+        let mut b = output_callback::<f32>(48_000., 2, observed.clone());
+        let pcm: Vec<_> = (0..8192).map(|i| if i % 64 < 32 { 4000 } else { -4000 }).collect();
+        let mut out_a = [0.; 1024];
+        let mut out_b = [0.; 1024];
+        for _ in 0..250 {
+            for shared in [&plain, &observed] {
+                shared.lock().unwrap().normal_audio.as_mut().unwrap().push(&pcm).unwrap();
+            }
+            a(&mut out_a); b(&mut out_b);
+            assert_eq!(out_a, out_b);
+            assert!(out_a.iter().any(|s| s.abs() > 0.001));
+        }
+        for shared in [&plain, &observed] {
+            let mut st = shared.lock().unwrap();
+            assert_eq!(st.holds, 0);
+            let queue = st.normal_audio.as_ref().unwrap();
+            assert!(queue.stats().resyncs > 0);
+            assert!(queue.stats().queued_pairs <= ff_audio::MAX_PAIRS);
+            // A callback consumes only the 1x source budget, not the faster
+            // producer batch; a pending skip fade must disappear on epoch reset.
+            let before = queue.stats().queued_pairs;
+            drop(st);
+            if Arc::ptr_eq(shared, &plain) { a(&mut out_a); }
+            else { b(&mut out_b); }
+            st = shared.lock().unwrap();
+            let consumed = before - st.normal_audio.as_ref().unwrap().stats().queued_pairs;
+            assert!((698..=700).contains(&consumed));
+            st.discard_pending();
+        }
+        a(&mut out_a); b(&mut out_b);
+        assert!(out_a.iter().all(|&s| s == 0.));
+        assert_eq!(out_a, out_b);
+    }
+
+    #[test]
+    fn fast_audio_follows_actual_production_instead_of_requested_speed() {
+        use std::sync::{Arc, Mutex};
+        for enhanced in [false, true] {
+            let streams = Arc::new(Mutex::new(AudioStreams {
+                playback_speed: 4., enhanced_on: enhanced, hle_on: true,
+                route: [3, 3], ..Default::default()
+            }));
+            let mut callback = output_callback::<f32>(48_000., 2, streams.clone());
+            let mut out = [0.; 1024];
+            let mut produced = 0.;
+            let mut fed = 0;
+            let mut holds = 0;
+            let mut audible = 0;
+            for tick in 0..800 {
+                // 2x real production, in guest-frame-sized batches, while 4x
+                // is selected. This is the measured CPU-limited Fast case.
+                produced += 65_536. * 2. * 512. / 48_000.;
+                let pairs = ((produced as usize - fed) / 1097) * 1097;
+                fed += pairs;
+                {
+                    let mut st = streams.lock().unwrap();
+                    st.fast_produced += pairs as u64;
+                    for i in 0..pairs {
+                        let s = if (fed + i) % 64 < 32 { 4000 } else { -4000 };
+                        st.mixed.extend([s, s]);
+                        st.psg.extend([s as f32 / 32768.; 2]);
+                        st.hle.extend([s as f32 / 32768.; 2]);
+                        if i % 2 == 0 {
+                            st.fifo[0].push_back(((s / 128) as i8, 512));
+                            st.fifo[1].push_back(((s / 128) as i8, 512));
+                        }
+                    }
+                }
+                callback(&mut out);
+                if tick == 400 { holds = streams.lock().unwrap().holds; }
+                if tick > 400 {
+                    audible += usize::from(out.iter().any(|s| s.abs() > 0.001));
+                    assert!(streams.lock().unwrap().mixed.len() < 65_536,
+                        "audio backlog grows instead of following the guest");
+                }
+            }
+            let st = streams.lock().unwrap();
+            assert_eq!(st.holds - holds, 0, "sustained Fast source starvation");
+            assert_eq!(audible, 399, "zero holds must not hide silent output");
+        }
+    }
+
+    #[test]
     fn accelerated_audio_consumes_at_the_selected_multiplier() {
         fn consumed(speed: f64) -> usize {
             let mut ring = std::collections::VecDeque::from(vec![0.0; 200_000]);
@@ -3579,6 +4472,127 @@ mod tests {
         for speed in [2, 4, 8] {
             let fast = consumed(speed as f64);
             assert!(fast.abs_diff(normal * speed) <= speed);
+        }
+    }
+
+    #[test]
+    fn observed_source_reads_count_partial_pairs_and_dac_holds_without_changing_dsp() {
+        use std::collections::VecDeque;
+        use crate::audio_profile::SourceReads;
+        for speed in [1., 2., 8.] {
+            let mut plain = SincResampler::new(65_536., 48_000.);
+            let mut observed = SincResampler::new(65_536., 48_000.);
+            let mut a = VecDeque::from([0.25, -0.5, 0.75]);
+            let mut b = a.clone(); let mut reads = SourceReads::default();
+            let mut off = SourceReads::default();
+            for _ in 0..100 {
+                assert_eq!(plain.next_observed::<false>(&mut a, speed, &mut off),
+                    observed.next_observed::<true>(&mut b, speed, &mut reads));
+            }
+            assert_eq!(a, b); assert!(a.is_empty());
+            assert!(reads.requests > 100);
+            assert_eq!(reads.empty, reads.requests - 1); // one full pair, one partial pair
+            assert_eq!(off, SourceReads::default());
+            assert_eq!((plain.frac, plain.hist), (observed.frac, observed.hist));
+            let mut plain = FifoInterp::new(48_000.);
+            let mut observed = FifoInterp::new(48_000.);
+            let mut a = VecDeque::from([(12, 512), (-7, 512)]); let mut b = a.clone();
+            let mut reads = SourceReads::default(); let mut off = SourceReads::default();
+            for _ in 0..100 {
+                assert_eq!(plain.next_with_speed_observed::<false>(&mut a, speed, &mut off),
+                    observed.next_with_speed_observed::<true>(&mut b, speed, &mut reads));
+            }
+            assert_eq!(a, b); assert!(a.is_empty());
+            assert_eq!(reads.empty, reads.requests - 2); // both real DAC events, then holds
+            assert_eq!(off, SourceReads::default());
+            assert_eq!((plain.pos, plain.y, plain.level, plain.t_next, plain.period, plain.out_step, plain.fut),
+                (observed.pos, observed.y, observed.level, observed.t_next, observed.period, observed.out_step, observed.fut));
+        }
+    }
+
+    #[test]
+    fn callback_profile_preserves_samples_queues_and_legacy_counters() {
+        use std::sync::{Arc, Mutex};
+        fn check<T: cpal::SizedSample + cpal::FromSample<f32> + PartialEq + std::fmt::Debug>() {
+            for (rate, channels) in [(44_100., 1), (48_000., 2), (48_000., 6)] {
+                let plain = Arc::new(Mutex::new(AudioStreams::default()));
+                let observed = Arc::new(Mutex::new(AudioStreams {
+                    profile: Some(crate::audio_profile::Profile::new()),
+                    ..Default::default()
+                }));
+                let mut a = output_callback::<T>(rate, channels, plain.clone());
+                let mut b = output_callback::<T>(rate, channels, observed.clone());
+                for round in 0..8 {
+                    for streams in [&plain, &observed] {
+                        let mut st = streams.lock().unwrap();
+                        st.enhanced_on = round % 2 == 0;
+                        st.hle_on = round % 3 == 0;
+                        st.playback_speed = if round == 4 { 4. } else { 1. };
+                        st.vol_cut = 0.25;
+                        st.muted = round == 5;
+                        st.route = [3, 3];
+                        st.vol_half = [true, false];
+                        // Alternate short input and starvation; leave DSP state
+                        // alive across the transitions, as a real stream does.
+                        if round % 2 == 0 {
+                            st.mixed.extend((0..256).map(|i| (i * 93 - 12_000) as i16));
+                            st.psg.extend((0..256).map(|i| (i as f32 - 128.) / 256.));
+                            st.hle.extend((0..256).map(|i| (128. - i as f32) / 256.));
+                            for q in &mut st.fifo {
+                                q.extend((0..64).map(|i| ((i * 3 - 96) as i8, 512)));
+                            }
+                        }
+                        if let Some(p) = st.profile.as_mut() {
+                            p.set_context(crate::audio_profile::Context::of(round == 2, round != 0, round == 4));
+                        }
+                    }
+                    let mut out_a = vec![T::EQUILIBRIUM; 512 * channels];
+                    let mut out_b = out_a.clone();
+                    a(&mut out_a);
+                    b(&mut out_b);
+                    assert_eq!(out_a, out_b);
+                    let mut x = plain.lock().unwrap();
+                    let mut y = observed.lock().unwrap();
+                    assert_eq!((&x.mixed, &x.psg, &x.hle, &x.fifo), (&y.mixed, &y.psg, &y.hle, &y.fifo));
+                    assert_eq!((x.holds, x.drops, x.clipped, x.consumed), (y.holds, y.drops, y.clipped, y.consumed));
+                    if round == 4 {
+                        assert_eq!(x.holds, 0, "Fast primes with silence instead of stale holds");
+                    } else {
+                        assert!(x.holds > 0, "starvation was not exercised");
+                    }
+                    // Legacy alarm windows must not affect diagnostic totals.
+                    x.holds = 0;
+                    y.holds = 0;
+                }
+            }
+        }
+        check::<f32>();
+        check::<i16>();
+        check::<u16>();
+    }
+
+    #[test]
+    #[ignore = "optional local callback profiling overhead measurement"]
+    fn callback_profile_overhead() {
+        use std::sync::{Arc, Mutex};
+        for pair in 0..5 {
+            for enabled in if pair % 2 == 0 { [false, true] } else { [true, false] } {
+                let streams = Arc::new(Mutex::new(AudioStreams {
+                    profile: enabled.then(crate::audio_profile::Profile::new),
+                    ..Default::default()
+                }));
+                let mut output = output_callback::<f32>(48_000., 2, streams.clone());
+                let mut samples = [0.; 1024];
+                for _ in 0..100 { output(&mut samples); }
+                let begin = std::time::Instant::now();
+                for _ in 0..1200 { output(&mut samples); }
+                let elapsed = begin.elapsed();
+                assert!(samples.iter().all(|v| *v == 0.));
+                let st = streams.lock().unwrap();
+                assert_eq!(st.consumed, 1300 * 512);
+                assert!(st.holds > 0);
+                eprintln!("FFTA_AUDIO_OBSERVER_OVERHEAD pair={pair} enabled={enabled} callbacks=1200 ns_per_callback={:.3}", elapsed.as_nanos() as f64 / 1200.);
+            }
         }
     }
 
@@ -3610,6 +4624,34 @@ mod tests {
         assert_eq!(input.keys_at(9), 0x3ff);
         assert_eq!(input.keys_at(10), 0x37f);
         assert_eq!(input.keys_at(11), 0x3ff);
+    }
+
+    #[test]
+    fn fractional_fast_sinc_filters_do_not_select_the_unaccelerated_cutoff() {
+        use std::collections::VecDeque;
+        for rate in [44_100., 48_000.] {
+            for speed in [1.75, 3.3, 5.75, 7.9] {
+                let rms = |frequency: f64| {
+                    let mut resampler = SincResampler::new(65_536., rate);
+                    let mut queue = VecDeque::new();
+                    for i in 0..100_000 {
+                        let sample = (i as f64 * frequency * std::f64::consts::TAU / 65_536.).sin() as f32 * 0.5;
+                        queue.extend([sample; 2]);
+                    }
+                    let mut squares = 0.;
+                    for i in 0..6000 {
+                        let (s, _) = resampler.next_clocked::<false>(&mut queue, speed,
+                            &mut crate::audio_profile::SourceReads::default(), false);
+                        if i >= 1000 { squares += (s as f64).powi(2); }
+                    }
+                    (squares / 5000.).sqrt()
+                };
+                let audible = rms(500.);
+                let alias = rms(rate / (2. * speed) * 1.5);
+                assert!(audible > 0.30, "passband {rate}/{speed}: {audible}");
+                assert!(alias < 0.10, "alias {rate}/{speed}: {alias}");
+            }
+        }
     }
 
     #[test]

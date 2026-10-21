@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "profile-realtime-audio-callbacks",
+  "title": "Observe realtime audio callback work and faithful source holds without changing DSP",
+  "kind": "added",
+  "platforms": [
+    "Linux desktop",
+    "Windows GNU under Wine"
+  ],
+  "changes": [
+    "Add an opt-in FFTA_PROFILE audio observer under the existing ring mutex: bounded lock/render/total/arrival timing and playing/priming/paused/fast-forward counters, independent of legacy alarm resets. Report outside the callback after stream teardown.",
+    "Extract the unchanged DSP callback into a device-independent factory for parity and starvation tests; observer off adds no clock reads or allocation, and observer on adds no callback lock, logging or IO. Track producer dropped items and CPAL error notifications separately.",
+    "Give each context its own fixed sample allowance, keep counts after caps, reset arrival history across contexts/device rebuilds, and label replacement-stream initial buffers as priming before watchdog updates. No core, save format, translation ABI or audio policy change."
+  ],
+  "validation": [
+    "58 native runtime tests passed (4 optional ignored), including new bounded-context/counter tests and real callback on/off parity in f32/i16/u16 at 44.1/48 kHz with mono/stereo/six-channel output, starvation, mute, HLE/enhanced and speed transitions.",
+    "Normalized DSP statements match the preserved preimage exactly. Five alternating synthetic empty-ring observer pairs passed: median 38220.580 to 38349.723 ns/callback (+129.143 ns, +0.3379%); not hardware/game timing.",
+    "Native CPAL stereo 44100 Hz session exercised all four contexts, load/zoom/fast-forward/Undo/reload/resume/close and inspected captures. Playing p99 total 0.500062 ms, mutex wait 0.000912 ms, 0 callbacks over own period, 0 producer drops; 1790 faithful holds in 6 callbacks. Private source fixtures unchanged. This GUI binary predates only the added attach-time priming-label safeguard covered by the final unit test.",
+    "Final Docker exports passed 329 Linux and 328 Windows/Wine tests (12 optional ignored each); archive integrity/privacy, feature-doc identity, unchanged PE DLL imports/resources and GLIBC 2.35 checks passed.",
+    "Actual final Linux portable passed cold-cache profile-on GUI all contexts/load/zoom/fast-forward/Undo/reload/resume/close with inspected captures. Playing 511 callbacks: p99 total 0.486576 ms, lock wait 0.000972 ms, no callback over its period or producer drops; 1868 faithful holds in 8 callbacks, including lifecycle transitions. All timing metrics finite/ordered, counts reconcile, source fixtures unchanged.",
+    "Actual exported runtime passed default CPAL startup/close without diagnostic rows and 240 reference benchmark frames with no callback/audio profile or private writes. Updated canonical local portable archives after all checks and preserved previous exports; source/artifact hashes stored locally.",
+    "project_memory.py render/check/check --base HEAD and git whitespace check passed."
+  ],
+  "limitations": [
+    "Faithful source holds are not enhanced PSG/HLE/FIFO starvation or backend XRUN telemetry and can occur during refill/resume. Work times exclude profiler bookkeeping and callback unlock/return; arrival spacing is not CPU time.",
+    "The capture is a whole interactive session with lifecycle labels, not a controlled AI-turn or scene/warm-up interval. Synthetic overhead is not native Windows/device latency. Existing callback backlog IO/error handling remains unchanged.",
+    "Native Windows GUI/device timing, enhanced-path starvation/backend XRUNs and original slow AI-turn attribution remain unverified. Earlier GUI overhead calibrations remain scoped to their binaries and unpaced callback-free mode."
+  ],
+  "files": [
+    "crates/recomp/src/audio_profile.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/fps_overlay.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/fps_overlay.md"
+  ]
+}

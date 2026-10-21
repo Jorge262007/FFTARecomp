@@ -483,9 +483,8 @@ fn addr_value(v: &toml::Value) -> Option<u32> {
 
 /// The recorder's accumulator path for an image.
 pub fn config_path(sha: &str) -> PathBuf {
-    dirs::config_dir()
+    input_config::config_root()
         .unwrap_or_else(std::env::temp_dir)
-        .join("FFTARecomp")
         .join("labels")
         .join(format!("{sha}.labels"))
 }

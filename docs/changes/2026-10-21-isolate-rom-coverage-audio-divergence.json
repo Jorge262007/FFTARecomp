@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "isolate-rom-coverage-audio-divergence",
+  "title": "Isolate native coverage divergence to audio and timer batching",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux diagnosis"
+  ],
+  "changes": [
+    "Complete the separate first-state-divergence investigation using existing baseline/candidate translations in an ignored standalone copy of the current runtime; no production source or package changes.",
+    "Identify mixed-audio/HLE-verifier divergence and demonstrate ROM-free tick batch sensitivity, establishing a focused event-order correctness criterion before accepting further native coverage."
+  ],
+  "validation": [
+    "Snapshot comparisons match exactly through37frames. First difference is relative38/guest8514 at equal clock2391464782 with equal CPU: two mixed samples and HLE verifier fields differ. Bounded JSON comparison reports22 difference entries, below its40-entry cap.",
+    "Continued the standalone diagnosis to3530frames and reproduced both original final-state SHA-256 hashes exactly. Protected production source/runtime/original-library/fixture hashes remain unchanged; no benchmark timing repeated.",
+    "ROM-free FIFO-A/128-cycle-timer fixture compares tick600 and600*tick1: equal final clock600 and DAC, different mixed samples and timer bookkeeping. It provides focused batch-sensitivity evidence without ROM input.",
+    "Initial isolated build failed without pkg-config metadata; retained the failure log. Corrected build reused the existing Linux dependency sysroot and passed. Build26038, diagnosis24808 and timer fixture1662 are terminal; all helpers, snapshots and logs are ignored local artifacts."
+  ],
+  "limitations": [
+    "The complete causal chain for the battle divergence and safe correction across DMA, skip, timers and video are not yet proved. No core fix or additional ROM seeds accepted; no speedup or original rare-stall resolution claimed. The helper is local diagnostic evidence, not a shipped command."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/changes/2026-10-21-evaluate-immutable-rom-entry-seeds.json",
+    "crates/gba-core/src/mem.rs",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

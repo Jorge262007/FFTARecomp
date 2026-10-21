@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "restore-native-preview-across-zoom",
+  "title": "Use native paused previews when restoring states across different zoom strides",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "After load and Undo load, center the saved native framebuffer with cleared margins instead of interpreting the saved wide scratch buffer using the current zoom stride. Clear separated host UI caches until a completed guest frame rebuilds them and skip empty UI-layer layouts.",
+    "Keep guest simulation, snapshot format, native ABI and translation-cache revision unchanged; preview generation does not advance the guest."
+  ],
+  "validation": [
+    "Release runtime suite passed 49 tests (3 optional tests ignored). New test checks every preview pixel for four geometries including native and high zoom, stale scratch/margin clearing, and byte-identical machine snapshots before and after preview generation.",
+    "Release Linux build passed. Isolated Xvfb/llvmpipe GUI load, six zoom steps, Undo load, reload, resume and clean close passed; screenshots inspected for removed fragmented rows and coherent resumed battle.",
+    "Rebuilt Windows and Linux portable exports with Docker after the frontend change: 318 Windows/Wine and 319 Linux tests passed (9 optional ignored on each platform), including the new native-preview test. Archive integrity, private-data exclusion, bundled documentation equality, BUILD-INFO hashes, PE resources/dependency sets and Linux GLIBC 2.35 checks passed.",
+    "A cold-cache copy of the actual new Linux export passed high-zoom load/Undo/reload/resume/clean close under Xvfb/llvmpipe, with inspected screenshots. Source/input hashes remained unchanged. Canonical local dist archives were replaced after validation; previous exports are preserved under target/desktop-perf/restore-view-exports/previous-exports."
+  ],
+  "limitations": [
+    "Paused preview uses native 240x160 with black margins until the first completed frame rebuilds the extended view. Hardware GPU and native Windows GUI coverage remain unverified; Wine tests are not native Windows performance evidence. Local portable exports are not a published release."
+  ],
+  "files": [
+    "crates/recomp/src/play.rs",
+    "docs/save_states.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/save_states.md"
+  ]
+}

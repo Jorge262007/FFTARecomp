@@ -9,6 +9,7 @@ description = "Static recompiler engine: analyze GBA code, emit C, compile to a 
 name = "recomp_core"
 
 [dependencies]
+input-config = { path = "../input-config" }
 armv4t = { path = "../armv4t" }
 gba-core = { path = "../gba-core" }
 toml = "0.8"

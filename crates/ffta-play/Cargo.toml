@@ -5,6 +5,9 @@ edition = "2021"
 
 [dependencies]
 dirs = "6"
+input-config = { path = "../input-config" }
+rfd = "0.15"
+tempfile = "3"
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
 winresource = "0.1"

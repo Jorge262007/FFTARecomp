@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "consume-source-verified-obj-metadata",
+  "title": "Consume decoded OBJ metadata through guest and host runtime readers",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Activate source-authenticated immutable OBJ dimensions with play/frames/runc --rom-data; fixed regional source projections serve bus/native API/DMA reads while typed host readers preserve changed RAM, with distinct ROM/file/dataset identities, usage counters and a 1 KiB cap (432 bytes observed).",
+    "Keep resource ownership and counters out of serialized machine state; preserve the live Arc across transactional Load/Slots Undo and clone it into backup clean boot before touching the cartridge save. Missing-file activation fails explicitly; an already loaded session requires no resource file I/O.",
+    "Correct the verified EUR main-draw host source from IWRAM to direct ROM dimensions, and independently inventory the additional EUR copied-code-area alias. Extractor revision 2 records both source ranges per region and retains prior generations; schema/decoder, guest instructions, RtApi and native cache keys remain unchanged for source-equal base data."
+  ],
+  "validation": [
+    "Final release suites pass native191 core/95 runtime and Windows GNU/Wine191 core/94 runtime, with7 core/8 runtime optional ignored. Regional extraction/file/lifecycle cases pass on both targets; original EUR/USA instruction matrix covers48 cases with registers/CPSR/clock/RAM/host attributes equal,239 decoded guest reads and288 typed host reads per region.",
+    "Tests poison old ROM table bytes and cover all read widths/mirrors/boundaries, native API calls, original CPU loads, DMA, dynamic RAM, byte-equal pre-activation snapshots, foreign/missing activation rejection, file deletion during a loaded session, Slots Load/Undo and backup resource retention.",
+    "Linux and Windows/Wine native loops each match all600 full machine states, central/wide images, OAM, native/fallback dispatch and full mixed/PSG/FIFO/HLE audio (HLE by bits), with3519 typed host reads. Existing TinyCC ELF caches are reused; the Windows object has a DLL filename but uses the TinyCC loader. Boot guest reads0 are not claimed as guest-use evidence; original conditional reads are forced by the48-case matrix.",
+    "Production CLI builds are warning-free with canonical executables restored by SHA-256. Actual frames/runc commands match corresponding120-frame legacy hashes with decoded usage and unchanged ROM/library inputs. Actual Linux/Wine interpreter GUI create/close/move/reuse/close passes with positive file-use counters and inspected captures.",
+    "Retain negative boot provenance probes and the source investigation that found the missing alias and wrong host pointer. Helper-only missing cwd/TinyCC-path setup failures were corrected without rebuilding or recreating completed fixtures. Final source/memory/whitespace checks recorded separately."
+  ],
+  "limitations": [
+    "Opt-in first-family implementation only. Other families, copied-table initializer/read trace, broad scene/transitions, Fast/pause GUI coverage, startup/frame/disk costs, normal enablement, packaging, native Windows hardware and mods remain pending in the full TODO. The host source correction can affect extended sprite clipping/flips; it is verified against original instructions rather than claiming preservation of the old incorrect host reader. No speedup, complete ROM extraction, ABI/state-format change, export, AndroidPort update, agent commit or push."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/runtime.rs",
+    "crates/gba-core/src/mem.rs",
+    "crates/gba-core/src/ffta_sprites.rs",
+    "crates/gba-core/src/save_state.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/native_tests.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/save_backups.rs"
+  ],
+  "references": [
+    "docs/rom_data.md",
+    "docs/rom_data_runtime.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/ffta_sprite_runtime.md"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "verify-original-usa-resource-initializer",
+  "title": "Verify original USA copied-resource initialization from clean boot",
+  "kind": "changed",
+  "platforms": [
+    "Linux",
+    "Windows-GNU-Wine"
+  ],
+  "changes": [
+    "Add an optional private-ROM test that reaches the actual USA initializer from clean boot/demo input, compares every original instruction with a legacy caller-state instance and tests file provenance with only the raw old alias poisoned after authenticated activation.",
+    "Independently identify regional original copy entries and literal source ranges; code and opaque bytes remain in ROM, while only the 48-byte OBJ metadata is supplied from decoded data."
+  ],
+  "validation": [
+    "Native and Windows GNU test executables compile warning-free. The exact new ignored test passes independently on Linux (3.44s) and Wine (3.53s), reaching frame791/clock222325013 and returning from13original instructions to08023f76 with every full state matching.",
+    "CpuSet at0814186c copies3648bytes into IWRAM5f28, including24decoded halfword reads for the48-byte table at6d28. The post-activation poisoned-source probe copies the same whole blob and matches final guest state. Source ROM, test source and canonical runtime hashes remain unchanged during both runs.",
+    "Final project_memory.py check, CRLF-aware git diff --check, Rust formatting of the added/affected test and decoder files,142affected local-document links and protected fixture/canonical hashes pass. Task handoff closes these units and records the independently open descriptor-catalog criterion; all selected processes are terminal."
+  ],
+  "limitations": [
+    "Initializer component parity is not whole-USA scene/audio coverage. Native Windows is unavailable per user confirmation and remains a gate before normal enablement; only Linux/Wine are available. Other resource families, catalogs and mods remain open. No production runtime, canonical binary, public archive, AndroidPort, agent commit or push changes."
+  ],
+  "files": [
+    "crates/recomp/src/rom_data/validation_tests.rs"
+  ],
+  "references": [
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/rom_data_runtime.md"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-decoded-obj-scenes-and-costs",
+  "title": "Validate decoded OBJ scene parity and measure migration costs",
+  "kind": "changed",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Add explicit per-variant decoded-resource switches to the existing benchmark runner, applied consistently to equivalence, timing and profile runs and recorded in summaries.",
+    "Fix acceptance limits before measurement and compare a corrected legacy reference without resource-routing overhead against the candidate built from the same isolated source path and toolchain.",
+    "Add opt-in private-fixture checks for every recorded frame/state/image/audio/dispatch, including boot from a read-only cartridge save and source-range coverage, plus seven first/cached startup observations using actual preparation/activation helpers.",
+    "Include decoded-resource help in explicit portable package inputs; a synthetic Linux tar/Windows zip regression plants private markers beside runtime/root inputs and verifies that resources, ROM/save/state/recordings, native cache and generated game code stay out."
+  ],
+  "validation": [
+    "13 benchmark-script tests pass, including independent switches with the same executable in all phases and alternating run order. Native and Windows GNU release test builds are warning-free.",
+    "Five alternating native Linux pairs match every framebuffer/OAM, loaded identity, full final state and execution counts: worldmap240 mean +1.0081%, p95+1.7287%, p99+0.2292%; observed battle/menu/enemy3530 mean -0.2355%, p95-3.7654%, p99-4.1991%. All predetermined limits pass. CPU15 pinned; sampled sibling load retained, no concurrent build during timing.",
+    "Initial candidate build was invalid due to copied old source mtimes; equal hashes exposed reuse before any measurement. Refreshing mtimes rebuilt only the candidate; distinct hashes/help were checked. A help-capture helper omitted stderr initially, corrected without rebuilding. Root source bytes, canonical executable and protected fixture hashes are preserved.",
+    "Synthetic portable archive test passes for Linux tar.gz and Windows zip, preserving selected runtime bytes and including both resource help documents while excluding every planted private marker. This is a package-selection check, not an actual release export.",
+    "Native Linux every-frame differential passes worldmap240, observed battle/menu/enemy3530 and protected-suspend-save boot8476: every full state, central/wide pixels, OAM, dispatch and mixed/PSG/FIFO/HLE stream matches; HLE compared by bits after equal observer setup. Actual primary read at541 and alias read at5400 (mask3), with guest RAM/clock/RNG equality throughout. Protected inputs/loaders remain unchanged.",
+    "Seven native Linux first/cached observations pass: after-ROM-read median32.415695/21.018705ms, maxima34.267605/21.626677ms; source I/O/decode/preparation/activation retained separately. Owned432B; independent seven-pair process peak RSS median delta672KiB/maxima delta752KiB, below2MiB. One generation1146logical/12288allocated bytes; complete managed root1164/32768bytes, no old/orphan cleanup. All observations and process wall times retained.",
+    "Windows GNU/Wine every-frame checks also pass240/3530/8476frames with full states, pixels/OAM, dispatch and all audio streams; actual EUR copied alias observed at5400 with mask3. Different platform TinyCC caches are retained and identified; no cross-platform machine/dispatch identity inferred. D-Bus background diagnostics did not prevent actual passing exits.",
+    "Seven Windows/Wine first/cached helper observations pass the preselected median gates:109.222100/91.891400ms, maxima194.175200/183.130300ms. Cached maximum exceeds100ms and is retained; the gate is explicitly median-only. Owned432B and host-backed Wine disk footprint match; no native Windows RSS/timing/filesystem claim.",
+    "Final project_memory.py check and CRLF-aware git diff --check pass. Source hashes, all protected private inputs and native/Windows canonical executable hashes are verified unchanged; terminal outcomes and the next GUI criterion are recorded in TASK_HANDOFF."
+  ],
+  "limitations": [
+    "First-family EUR local scene/cost coverage; USA source and original-routine matrix gates remain retained but a USA initializer trace is still open. GUI Fast/pause/realtime audio, native Windows hardware/RSS/timing and actual updated release archive checks remain before normal enablement. Other catalog families and mods remain in the full active TODO. Per-frame full-state/audio checks compare current-runtime legacy reads versus decoded data; the distinct corrected-old-binary timing comparison separately checks all frame/OAM and final full state. No production runtime change, release export, AndroidPort update, agent commit or push in this unit."
+  ],
+  "files": [
+    "scripts/benchmark_windows_runtime.py",
+    "scripts/tests/test_benchmark_runtime.py",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/validation_tests.rs",
+    "scripts/package_ffta_portable.py",
+    "scripts/tests/test_portable_resources.py"
+  ],
+  "references": [
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/rom_data_runtime.md",
+    "docs/windows_runtime_performance.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/development/ROM_DATA_INVENTORY.md"
+  ]
+}

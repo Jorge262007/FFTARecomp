@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "validate-local-save-workloads",
+  "title": "Validate supplied local saves and identify preliminary battle PPU cost",
+  "kind": "docs",
+  "platforms": [
+    "Linux X11/Xvfb, Vulkan llvmpipe"
+  ],
+  "changes": [
+    "Document isolated loading of the supplied cartridge save and snapshot, verified Git exclusions, and the distinction between valid resumed gameplay and paused automation attempts.",
+    "Prioritize detailed CPU PPU and UI-extraction profiling in the performance TODO based on the exploratory battle capture; retain all acceptance criteria for controlled AI replay and optimization."
+  ],
+  "validation": [
+    "git check-ignore confirms the root saves.zip and saves/ paths are excluded, alongside existing global .sav/.ffstate patterns; git ls-files contains none of these fixture files. ZIP CRC passes and the selected source copies still equal the original archive entries.",
+    "The exported Docker Linux runtime successfully loaded the supplied slot, resumed the battle for 20 seconds and exited normally. The session includes startup: 1074 captured core frames, 171840 scanlines, no zoom calls or invalid PPU intervals; core/scanline p50 23.083840/17.545029 ms and p95 25.520037/19.434143 ms.",
+    "A separate portable copy loaded the cartridge save through Saved Game > Load and visually reached the world map; observed overlay samples were about 59-60 internal and external FPS. The session closed with exit status 0; all 11659 captured frames had 160 scanlines and no invalid intervals. Whole-session statistics include boot/navigation and are not a world-map-only baseline.",
+    "Project-memory validation passed for the working tree and --base HEAD; the diff whitespace check passed. No runtime code changed in this tranche."
+  ],
+  "limitations": [
+    "Exploratory captures use Xvfb and CPU llvmpipe, include startup/navigation and have no paired baseline; they do not establish Radeon/Wayland performance, an AI-turn bottleneck or an optimization gain. Headless snapshot replay and clean post-load timing remain to be implemented."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

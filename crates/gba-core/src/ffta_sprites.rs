@@ -6,6 +6,7 @@ pub fn stats_panel_enabled() -> bool {
 }
 
 #[derive(Clone, Debug, Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct HostSprite {
     pub owner: u32,
     pub group: u64,
@@ -22,6 +23,7 @@ pub struct HostSprite {
 }
 
 #[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteState {
     pub enabled: bool,
     rom_valid: bool,
@@ -171,6 +173,12 @@ fn peek(mem: &crate::mem::MemMap, addr: u32, len: usize) -> Option<&[u8]> {
     };
     data.get(offset..offset.checked_add(len)?)
 }
+fn dimension_values(mem: &crate::mem::MemMap, addr: u32) -> Option<(u16, u16)> {
+    if let Some(values) = mem.obj_dimensions(addr) { return Some(values); }
+    let size = peek(mem, addr, 4)?;
+    Some((u16::from_le_bytes([size[0], size[1]]), u16::from_le_bytes([size[2], size[3]])))
+}
+
 fn word(mem: &crate::mem::MemMap, addr: u32) -> Option<u32> {
     Some(u32::from_le_bytes(peek(mem, addr, 4)?.try_into().ok()?))
 }
@@ -194,13 +202,9 @@ fn visibility_result(
     for p in data.chunks_exact(6) {
         let a0 = u16::from_le_bytes([p[0], p[1]]);
         let a1 = u16::from_le_bytes([p[2], p[3]]);
-        let size = peek(
-            mem,
-            0x03006d28 + 4 * ((a0 >> 14) * 4 + (a1 >> 14)) as u32,
-            4,
-        )?;
-        let w = i16::from_le_bytes([size[0], size[1]]) as i32;
-        let h = u16::from_le_bytes([size[2], size[3]]) as i32;
+        let (w, h) = dimension_values(mem, 0x03006d28 + 4 * ((a0 >> 14) * 4 + (a1 >> 14)) as u32)?;
+        let w = w as i16 as i32;
+        let h = h as i32;
         let ox = (((a1 & 511) as i32) << 23) >> 23;
         let oy = a0 as u8 as i8 as i32;
         let x = if flip_x {
@@ -608,13 +612,13 @@ fn decode(mem: &crate::mem::MemMap, regs: &[u32; 16]) -> Option<(u32, Vec<HostSp
         let mut a1 = u16::from_le_bytes([bytes[2], bytes[3]]);
         let mut a2 = u16::from_le_bytes([bytes[4], bytes[5]]);
         let dim = if profile.draw_a == 0x08001500 {
-            0x03006d28
+            0x0814ced8
         } else {
             0x08149510
         } + 4 * (((a0 >> 14) * 4 + (a1 >> 14)) as u32);
-        let size = peek(mem, dim, 4)?;
-        let w = u16::from_le_bytes([size[0], size[1]]) as i32;
-        let h = u16::from_le_bytes([size[2], size[3]]) as i32;
+        let (w, h) = dimension_values(mem, dim)?;
+        let w = w as i32;
+        let h = h as i32;
         let ox = (((a1 & 511) as i32) << 23) >> 23;
         let oy = a0 as u8 as i8 as i32;
         let origin_x = regs[1] as i32;
@@ -710,9 +714,9 @@ fn decode_battle(mem: &crate::mem::MemMap, regs: &[u32; 16]) -> Option<(u32, Vec
         let mut a1 = u16::from_le_bytes([p[2], p[3]]);
         let a2 = u16::from_le_bytes([p[4], p[5]]);
         let dim = 0x03006d28 + 4 * (((a0 >> 14) * 4 + (a1 >> 14)) as u32);
-        let size = peek(mem, dim, 4)?;
-        let w = u16::from_le_bytes([size[0], size[1]]) as i32;
-        let h = u16::from_le_bytes([size[2], size[3]]) as i32;
+        let (w, h) = dimension_values(mem, dim)?;
+        let w = w as i32;
+        let h = h as i32;
         let ox = (((a1 & 511) as i32) << 23) >> 23;
         let oy = a0 as u8 as i8 as i32;
         let x = if flip_x != 0 {
@@ -811,10 +815,7 @@ impl crate::machine::Machine {
             self.bus.ffta_sprites.vis_verified = self.bus.iwram.get(0x62ec..0x6414)
                 == self.bus.rom.get(profile.vis_source..profile.vis_source_end)
                 && self.bus.iwram.get(0x6d28..0x6d58)
-                    == self
-                        .bus
-                        .rom
-                        .get(profile.size_table..profile.size_table + 48);
+                    == self.bus.obj_source_table(profile.size_table);
             if self.bus.ffta_sprites.vis_verified {
                 if let Some(result) = visibility_result(
                     &self.bus,
@@ -866,10 +867,7 @@ impl crate::machine::Machine {
                 self.bus.ffta_sprites.vis_verified = self.bus.iwram.get(0x62ec..0x6414)
                     == self.bus.rom.get(profile.vis_source..profile.vis_source_end)
                     && self.bus.iwram.get(0x6d28..0x6d58)
-                        == self
-                            .bus
-                            .rom
-                            .get(profile.size_table..profile.size_table + 48);
+                        == self.bus.obj_source_table(profile.size_table);
             }
             return self.bus.ffta_sprites.vis_verified;
         }
@@ -877,10 +875,7 @@ impl crate::machine::Machine {
             self.bus.ffta_sprites.ram_verified = self.bus.iwram.get(0x65a8..0x68a4)
                 == self.bus.rom.get(profile.ram_source..profile.ram_source_end)
                 && self.bus.iwram.get(0x6d28..0x6d58)
-                    == self
-                        .bus
-                        .rom
-                        .get(profile.size_table..profile.size_table + 48);
+                    == self.bus.obj_source_table(profile.size_table);
         }
         if (profile.ram_start..profile.ram_end).contains(&pc) {
             return self.bus.ffta_sprites.ram_verified;
@@ -1162,6 +1157,152 @@ pub fn tile_diagnostics(bus: &crate::mem::MemMap) {
 mod tests {
     use super::*;
     use crate::{Bus, Machine};
+    #[test]
+    #[ignore = "requires the user's exact EUR/USA ROMs; original instructions are read only from those local images"]
+    fn decoded_metadata_matches_original_regional_draw_instructions_and_host_lists() {
+        use crate::rom_data::{ObjDimensions, RuntimeResources};
+        let mut cases = 0;
+        for env in ["FFTA_TEST_ROM_USA", "FFTA_TEST_ROM_EUR"] {
+            let rom = std::fs::read(std::env::var(env).unwrap()).unwrap();
+            let profile = crate::ffta_rom::sprite_profile(&rom).unwrap();
+            let version = crate::ffta_rom::version(&rom).unwrap();
+            let source = crate::rom_data::Extraction::from_rom(&rom).unwrap();
+            let resources = RuntimeResources::synthetic(&rom, version, source.dimensions);
+            assert!(
+                ObjDimensions::decode(&rom[profile.size_table..profile.size_table + 48]).is_ok()
+            );
+            for first in [true, false] {
+                for flags in [0, 0x10000000, 0x20000000, 0x30000400] {
+                    for x in [-20i32, 100, 250] {
+                        let mut legacy = Machine::new(rom.clone());
+                        let mut decoded = Machine::new(rom.clone());
+                        decoded
+                            .bus
+                            .set_rom_resources(Some(resources.clone()))
+                            .unwrap();
+                        for m in [&mut legacy, &mut decoded] {
+                            m.bus.ffta_sprites.enabled = false;
+                            m.cpu.cpsr |= crate::cpu::FLAG_T;
+                            m.cpu.regs[0] = 0x02000000;
+                            m.cpu.regs[1] = x as u32;
+                            m.cpu.regs[2] = 70;
+                            m.cpu.regs[3] = if first { flags } else { 7 };
+                            m.cpu.regs[13] = 0x03007000;
+                            m.cpu.regs[14] = 0x08002001;
+                            m.cpu.regs[15] = if first {
+                                profile.draw_a
+                            } else {
+                                profile.draw_b
+                            };
+                            let args = if first {
+                                vec![7, 2, 3, 0x03000030, 48, 0]
+                            } else {
+                                vec![2, 3, 0x03000030, 48, 0]
+                            };
+                            for (i, value) in args.into_iter().enumerate() {
+                                m.bus.write32(0x03007000 + i as u32 * 4, value);
+                            }
+                            m.bus.write16(0x02000000, 12);
+                            for i in 0..12u32 {
+                                let p = 0x02000002 + i * 6;
+                                m.bus.write16(
+                                    p,
+                                    ((i as i32 % 3 - 1) * 12) as u16 & 255 | ((i / 4) as u16) << 14,
+                                );
+                                m.bus.write16(
+                                    p + 2,
+                                    ((i as i32 - 6) * 12) as u16 & 511 | ((i % 4) as u16) << 14,
+                                );
+                                m.bus.write16(p + 4, i as u16 | 0x7400);
+                            }
+                        }
+                        let (_, old_host) = decode(&legacy.bus, &legacy.cpu.regs).unwrap();
+                        let (_, new_host) = decode(&decoded.bus, &decoded.cpu.regs).unwrap();
+                        let summarize = |list: &[HostSprite]| {
+                            list.iter()
+                                .map(|s| (s.x, s.y, s.attrs, s.slot, s.replaces))
+                                .collect::<Vec<_>>()
+                        };
+                        assert_eq!(summarize(&old_host), summarize(&new_host));
+                        for step in 0..10000 {
+                            assert_eq!(legacy.cpu.regs, decoded.cpu.regs);
+                            assert_eq!(legacy.cpu.cpsr, decoded.cpu.cpsr);
+                            assert_eq!(legacy.bus.clock, decoded.bus.clock);
+                            if legacy.cpu.regs[15] == 0x08002000 {
+                                break;
+                            }
+                            assert!(step < 9999, "original draw routine did not return");
+                            legacy.step();
+                            decoded.step();
+                        }
+                        assert_eq!(legacy.bus.iwram, decoded.bus.iwram);
+                        for sprite in &new_host {
+                            if sprite.replaces {
+                                let off = 0x30 + sprite.slot * 8;
+                                let actual: Vec<_> = decoded.bus.iwram[off..off + 6]
+                                    .chunks_exact(2)
+                                    .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                                    .collect();
+                                assert_eq!(actual, sprite.attrs);
+                            }
+                        }
+                        cases += 1;
+                    }
+                }
+            }
+            assert!(
+                resources.stats().bus_reads > 0,
+                "original instructions must consume decoded data"
+            );
+            assert!(resources.stats().host_rom_reads > 0);
+            eprintln!("ROM_DATA_DRAW region={version:?} original_guest_reads={} typed_host_reads={} source_mask={}",
+                resources.stats().bus_reads,resources.stats().host_rom_reads,resources.stats().bus_source_mask);
+        }
+        assert_eq!(cases, 48);
+    }
+    #[test]
+    fn decoded_dimensions_replace_rom_reads_and_preserve_changed_ram() {
+        use crate::rom_data::{ObjDimensions, ObjSize, RuntimeResources};
+        let dimensions = ObjDimensions {
+            entries: std::array::from_fn(|i| ObjSize {
+                width: 8 << (i % 4),
+                height: 8 << ((i + 1) % 4),
+            }),
+        };
+        let bytes = dimensions.source_bytes();
+        let mut rom = vec![0; 0xa39910];
+        rom[0x149510..0x149540].copy_from_slice(&bytes);
+        rom[0xa398dc..0xa3990c].copy_from_slice(&bytes);
+        let resources =
+            RuntimeResources::synthetic(&rom, crate::ffta_rom::Version::Usa, dimensions);
+        let mut mem = crate::MemMap::new(rom);
+        mem.set_rom_resources(Some(resources.clone())).unwrap();
+        mem.rom[0x149510..0x149540].fill(0xcd);
+        mem.rom[0xa398dc..0xa3990c].fill(0xcd);
+        mem.iwram[0x6d28..0x6d58].copy_from_slice(&bytes);
+        for i in 0..12 {
+            let offset = i * 4;
+            let expected = (
+                u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap()),
+                u16::from_le_bytes(bytes[offset + 2..offset + 4].try_into().unwrap()),
+            );
+            assert_eq!(
+                dimension_values(&mem, 0x08149510 + offset as u32),
+                Some(expected)
+            );
+            assert_eq!(
+                dimension_values(&mem, 0x03006d28 + offset as u32),
+                Some(expected)
+            );
+        }
+        mem.write16(0x03006d28, 123);
+        assert_eq!(dimension_values(&mem, 0x03006d28), Some((123, 16)));
+        mem.write32(0x03006d58, 0x34561234);
+        assert_eq!(dimension_values(&mem, 0x03006d58), Some((0x1234, 0x3456)));
+        assert_eq!(resources.stats().host_rom_reads, 12);
+        assert_eq!(resources.stats().host_ram_reads, 12);
+        assert_eq!(resources.stats().dynamic_ram_reads, 1);
+    }
     #[test]
     fn visibility_extends_only_x_and_keeps_y_and_empty_lists() {
         let mut mem = crate::mem::MemMap::new(vec![0; 192]);

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "handle-surface-configuration-errors",
+  "title": "Fall back cleanly when GPU surface configuration fails",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Guard surface configuration at startup, resize, VSync switch and acquisition recovery with balanced validation/internal/out-of-memory error scopes. Return errors to existing software fallback instead of the default wgpu panic handler; do not replace the global error handler or retry configuration in a tight loop.",
+    "Make the VSync setter return a configuration Result and drop a failed presenter in the menu caller. Preserve surface/context-before-window teardown and the existing bounded acquisition recovery policy. No guest/state/translation ABI changes."
+  ],
+  "validation": [
+    "Release native screen/runtime suites passed 41/53 tests (3 optional ignored in each). Explicit graphics test passed real device error-scope capture, subsequent valid operations and preservation of caller-owned outer error scopes.",
+    "Candidate in the previously failing Xvfb/Radeon-GL configuration now logs the returned Invalid surface error, activates software rendering and passes load/Undo/zoom/reload/resume/clean close. Resumed battle screenshot inspected at 59.7 INT/EXT; this is a functional check, not a comparative performance claim.",
+    "Successful GPU path passed Xvfb/llvmpipe Vulkan resize, load/Undo/zoom/reload/close. A dedicated Right/Left menu test shows VSync ON then OFF with no GPU fallback; screenshots inspected. Initial Return-only captures were both OFF and were not treated as VSync coverage.",
+    "Physical Radeon 780M/RADV Vulkan native Wayland replay passed all 3530 framebuffer/OAM hashes, final machine state and dispatch counts against the existing verified GUI reference, with private files unchanged and clean automatic close. No timing comparison was repeated for this configuration-only change.",
+    "Final Docker gates passed 323 Windows/Wine and 324 Linux tests (11 optional ignored each). Archives passed integrity/private-data exclusion, updated FPS documentation identity, BUILD-INFO hashes, PE resource/unchanged import checks and Linux GLIBC 2.35 verification. The actual Linux export passed cold-cache software fallback, load/Undo/zoom/reload/resume/clean close with inspected screenshot.",
+    "The actual exported benchmark in the same failed-GPU setup returns controlled exit 1, no panic or false success report, and no private-data writes. Original fixtures and source hashes remained unchanged; validated canonical local exports replaced only after checks, with prior versions preserved."
+  ],
+  "limitations": [
+    "Actual memory exhaustion, runtime device loss, failed VSync reconfiguration, monitor switching and native Windows GPU/GUI behavior remain unverified. The shared scoped conversion is exercised with validation errors and a real initial configuration failure; these results do not establish all GPU failure modes.",
+    "These are local portable exports, not a published release. No performance speedup is claimed for this configuration-error fix."
+  ],
+  "files": [
+    "crates/screen/src/present.rs",
+    "crates/recomp/src/play.rs",
+    "docs/fps_overlay.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/fps_overlay.md"
+  ]
+}

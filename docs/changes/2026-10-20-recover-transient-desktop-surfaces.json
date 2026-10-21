@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "recover-transient-desktop-surfaces",
+  "title": "Retain GPU presentation across transient surface failures",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Return an explicit presented/skipped outcome. Preserve GPU rendering on acquisition timeout, skip zero-sized surfaces, reconfigure Lost/Outdated once per frame and fall back after three failed recovery calls. Successful acquisition resets the budget; out-of-memory and unknown errors request immediate fallback.",
+    "Count FPS EXT only on successful presentation and preserve the existing event-loop pacing and Wayland teardown order."
+  ],
+  "validation": [
+    "44 native runtime tests and 40 screen tests passed, including simulated prolonged timeout, lost/outdated recovery, success resetting the failure budget, bounded retries and fatal errors without reconfiguration.",
+    "Native Ubuntu Xwayland/Vulkan on AMD Radeon 780M / RADV passed repeated resize, minimize/restore and WM_DELETE_WINDOW close using the isolated portable launcher and test save. Exit status was zero and the GPU presenter remained active.",
+    "Windows Docker cross-build and Wine suites passed: 26 input/config, 33 menu and 45 runtime tests. Exported ZIP passed CRC, private-data exclusions, production-marker and BUILD-INFO SHA-256 checks; only empty portable Data directories are included.",
+    "Linux Docker build and tests passed: 26 input/config and 44 runtime tests. Exported tar.gz passed integrity, executable-mode, private-data exclusion, production-marker and BUILD-INFO SHA-256 checks."
+  ],
+  "limitations": [
+    "Physical monitor changes, native Windows and Wayland recovery/fallback paths remain unverified. PERF-04 acceptance remains open pending these interactive checks."
+  ],
+  "files": [
+    "crates/screen/src/present.rs",
+    "crates/recomp/src/play.rs"
+  ],
+  "references": [
+    "docs/fps_overlay.md",
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

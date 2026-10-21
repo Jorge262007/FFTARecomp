@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "docker-linux-build",
+  "title": "Build Linux portable releases with container-managed dependencies",
+  "kind": "added",
+  "platforms": [
+    "Linux amd64 (Docker)"
+  ],
+  "changes": [
+    "Add a Rust 1.94.0/Debian Bookworm build image pinned by digest with GCC, Python, pkg-config and ALSA/udev development packages installed inside the container.",
+    "Export only the portable tar.gz and compiler/libc/library/hash information through a scratch stage; keep BuildKit registry/git/target caches separate from the checkout and run runtime/input tests before export.",
+    "Add a one-command build/export wrapper and an allowlisted Docker context excluding ROMs, personal saves, state slots, agent settings and host build outputs; document the distinction between contained build dependencies and host GUI/runtime dependencies.",
+    "Include Docker workflow documentation in portable packages and retain the separate direct Ubuntu-built archive."
+  ],
+  "validation": [
+    "Shell syntax and Python packaging syntax checks passed. Excess arguments, comma-containing and newline-containing output paths were rejected from an unrelated working directory before invoking Docker.",
+    "Actual Docker build/export completed: Rust 1.94.0 and Debian Bookworm glibc 2.36; 26 input/config and 41 runtime tests passed inside the container, with two optional runtime cases ignored.",
+    "All exported runtime dependencies resolved on Ubuntu; ELF inspection found maximum required GLIBC versions 2.35 (runtime), 2.34 (wrapper) and 2.34 (TinyCC), compared with 2.43 for the earlier direct host runtime.",
+    "The exported package passed an Ubuntu-host Xvfb/Mesa llvmpipe native keyboard smoke: preview slot save, normal close, full folder relocation, slot load, unchanged cache bytes/mtime, one then two startup copies and unchanged external per-user files.",
+    "Final digest-pinned build/export passed. A second invocation from /tmp with a space-containing output path reused cached build layers and exported identical archive/build-info bytes. Final archive checks passed for executable modes, source/notices/docs, checksum, host ownership, equality with the native-tested binaries and private-data exclusion."
+  ],
+  "limitations": [
+    "The image digest and Cargo.lock are pinned; Debian package updates mean bit-for-bit reproducible builds are not guaranteed.",
+    "The build is linux/amd64. Containerized compilation does not bundle the host desktop graphics stack, libc, ALSA or udev runtime libraries into the portable archive.",
+    "GUI validation used Ubuntu 26.04 Xvfb and software rendering with a preplaced user ROM; older-distro/Steam Deck, physical controllers and native Wayland interaction remain unverified."
+  ],
+  "files": [
+    "Dockerfile.linux",
+    ".dockerignore",
+    "scripts/build_linux_docker.sh",
+    "scripts/package_ffta_portable.py",
+    "docs/docker.md",
+    "docs/portable.md",
+    "README.md",
+    "docs/development/PROJECT_STATE.md",
+    ".cursor/skills/ffta-development/SKILL.md"
+  ],
+  "references": [
+    "docs/docker.md",
+    "docs/portable.md"
+  ]
+}

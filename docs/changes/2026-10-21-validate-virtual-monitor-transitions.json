@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-virtual-monitor-transitions",
+  "title": "Verify renderer transitions between distinct virtual monitor outputs",
+  "kind": "added",
+  "platforms": [
+    "Native Linux X11 Xorg dummy/Openbox/Vulkan",
+    "Windows GNU under Wine10/Vulkan"
+  ],
+  "changes": [
+    "Extend the no-ROM window diagnostic with a separate --monitors mode: require two separately positioned enumerated monitor handles, observe A/B/A/B/A changes, resize to bounded monitor-relative dimensions, verify VSync ON/OFF presentation and clean teardown.",
+    "Keep the completed default minimize diagnostic and all runtime/shader/backend/guest behavior unchanged; no archive rebuild or benchmark calibration is required for this diagnostic-only addition."
+  ],
+  "validation": [
+    "Native and Windows GNU release diagnostic builds passed. Native same-size outputs then unequal 1280x720/1280x960 CRTC outputs passed four monitor transitions, five observed placements and VSync checks: 20 Presented, zero Skipped. Independent xwininfo positions confirm A/B/A/B/A; unequal outputs cause actual 640x360/640x480 surface-size changes.",
+    "Windows GNU/Wine10 with the previously established isolated Vulkan/D3D12-disabled prefix setup passed the unequal-output mode: two distinct DISPLAY handles, A/B/A/B/A, 20 Presented, zero Skipped, resize/VSync and clean exit. Independent X window positions also match.",
+    "Capability inspection found Xvfb reset monitor areas between clients; -noreset preserves them, but winit enumerates CRTC outputs rather than those areas. Locally extracted Xorg/dummy provided distinct active outputs with automatic physical input/GPU addition disabled; no system packages or real display configuration changed.",
+    "First portable move script reached the intro rather than battle; screenshots prevented a false load/Undo claim. Explicit evdev US synthetic-keyboard setup passed a focused menu/slot probe, then the corrected actual portable scenario passed battle load/zoom, A/B/A/B/A moves, Undo/reload/resume and WM-close. Battle-on-second-monitor, Undo and reloaded-battle captures inspected; positions/exit and current canonical runtime hash checked. Old input-unverified artifacts remain labeled as such.",
+    "Verified all current shipping-source hashes and both canonical archive hashes unchanged. No runtime package rebuild, default minimize retest, scene recording or benchmark timing was repeated for this diagnostic mode.",
+    "Native/Windows builds, rustfmt --check, project_memory.py render/check/check --base HEAD and Git whitespace validation passed before handoff."
+  ],
+  "limitations": [
+    "No physical-monitor, GPU migration, mixed-DPI/color calibration, hotplug, Wayland or native Windows coverage. The virtual pair is same GPU and scale 1. Canonical runtime and portable archives remain unchanged; no performance speedup is claimed."
+  ],
+  "files": [
+    "crates/recomp/examples/presenter_window_lifecycle.rs",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

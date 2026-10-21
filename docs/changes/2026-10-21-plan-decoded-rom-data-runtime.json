@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "plan-decoded-rom-data-runtime",
+  "title": "Plan ROM extraction and direct decoded-resource consumption before mod support",
+  "kind": "docs",
+  "platforms": [
+    "Desktop Windows and Linux (planning only)"
+  ],
+  "changes": [
+    "Add a seven-phase TODO prioritizing ROM resource inventory, extraction/decoding, automatic startup preparation, direct runtime consumption and verification; mod overrides and broader content/code changes follow the main delivery.",
+    "Define per-family coverage and provenance checks, guest timing and audio equivalence, native/profile/save identity, storage lifecycle and measured performance criteria. Link the plan from the desktop TODO and project state, and reconcile the task handoff with the latest planning request."
+  ],
+  "validation": [
+    "Inspected existing ROM loading and in-memory reads, exact ROM profiles, native-cache identity, save-state identity and portable storage documentation.",
+    "Documentation checks pass: seven ordered unique phase IDs, all implementation phases pending, local links resolve in the plan and its two indexes, and git diff --check passes. No runtime tests or builds were run for this documentation-only change."
+  ],
+  "limitations": [
+    "Planning only: no extraction, decoding pipeline, runtime resource migration, mod support or performance improvement is implemented or claimed; formats and migration coverage must be verified during ROMDATA-01."
+  ],
+  "files": [
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/development/todo_bug_fix.md"
+  ]
+}

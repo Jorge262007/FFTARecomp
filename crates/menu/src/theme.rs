@@ -27,6 +27,16 @@ fn binding_value(
     zin: &str,
     zout: &str,
 ) -> Option<String> {
+    if row == Row::Menu {
+        return Some(if matches!(menu.capture, Some(Bind::Menu | Bind::GamepadMenu)) {
+            "HOLD + RELEASE".into()
+        } else {
+            menu.menu_binding.borrow().split('+').map(|token| {
+                if menu.page == Page::Gamepad { gamepad_label(token, menu.controller_layout.get()) }
+                else { token.to_uppercase() }
+            }).collect::<Vec<_>>().join(" + ")
+        });
+    }
     if menu.page == Page::Gamepad && matches!(row, Row::FfKey | Row::FfToggleKey) {
         let b = if row == Row::FfKey {
             Bind::GamepadFastForward
@@ -101,6 +111,14 @@ pub(super) fn draw(
     if w < 32 || h < 32 || px.len() < w * h {
         return;
     }
+    if matches!(menu.page, Page::SaveStates | Page::ReplaceState) {
+        super::save_states::draw(menu, px, w, h);
+        return;
+    }
+    if matches!(menu.page, Page::SaveBackups | Page::RestoreBackup) {
+        super::save_backups::draw(menu,px,w,h);
+        return;
+    }
     for p in px.iter_mut().take(w * h) {
         p[0] = (p[0] as u16 * 5 / 16 + 5) as u8;
         p[1] = (p[1] as u16 * 4 / 16 + 3) as u8;
@@ -108,7 +126,7 @@ pub(super) fn draw(
     }
     let mut c = Canvas::new(px, w, h);
     let rows = rows_of(menu.page);
-    let l = layout(rows.len(), w, h);
+    let l = menu.page_layout(w,h);
     let first = menu.first_visible(l);
     let scale = l.line_h as f32 / 44.;
     let fs = 16. * scale;
@@ -144,6 +162,7 @@ pub(super) fn draw(
     if menu.page != Page::Main {
         let label = match menu.page {
             Page::Exit => "QUIT GAME?",
+            Page::SaveStates => "SAVE STATES",
             Page::FastForward => "FAST FORWARD",
             Page::Audio => "AUDIO SETTINGS",
             Page::Video => "VIDEO & DISPLAY",
@@ -246,17 +265,21 @@ pub(super) fn draw(
             let (sx, sw) = segment_geometry(l);
             c.text(
                 tx,
-                ty,
+                if row == Row::FastForwardAudio { ty - 6. * scale } else { ty },
                 row.label(),
                 fg,
                 fs,
                 true,
                 (sx as f32 - tx - 8. * scale).max(1.),
             );
+            if row == Row::FastForwardAudio {
+                c.text(tx, ty + 13. * scale, "1X: UP TO 2S DELAY", fg, fs * 0.62,
+                    false, (sx as f32 - tx - 8. * scale).max(1.));
+            }
             let labels = if row == Row::FastForward {
                 ["2X", "4X", "8X"]
             } else {
-                ["NORMAL", "MUTE", "FAST"]
+                ["1X", "SILENT", "FAST"]
             };
             for i in 0..3 {
                 let active = if row == Row::FastForward {
@@ -306,14 +329,14 @@ pub(super) fn draw(
         let vx = xx + bw - vw - 8. * scale;
         c.text(
             tx,
-            ty,
+            if row == Row::Fps { yy + 2. * scale } else { ty },
             if row == Row::Audio && !menu.audio_live {
                 "ENHANCED (RESTART)"
             } else {
                 row.label()
             },
             fg,
-            fs,
+            if row == Row::Fps { fs * 0.82 } else { fs },
             true,
             if val.is_some() {
                 (vx - tx - 8. * scale).max(1.)
@@ -321,6 +344,13 @@ pub(super) fn draw(
                 bw - 36. * scale
             },
         );
+        if row == Row::Fps {
+            let help_width = (vx - tx - 8. * scale).max(1.);
+            c.text(tx, yy + 16. * scale, "INT: GAME / EXT: PRESENTS", fg,
+                fs * 0.55, false, help_width);
+            c.text(tx, yy + 27. * scale, "FAST CAN SHOW DIFFERENT RATES", fg,
+                fs * 0.52, false, help_width);
+        }
         if let Some(v) = val {
             if controller {
                 super::controller_icons::draw(

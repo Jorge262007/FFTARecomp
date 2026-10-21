@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "separate-cpu-ppu-frame-timing",
+  "title": "Separate CPU PPU work from core frame time with scoped diagnostics",
+  "kind": "added",
+  "platforms": [
+    "Root workspace core, desktop and headless native runners"
+  ],
+  "changes": [
+    "Add scoped thread-local host timing for hardware scanlines and extra zoom rows outside machine/save state. Disabled entry points check capture state without clock reads; scopes restore prior capture on exit/unwind and stay on the emulation thread. Parallel zoom measures caller wall time including worker waits.",
+    "Report bounded per-frame PPU and core-remainder distributions and call/invalid-interval counts on desktop profiling and opt-in headless capture. Discard incomplete guarded frames and exclude headless warm-up.",
+    "Add --ppu-profile benchmark runs separated from ordinary timing/verification, reject malformed/truncated/inconsistent interval totals and timing contamination, and validate timing totals while retaining older frame-profile rows without totals.",
+    "Exclude the incoming local save fixture archive from version control; its original bytes remain read-only and no save data enters the portable packages."
+  ],
+  "validation": [
+    "167 core and 46 runtime release tests passed serially. New checks cover disabled/thread-local capture, nested/unwinding cleanup, actual forced-blank and bitmap frame state equivalence, bounded retained samples and invalid-interval accounting. Nine Python benchmark tests passed, including malformed PPU metrics and contamination rejection.",
+    "The explicit native 3000-frame replay with dispatch and PPU observation enabled passed exact frame/OAM/audio transcript and full serialized-state equality. Each captured frame contained 160 hardware scanlines and nonoverlapping PPU intervals.",
+    "With PPU timing disabled, the same-host 3000-frame replay passed framebuffer/OAM, full final-state and execution-count equality over five alternating pairs pinned to CPU 15. Baseline/candidate medians: 2.430751/2.445480 ms/frame; the roughly 0.6 percent difference is within observed variability, not evidence of an AI gain.",
+    "The actual --ppu-profile pipeline passed five alternating same-binary pairs at zoom level 2 on a 3000-frame intro. Both instrumented runs captured 2880 post-warmup frames, 460800 scanlines and 1837 zoom calls with valid disjoint intervals; full final state and dispatch counts matched ordinary runs. Estimated instrumentation overhead was 1.162/1.370 percent versus each uninstrumented median, a single-run estimate per side.",
+    "In that zoomed introductory sample only, mean hardware-scanline time was 1.059022/1.071116 ms/frame, zoom time 0.072856/0.073398 and core remainder 1.493626/1.502000. Final stricter parser also accepted both saved captures; these are workload-specific CPU wall times, not AI or GPU measurements.",
+    "Final expanded Docker suites passed 312 Linux tests (167 core, 26 input/config, 33 menu, 46 runtime, 40 screen) and 311 Windows/Wine tests (167 core, 26 input/config, 33 menu, 47 runtime, 38 screen); nine optional cases remained ignored per target. Both portable archives passed integrity, private-data/cache exclusion, library whitelist, production-marker and BUILD-INFO SHA-256 checks; Linux executable modes were preserved.",
+    "The final exported Linux launcher passed isolated Xvfb slot save/load after folder relocation, cache reuse, two startup backups and unchanged per-user data. Both sessions emitted valid desktop PPU counts (160 hardware calls per captured frame) and complete bounded stage reports, including after state load; both closed normally.",
+    "An incoming local save archive was inspected read-only. ZIP CRC, slot-preview and machine-payload checksums, snapshot version and ROM identity matched the current local EUR fixture. Deserialization and slow-scene classification remain pending; no game-progress contents were recorded in project memory."
+  ],
+  "limitations": [
+    "CPU wall times are not GPU execution or summed worker CPU times. Detailed tile/sprite/composition timing, classification/replay of the newly available local snapshot, native Windows and physical-controller checks remain separate. AndroidPort is unchanged.",
+    "The zoomed profiling run exercised the serial zoom path. Parallel zoom profiling and detailed GPU/PPU bottleneck analysis still require their own controlled validation."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu_profile.rs",
+    "crates/gba-core/src/lib.rs",
+    "crates/gba-core/src/ppu.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/perf.rs",
+    "scripts/benchmark_windows_runtime.py",
+    "scripts/tests/test_benchmark_runtime.py",
+    ".gitignore"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "summarize-desktop-features-in-readme",
+  "title": "Summarize added desktop features in the GitHub README",
+  "kind": "docs",
+  "platforms": [
+    "Desktop Windows and Linux documentation"
+  ],
+  "changes": [
+    "Add seven concise bullets to the existing Features list for FPS counters, menu button combinations, nine previewed save-state slots, Undo, two startup save backups, Linux portable storage and Docker builds. Preserve all existing README lines and layout."
+  ],
+  "validation": [
+    "Inspected the README diff: seven added feature lines, no removed or rewritten lines. Cross-checked FPS modes against docs/fps_overlay.md and desktop behavior against PROJECT_STATE.md and existing README sections."
+  ],
+  "limitations": [
+    "Documentation-only change; no runtime behavior or compatibility claim changed."
+  ],
+  "files": [
+    "README.md"
+  ],
+  "references": [
+    "docs/fps_overlay.md",
+    "docs/menu_shortcuts.md",
+    "docs/save_states.md",
+    "docs/save_backups.md",
+    "docs/portable.md",
+    "docs/docker.md"
+  ]
+}

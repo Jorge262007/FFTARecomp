@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "honor-current-request-on-context-resume",
+  "title": "Reconcile current user intent before executing a compacted task queue",
+  "kind": "changed",
+  "platforms": [
+    "Project agent workflow"
+  ],
+  "changes": [
+    "All three local skills and AGENTS now require reconciling the latest request before acting on a compacted summary; workflow-only requests preserve unrelated partial runtime work without executing it.",
+    "Remove superseded live-process guidance from the handoff and explicitly preserve the unfinished restore-preview validation boundary."
+  ],
+  "validation": [
+    "Read the existing terminal task evidence and current Git diff; reused the completed restore-preview runtime test log (49 passed, 3 ignored) without rerunning builds, fixtures or benchmarks.",
+    "All three local skills passed quick_validate.py; git diff whitespace check passed.",
+    "Ran project_memory.py check and check --base HEAD: both report the existing unfinished crates/recomp/src/play.rs change lacks its own memory record. This workflow record does not claim coverage of that runtime implementation."
+  ],
+  "limitations": [
+    "Guidance is agent-maintained; no automatic compaction hook enforces task selection. Existing runtime preview changes remain unfinished and are not delivered by this workflow update."
+  ],
+  "files": [
+    "AGENTS.md",
+    ".cursor/skills/ffta-development/SKILL.md",
+    ".cursor/skills/ffta-project-memory/SKILL.md",
+    ".cursor/skills/ffta-windows-validation/SKILL.md",
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/MEMORY_WORKFLOW.md"
+  ]
+}

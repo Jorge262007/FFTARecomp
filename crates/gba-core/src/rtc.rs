@@ -48,6 +48,7 @@ pub fn detect(rom: &[u8]) -> bool {
 }
 
 #[derive(Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize)]
 enum Phase {
     Idle,
     Command,
@@ -55,6 +56,7 @@ enum Phase {
     Write,
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Rtc {
     // --- GPIO port registers (low nibble significant) ---
     /// Last value written to the data port (read back on output pins).

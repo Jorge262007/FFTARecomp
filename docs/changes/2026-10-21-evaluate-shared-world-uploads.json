@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-shared-world-uploads",
+  "title": "Share one world upload per native UI source and presentation",
+  "kind": "performance",
+  "platforms": [
+    "Linux desktop",
+    "Windows GNU under Wine"
+  ],
+  "changes": [
+    "Implement scoped reuse that shares GPU world handles only for identical immutable source slices and dimensions in one set_ui_layers call; upload each distinct world again on every call. Keep independent LUT/layout/UI revisions and Stats/FPS backgrounds.",
+    "Reuse existing bound resources where safe, split previously shared handles before divergent writes, and rebind when source groups or dimensions change. No cross-frame address-based content cache or guest/serialization/translation change."
+  ],
+  "validation": [
+    "Native 58 runtime/41 screen suites passed (4 optional ignored each) and the added CPU source-key test passed separately. Same extent/source/dimensions are required; layout/view differences do not prevent same-call sharing.",
+    "Explicit old single-layer and new shared-layer GPU tests passed on AMD Radeon 780M/RADV. New test checks CPU/pixel equality and exact upload bytes across source mutation, split/merge/reordering, absent/reactivated layers, 1x1/320x160/640x320 dimensions and layer recreation.",
+    "Candidate passed all existing 3530 framebuffer/OAM hashes, final state and dispatch counts, private files unchanged. Logical payload is 316299008 bytes versus 530412288 for the prior cache implementation; verification timing is excluded because compilation overlapped.",
+    "Extended distinct per-layer pixel/LUT/layout/crop test exposed a fractional CPU/WGSL texel-boundary mismatch. Exact same-case GPU output matches independent per-layer world uploads, including all fractional crops; integer crops also match CPU. The timing command chained after the failed strict-CPU check did not start. After adding independent-path verification, five new-code A/B pairs completed (87605), all paired means improve 0.336-0.773%. Median mean 8.251393 -> 8.218974 ms (-0.3929%); median p95/p99 10.068110/10.571226 -> 10.015975/10.458356 ms.",
+    "World-map check passed all 240 reference image/OAM hashes, full state/counts and two alternating 1200-frame diagnostic pairs (baseline 3.022/3.084 ms, candidate 3.045/3.024 ms), private data unchanged. No systematic regression established by this short check.",
+    "Native GUI load/zoom6/Undo/reload/resume/close passed with profiling off and FPS HUD active; inspected captures show correct preview/gameplay. Physical Radeon/Vulkan Wayland replay matches all 3530 reference hashes, full state/counts and exits cleanly.",
+    "Final Docker suites passed 330 Linux and 329 Windows/Wine tests (13 optional ignored each). Archives passed integrity/privacy and bundled-doc identity, PE resource/import compatibility and Linux GLIBC 2.35 checks.",
+    "Actual new Linux portable passed isolated cold-cache GUI load/zoom6/Undo/reload/resume/close with FPS HUD, profiling off and inspected captures. Canonical local exports and BUILD-INFO updated after validation; previous archives preserved.",
+    "Compacted the task handoff into one current queue and a closed/rejected ID index with evidence links; retained artifact locators and scope limits instead of duplicate historical live-process guidance. project_memory.py render/check/check --base HEAD and whitespace check passed."
+  ],
+  "limitations": [
+    "Small unpaced llvmpipe timing gain; no isolated AI-turn or native Windows performance claim. Native Windows GPU/physical-controller and full device/lifecycle fault coverage remain unavailable.",
+    "Fractional world-view widths can select neighboring texels in CPU versus WGSL even with independent uploads. The new sharing path must match independent GPU output; broad arbitrary-float CPU/GPU equality is not established."
+  ],
+  "files": [
+    "crates/screen/src/ui_layer.rs",
+    "crates/screen/src/present.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/fps_overlay.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

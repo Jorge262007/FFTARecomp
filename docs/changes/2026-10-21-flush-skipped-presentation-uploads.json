@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "flush-skipped-presentation-uploads",
+  "title": "Flush pending GPU uploads when presentation is skipped",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Track pending UI/framebuffer/uniform Queue writes across updates and flush them with transfer-only submissions when presentation is skipped, preserving revision caches and normal draw/FPS/timestamp behavior.",
+    "Skip frontend presentation preparation for zero-size windows, avoiding new UI uploads and software-surface creation without altering guest/audio progress.",
+    "Add an optional no-ROM Presenter lifecycle example covering 1200 zero-size batches, hidden/reactivated UI, LUT/world changes, preserved pixel revisions and restored normal presentation.",
+    "Preserve the benchmark contract on zero-size early returns by reporting a skipped presentation instead of silently accepting a frame."
+  ],
+  "validation": [
+    "Native release suites passed 58 runtime and 46 screen tests (4/5 optional ignored), including batch consumption and existing bounded acquisition recovery cases; native release runtime/launcher and the diagnostic example build passed.",
+    "Actual Presenter diagnostic under Xvfb/llvmpipe Vulkan passed 1200 zero-size UI batches, normal recovery and teardown. Scheduled 492179776 logical bytes; RSS 130672 -> 133232 KiB, unchanged from batch 600 to 1200. No blocking GPU poll was added.",
+    "Normal native GUI load/zoom/Undo/reload/resume/WM close passed with inspected resumed-battle HUD capture. That executable predates only the subsequently added zero-size benchmark error guard; normal window behavior is unchanged.",
+    "Final review found the early zero-size return initially bypassed the benchmark skip error. Windows export build was interrupted and Linux had already completed; these preliminary outputs were not promoted. Updated the guard and source manifest before final builds.",
+    "After the zero-size benchmark guard fix, native release suites again passed 58 runtime/46 screen tests (4/5 optional ignored) and the final native runtime/launcher build passed. No guest code, shader or save-format changes required new scene recordings or A/B calibration.",
+    "Final corrected Docker builds passed 333 Windows/Wine and 334 Linux tests, 14 optional ignored each. Archives passed integrity/private-data exclusion, updated bundled feature-doc identity, unchanged final source manifest, PE resources/imports and GLIBC 2.35 verification. Running Linux archive hashes match the inspected export.",
+    "Actual final Linux portable with cold cache passed load, zoom-6 running, Undo load, reload/resume and WM close with profiling off and both FPS counters. Inspected battle/HUD and Undo captures. Promoted inspected Windows/Linux archives and BUILD-INFO locally, preserving previous exports; no public release.",
+    "project_memory.py render, check and check --base HEAD and the Git whitespace check passed before handoff."
+  ],
+  "limitations": [
+    "Real compositor minimization, monitor switching, forced runtime device loss and native Windows GPU/GUI remain unverified; the zero-size API diagnostic and simulated acquisition tests do not establish those cases. The broader performance TODO remains open.",
+    "No AI-turn speedup or comparative normal-frame timing claim. Linux RSS observations describe one llvmpipe Vulkan run, not a universal GPU memory budget. No guest/state/save-format or shader change."
+  ],
+  "files": [
+    "crates/screen/src/present.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/examples/presenter_skip_uploads.rs",
+    "docs/fps_overlay.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

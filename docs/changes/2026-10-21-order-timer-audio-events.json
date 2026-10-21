@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "order-timer-audio-events",
+  "title": "Service timer and audio events chronologically across native tick batches",
+  "kind": "fixed",
+  "platforms": [
+    "Linux desktop",
+    "Windows GNU / Wine"
+  ],
+  "changes": [
+    "Process scheduled events at their own master-clock timestamps before completing a tick batch, keeping audio-grid/timer tie ordering consistent with single-cycle execution.",
+    "Route halt/IntrWait skips through the same clock path and service timers/audio during DMA without reentering video and restarting an active transfer. Extend the endpoint by stolen DMA cycles rather than replacing requested CPU work.",
+    "Keep serialized fields, state schema, native ABI, translation coverage and intentional interpreter hooks unchanged. Existing version 1 slots still load, undo and reload; older executables may produce different subsequent audio."
+  ],
+  "validation": [
+    "The new ROM-free batching regression fails on the old implementation. Five new regressions cover 24 batch/period combinations, both timers and every prescaler/cascade with HBlank DMA, exact sample/timer ties, sound refill/stolen-cycle accounting and skip equivalence.",
+    "Final native and Windows GNU/Wine core suites each pass 179 tests, with 5 optional ignored; native runtime passes 66 with 4 ignored. Optional 3000-frame frame/OAM/audio/full-state observer regression also passes on the corrected core.",
+    "Actual corrected native CLI preserves all 3530 old framebuffer/OAM hashes, initial snapshot/scene and dispatch counts. Full final state matches the isolated corrected baseline. Old/corrected baseline final CPU and clock are equal, with only mixed audio, HLE and timer bookkeeping fields differing intentionally.",
+    "Corrected extra-seed coverage remains excluded: first 211 frames now match completely, but CPU/clock diverge at 212 and final IWRAM/HLE differ. The continuous-audio pair case did not run; no failed-coverage timing or production acceptance.",
+    "Five alternating native uninstrumented headless pairs pinned to CPU 15 preserve each build's expected full final state and all protected inputs. Median mean work is 5.756460 to 5.823067 ms (+1.157%, +0.066607 ms). This is an audio correctness fix with measured cost, not a speedup.",
+    "Native isolated GUI load of an old slot, zoom, Undo, reload and WM-close pass on Xvfb/Vulkan, without unexpected software fallback; battle and Undo images inspected. Canonical native binaries restored after isolating the candidate.",
+    "Docker exports pass 349 Windows/Wine and 350 Linux tests, 15 optional ignored each. Archive integrity, private-data exclusion, bundled feature docs, source hashes, PE resources/import sets and GLIBC <= 2.35 checks pass.",
+    "The extracted Linux export passes all 3530 old framebuffer/OAM hashes and counts, with full state exactly matching the corrected native reference. Actual cold-cache portable GUI rebuilds 28859 native blocks and passes old-slot load, zoom, Undo, reload and clean WM-close on Vulkan without fallback; battle/Undo captures inspected.",
+    "Published the validated local Linux/Windows archives only after export gates, preserving previous archives under ignored timer-audio-order-exports/previous-exports. Installed the exact validated native runtime/launcher candidates so target/release agrees with current source. No commit, push or public release."
+  ],
+  "limitations": [
+    "The original rare AI stall remains unisolated. Extra ROM seed coverage still fails full-state correctness and remains disabled. Wine/Xvfb checks do not establish native Windows, physical-controller or all hardware/DMA corner cases."
+  ],
+  "files": [
+    "crates/gba-core/src/mem.rs",
+    "docs/save_states.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/changes/2026-10-21-isolate-rom-coverage-audio-divergence.json",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/save_states.md"
+  ]
+}

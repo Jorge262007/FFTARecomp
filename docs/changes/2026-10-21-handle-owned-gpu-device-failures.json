@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "handle-owned-gpu-device-failures",
+  "title": "Return owned GPU device failures before resource creation can panic",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows"
+  ],
+  "changes": [
+    "Latch the first uncaptured error or loss callback on the Device owned by Presenter using Arc/OnceLock; return it to the existing software fallback instead of panicking when new UI or resized textures are created after device loss.",
+    "Check failure state around uploads, acquisition, encoding/submission and VSync; suppress further UI writes on a latched failure. Preserve local scoped configuration errors, guest timing, rendering equations and normal backend selection. No per-frame allocation or GPU wait is added.",
+    "Add a private ignored Linux/Windows device-destruction regression with existing workspace winit/softbuffer as dev-only dependencies. No public fault API, runtime feature or environment injection control is shipped."
+  ],
+  "validation": [
+    "Baseline plain/cached UI destruction returned errors and software presentation succeeded, but expanded test reproduced a wgpu panic creating native-ui texture views after actual Device::destroy. Original failing log retained; resize was not reached in that failed run.",
+    "Initial corrected native Xvfb/llvmpipe Vulkan test passed all four actual destruction cases (plain/cached/new UI/resize), controlled errors, software presentation and teardown. Added first-error retention, suppressed-write/VSync and scoped-error-isolation assertions; final native/Windows validation pending.",
+    "Final native release suites passed58 runtime/46 screen tests (4/6 optional ignored). Expanded actual destruction regression passes all four scenarios plus scoped-error isolation, first-error retention, suppressed writes and VSync rejection. Windows GNU build and explicit Wine10/Vulkan regression also passed all assertions and software surface presentation.",
+    "Final native default GUI with profiling off passed load/zoom/Undo/reload/resume/WM close with resumed battle/HUD capture inspected; log confirms Vulkan and no unexpected software fallback. Physical Radeon Vulkan/Wayland replay matched all3530 image/OAM hashes, full state and native/fallback counts with unchanged private data and clean close. Functional verification overlapped container builds; its timings are excluded from performance claims.",
+    "Final Docker gates passed333 Windows/Wine and334 Linux tests (15 optional ignored each); the new optional device-destruction regression was separately executed on native Linux and Wine. Archives pass integrity/private-data exclusion, updated bundled doc identity, final source hashes, PE resources/imported DLL set and GLIBC2.35 checks.",
+    "Actual final Linux archive with cold cache passed normal Vulkan load/zoom/Undo/reload/resume/WM close, no unexpected software fallback, inspected battle/HUD and Undo captures. Updated local dist archives and BUILD-INFO after checks, preserving prior exports; no public release. Windows archive SHA25685a012f6eff45d618d3b654db9cf1839682db6f73cefe89e434c99e96709b05d; Linux1bf8ca4afd0e364a7e315ec63b29ab15bebfa857ff147fe97a9b14f82643c70d.",
+    "project_memory.py render/check/check --base HEAD, rustfmt --check on the private regression and Git whitespace validation passed before handoff."
+  ],
+  "limitations": [
+    "Explicit Device::destroy proves deterministic invalidation/new-resource recovery, not every asynchronous hardware-reset race, physical GPU fault or native Windows/Wayland device-loss scenario. The software surface is exercised directly after Presenter Err; app fallback control flow is unchanged.",
+    "No AI-turn or normal-frame speedup claim. Physical Wayland verification overlapped builds and is correctness evidence only. Guest/save formats, backend selection and AndroidPort are unchanged; the broader performance TODO remains open."
+  ],
+  "files": [
+    "crates/screen/src/present.rs",
+    "crates/screen/src/device_loss_tests.rs",
+    "crates/screen/Cargo.toml",
+    "Cargo.lock",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/fps_overlay.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

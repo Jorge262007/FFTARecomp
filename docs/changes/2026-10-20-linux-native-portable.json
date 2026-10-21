@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "linux-native-portable",
+  "title": "Package a native Linux portable edition with executable archive permissions",
+  "kind": "added",
+  "platforms": [
+    "Ubuntu 26.04 x86_64",
+    "Windows packaging compatibility"
+  ],
+  "changes": [
+    "Build and package native recomp/ffta-play plus TinyCC as dist/FFTARecomp-linux-portable.tar.gz, with executable launchers, local portable marker and empty Data directories; replace the native Linux installer packaging entry point.",
+    "Share explicit package input selection and staged atomic publication between Linux tar.gz and Windows ZIP, retaining the existing Windows script interface and TinyCC source/licenses while excluding game and personal data.",
+    "Document Ubuntu startup, native dependencies, glibc 2.43 requirement for this host-built runtime, portable migration and observed validation; extend project guidance for Linux packaging."
+  ],
+  "validation": [
+    "Native locked/offline release build and TinyCC build passed on Ubuntu 26.04 x86_64 using locally extracted ALSA development metadata. All runtime shared libraries resolved with ldd; ELF inspection established glibc 2.43 runtime and 2.39 wrapper requirements.",
+    "26 input/config and 41 runtime tests passed natively; two optional runtime tests were ignored.",
+    "Observed native X11 gameplay/FPS on the local desktop. An isolated Xvfb/Mesa llvmpipe keyboard smoke saved a preview slot, closed normally, moved the folder, loaded the same slot and closed normally again; translation cache bytes/mtime were reused, startup backups counted one then two and external per-user files remained unchanged.",
+    "The refactored Windows compatibility packaging entry point produced a ZIP with archive CRC and input-equality verification.",
+    "The native Linux packaging shell script completed end to end. Final gzip/tar integrity, executable mode 0755, runtime/TinyCC input equality, source/notices presence and private-data exclusion checks passed. Project memory coverage, skill validation and whitespace checks passed."
+  ],
+  "limitations": [
+    "This native archive was built for Ubuntu 26.04 x86_64 and requires glibc 2.43; older Ubuntu versions and Steam Deck compatibility were not established.",
+    "Physical controllers, native Wayland interaction and first-launch ROM selection were not tested on Linux; the Linux smoke used a preplaced user ROM and Xvfb software rendering for menu automation.",
+    "Application data is portable; Linux graphical, ALSA, udev and libc runtime dependencies remain supplied by the host. Windows-hosted Linux cross-build and Android outputs remain separate."
+  ],
+  "files": [
+    ".cursor/skills/ffta-development/SKILL.md",
+    "README.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/fps_overlay.md",
+    "docs/menu_shortcuts.md",
+    "docs/portable.md",
+    "docs/save_backups.md",
+    "docs/save_states.md",
+    "scripts/package_ffta_linux.sh",
+    "scripts/package_ffta_windows.py",
+    "scripts/package_ffta_portable.py"
+  ],
+  "references": [
+    "docs/portable.md",
+    "docs/development/PROJECT_STATE.md"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "exclude-ide-discovery-from-performance-baselines",
+  "title": "Identify and remove IDE npm discovery interference from local benchmarks",
+  "kind": "docs",
+  "platforms": [
+    "Ubuntu Linux, VS Code local workspace and native replay validation"
+  ],
+  "changes": [
+    "Document host CPU/SMT contention checks and distinguish deterministic correctness from reliable wall-time comparisons. Earlier battle timing samples collected under the saturated host are superseded for performance acceptance.",
+    "Identify the stalled automatic workspace npm package scan and apply npm.autoDetect=off only in the ignored local workspace settings, preserving the existing color preferences. Cancel only that identified automatic scan after verifying its executable, arguments and workspace directory; no global editor settings or runtime binary are changed by this workaround.",
+    "Record the development constraint for ignored build/Wine trees and link the measurement workflow from durable project state. Local editor preferences remain outside version control."
+  ],
+  "validation": [
+    "A VS Code child ripgrep process had been scanning package manifests from the project root for over half an hour with --files --hidden --no-ignore --follow, consuming about 988 percent CPU. A two-second per-CPU sample showed most cores 59-95 percent busy alongside the pinned replay, with its SMT sibling about 77 percent busy. No source package.json files were found by a normal ignored-tree search.",
+    "The installed VS Code npm extension manifest confirms autoDetect accepts off/on with resource scope. The existing workspace JSON was read and validated; only that property was added, and all prior settings were preserved. The exact identified scan then terminated; a follow-up process check found it absent and the replay SMT sibling idle.",
+    "A subsequent baseline replay on the quieter host, using the same native binary, local snapshot, translation, audio setting and CPU affinity, completed five 1200-frame runs with a median of 10.776782 ms/frame. All framebuffer/OAM, full final-state and execution-count checks passed; this is an environment change, not a code speedup.",
+    "The loaded-host and quiet-host baseline summaries match on all 1200-frame workload parameters, initial state and hashes of baseline/ROM/translation/input/snapshot. Their baseline medians are 18.655024 and 10.776782 ms/frame; the earlier 600-frame sample is not used for that comparison."
+  ],
+  "limitations": [
+    "A quiet sample does not reserve a CPU or eliminate all background/thermal variation. Recheck load before comparisons; do not cancel unrelated user work.",
+    "The editor setting is deliberately local and ignored; other checkouts need their own workspace preference if they encounter this issue. No claim is made that this scan caused the original user-reported lag in every scene."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "bound-delayed-normal-audio",
+  "title": "Bound delayed Normal audio and remove callback file I/O",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows GNU/Wine"
+  ],
+  "changes": [
+    "Replace the unbounded Normal temporary file with a preallocated 131072-pair stereo i16 queue: 2 seconds/512 KiB at 65536 Hz. Overflow keeps the latest 250 ms and crossfades the old read head over 10 ms with a fixed 2620-byte tail, including repeated overflow during a fade.",
+    "Consume Normal entirely from memory without callback file I/O, allocation or error logging. Keep faithful 1x consumption, existing timeline resets, allocation-failure fallback and legacy ff.audio=normal config. Label the menu choice as delayed 1x with its 2-second application queue budget.",
+    "Add optional epoch/frame-gated Normal queue/resync/skipped telemetry; update feature documentation, TODO, lasting state and handoff."
+  ],
+  "validation": [
+    "Four ROM-free queue tests cover ordering/stereo/reuse/invalid input, recent-audio recovery and continuous stereo fade, oversized/repeated overflow and 6000 ticks per 2x/4x/8x producer with unchanged capacity (93.75 seconds of 1x consumption per speed).",
+    "Actual callback regression verifies exact observed/unobserved output, audible synthetic samples, faithful 1x consumption despite Enhanced configuration, no holds and silent discard. Frame-gated counter test excludes earlier jumps and handles new epochs.",
+    "Native release suites pass 78 runtime/33 menu; Windows GNU/Wine passes 79 runtime/33 menu, 4 optional runtime tests ignored per platform. Native and Windows production builds succeed without warnings; existing canonical binaries restored and verified by SHA-256. Source mtime refreshed for correct subsequent Cargo regeneration.",
+    "Actual Linux CPAL44.1kHz/native/Xvfb Normal-at-Fast4x gates9400:11400 pass:365 Faithful/376 Enhanced-configured callbacks, max130287/130783 queued pairs below131072,10 resyncs each, zero faithful holds/over-period callbacks/producer drops. Enhanced sources stay unrouted. Inspected menu/Fast/normal captures, persisted config, no spool files, unchanged slot bytes and clean exit0.",
+    "First GUI helper used an extra Escape and paused before gate9400; counts stayed zero and no audio result was inferred. Correcting only that setup allowed the previously unmeasured Faithful/Enhanced gates to pass; no rebuild or fixture recreation. Evidence retained under ignored target/normal-audio-bounds/."
+  ],
+  "limitations": [
+    "Live checks use volume zero and an idle battle. Audible fade quality, recognizable audio/video event offset, physical reconnection and native Windows hardware remain unverified; the 2-second budget excludes backend/device buffering.",
+    "Normal intentionally skips old sounds at overflow and is not pitch-preserving time stretch. No guest mix/timer/save/translation ABI change, AndroidPort change, portable export, commit or release."
+  ],
+  "files": [
+    "crates/recomp/src/ff_audio.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/audio_profile.rs",
+    "crates/recomp/src/play.rs",
+    "crates/menu/src/lib.rs",
+    "crates/menu/src/theme.rs",
+    "docs/fast_forward_audio.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/fast_forward_audio.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

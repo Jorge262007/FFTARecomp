@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "explain-fast-fps-counter-difference",
+  "title": "Explain expected INT and EXT divergence during Fast",
+  "kind": "changed",
+  "platforms": [
+    "Desktop Linux and Windows GNU/Wine"
+  ],
+  "changes": [
+    "Add compact inline Video > FPS counter help explaining INT game frames, EXT presentations and expected differing rates during Fast. Preserve definitions, settings, meter and pacing.",
+    "Close BUG-02-FPS diagnosis for the clarified Fast-only report using existing actual4x captures (~129/32 and130/32.5) and normal59.7/59.7; retain general hardware/VSync limits without reopening PERF-10."
+  ],
+  "validation": [
+    "Existing native and Wine3-test FPS suites pass, including4guest frames per present, pause reset, skipped frames, clipping and revision behavior. Native targeted FPS dropdown test passes.",
+    "Windows menu compiles warning-free and all33menu tests pass under Wine. Its640x480 preview is byte-identical to the visually inspected native menu. First menu-only native build failed Wayland pkg-config setup; established runtime/menu feature selection succeeds. No production rebuild, replay or repeated cadence matrix was needed.",
+    "Reused inspected CPAL/native Fast and Normal4x captures and normal return from target/fast-audio-rate/ and target/normal-audio-bounds/. New menu/log evidence is under ignored target/fps-menu-help/."
+  ],
+  "limitations": [
+    "EXT measures successful host API presentations, not physical scanout. Native Windows hardware/refresh/VSync coverage remains separate; no normal-speed difference was reported and no pathological pacing issue is inferred. No AndroidPort/export/release change."
+  ],
+  "files": [
+    "crates/menu/src/theme.rs",
+    "docs/fps_overlay.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/fps_overlay.md",
+    "docs/development/todo_bug_fix.md"
+  ]
+}

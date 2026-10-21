@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-immutable-rom-entry-seeds",
+  "title": "Reject additional ROM entry coverage on full-state divergence",
+  "kind": "docs",
+  "platforms": [
+    "Native Linux headless / TinyCC"
+  ],
+  "changes": [
+    "Evaluate18 already observed immutable ROM entry labels with the existing isolated build path; no mutable battle RAM, intentional hook, production runtime, game database or package change.",
+    "Reject production acceptance when full final machine state differs despite equal3530-frame framebuffer/OAM; stop before timing and preserve diagnostic evidence."
+  ],
+  "validation": [
+    "Read the existing census top missing-entry list; SQLite read-only lookup confirms zero mapped functions for the fixture image. Reused that census without rerunning it.",
+    "Sequential matched TinyCC builds pass. Reconstructed baseline library is byte-identical to the existing translation; candidate grows28859 to29196blocks. Both use the same isolated runtime, boot/RAM discovery, exact ROM and compiler inputs.",
+    "Two verification runs match all3530 framebuffer/OAM hashes, initial snapshot identity, warm-up scene and dimensions. Full final serialized state differs: baseline38cc54374bbc23dafd697492c2600697013a06e2d75dd68a31c5f1f9d0e2a9ac, candidate7393d554c2ec878bc0d8beb5fd0655b332f986c3de45050c680e1363a46f0b01. Verification fails as intended; zero timing pairs performed.",
+    "Baseline/candidate dispatch counts23355688/83764597 and24121477/61353461 are not host timing evidence. Verified protected fixture/runtime/original-library hashes unchanged after failure. Build session74952 and evaluation4376 terminal; local artifacts remain ignored."
+  ],
+  "limitations": [
+    "The differing serialized component and first divergence are not yet isolated. Equal images do not establish guest equivalence; no speedup, audible defect or original rare-stall diagnosis is claimed. No new translation accepted or portable archive rebuilt."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/changes/2026-10-21-characterize-enemy-fallback-host-cost.json",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

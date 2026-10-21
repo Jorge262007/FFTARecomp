@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-ui-packing-input-cache",
+  "title": "Reuse native UI packing for unchanged complete inputs",
+  "kind": "performance",
+  "platforms": [
+    "Linux desktop",
+    "Windows GNU under Wine"
+  ],
+  "changes": [
+    "Implement an input cache keyed by raw source pixels, backing and exact resolved packing mode/length/right parameters. Hits skip pure packing and use the existing GPU revision contract; world, palette, layout and Stats background stay dynamic.",
+    "Use owned input snapshots with an exact bijective 32-bit field representation, exhaustive UiPixel destructuring and no unsafe layout/endianness casts. Changes conservatively invalidate packed output and clear/restore resets all host cache data; FPS and native producers share unique revision allocation."
+  ],
+  "validation": [
+    "Native runtime/screen suites passed 55/41 tests (3 optional ignored each), including no repacking on identical keys, in-place source/backing changes, mode/length/anchor changes, clear/reactivation, and direct packing parity for blends and backing variants.",
+    "Initial struct-equality trial was too costly in UI preparation (0.203124 ms diagnostic) and was replaced before acceptance timing by the exact word representation; original artifacts are preserved locally.",
+    "Final exact-word implementation matched all 3530 reference framebuffer/OAM hashes, full final state and dispatch counts with private files unchanged. Five alternating A/B pairs reduced median mean host work 8.339864 to 8.222313 ms (-1.4095%); all pairs improve 1.39-1.92%, and median p95/p99 improve. UI logical payload 2011423488 to 530412288 bytes.",
+    "World-map new-scene check matched all 240 framebuffer/OAM hashes, final state and counts; two alternating 1200-frame diagnostic pairs had comparable means (baseline 3.055/3.106 ms, candidate 3.077/3.064 ms), private files unchanged.",
+    "New native Linux GUI load, six zoom steps, Undo load, reload, resume and close passed; inspected captures show clean preview and gameplay with FPS HUD. Physical Radeon/Vulkan Wayland replay matched all 3530 frame/OAM hashes, final state and counts and exited successfully.",
+    "GUI text-panel length changed from 100% to 150% on the action-menu snapshot; inspected before/menu/after captures confirm repacking/layout update and clean exit. This run overlapped builds and is not timing evidence.",
+    "Docker exports passed 325 Windows/Wine and 326 Linux tests (11 optional ignored each). Archives passed integrity/privacy, bundled feature-doc identity, PE resources and unchanged DLL-import sets, and Linux GLIBC 2.35 checks.",
+    "Actual extracted Linux export passed isolated cold-cache GUI load/zoom6/Undo/reload/resume/close with profiling disabled and inspected screenshots. Initial harness setup failed before app launch on an existing empty Data directory/missing working directory; corrected only the isolated setup, then the check passed.",
+    "Canonical local portable archives and BUILD-INFO were updated after validation; prior exports and source/artifact hashes are preserved in ignored target/desktop-perf/ui-input-cache-exports. project_memory.py render/check/check --base HEAD and whitespace check passed."
+  ],
+  "limitations": [
+    "Timing benefit is measured on an unpaced llvmpipe Vulkan workload, not native Windows performance or proof of an AI-turn speedup. Native Windows GUI/physical-controller coverage remains absent.",
+    "Owned source/backing snapshots retain additional memory proportional to current layer sizes, with at most two source/backing pairs and no historical cache entries. No serialized state or translation ABI change; shared world-texture uploads remain separate PERF-05 work."
+  ],
+  "files": [
+    "crates/recomp/src/ui_pixels.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/fps.rs",
+    "crates/recomp/src/main.rs",
+    "crates/screen/src/ui_layer.rs",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/fps_overlay.md"
+  ]
+}

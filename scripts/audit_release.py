@@ -7,7 +7,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 ROM_SHA1 = '4ac05441f4de70a4ec3dd932116346c61b8783d9'
-SUSPECT_SUFFIXES = {'.gba', '.gb', '.gbc', '.sav', '.srm', '.bios', '.bin', '.dump', '.ppm', '.asm'}
+SUSPECT_SUFFIXES = {'.gba', '.gb', '.gbc', '.sav', '.ffstate', '.srm', '.bios', '.bin', '.dump', '.ppm', '.asm'}
 findings = []
 files = 0
 for path in ROOT.rglob('*'):
@@ -18,7 +18,7 @@ for path in ROOT.rglob('*'):
     if cache and '--include-build-cache' not in sys.argv:
         continue  # Build cache is excluded from the source upload.
     files += 1
-    if path.suffix.lower() in (SUSPECT_SUFFIXES if not cache else {'.gba', '.gb', '.gbc', '.sav', '.srm', '.dump', '.ppm'}):
+    if path.suffix.lower() in (SUSPECT_SUFFIXES if not cache else {'.gba', '.gb', '.gbc', '.sav', '.ffstate', '.srm', '.dump', '.ppm'}):
         findings.append(f'REVIEW {rel} ({path.stat().st_size} bytes)')
     try:
         with path.open('rb') as f:

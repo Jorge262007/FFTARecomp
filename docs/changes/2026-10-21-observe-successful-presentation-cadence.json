@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "observe-successful-presentation-cadence",
+  "title": "Observe successful host presentation intervals without changing pacing",
+  "kind": "added",
+  "platforms": [
+    "Native Linux",
+    "Windows GNU / Wine / Docker"
+  ],
+  "changes": [
+    "Add bounded opt-in host presentation cadence and guest-frame advance counts, reusing the FPS timestamp. Single-traversal frame range and lifecycle anchors exclude paused/priming/FF/zero-size boundaries while surface skips remain visible as longer intervals.",
+    "Extract the existing pure diagnostic frame-window helper for audio/cadence reuse. Keep the observer off in default play and callback-free benchmarks, with unchanged guest state, rendering/DSP/scheduler policy and FPS behavior."
+  ],
+  "validation": [
+    "Native runtime66 tests pass,4 optional ignored, including cadence skip/boundary/backend/window/cap/off cases and the existing audio gate and sample/queue parity tests. Initial helper initializer syntax error was caught by Rust parsing, corrected before successful validation; first test build failed, corrected build passed.",
+    "Native CPAL/Xvfb/Vulkan llvmpipe matrix on existing scene window8596:9196 passes four clock/audio and requested-VSync cases: clock600successes/599intervals with one guest advance, mean16.7445/16.7427ms; audio237/236 with multi-guest advances, mean42.6843/42.6692ms. No skips/backend changes/omissions, all windows close normally and private slots unchanged.",
+    "Strengthened skip/boundary test through the actual PlayProfile API and reran native suite:66passed,4ignored. Matrix release behavior is unchanged by that test-only edit. Silent fallback GUI using a process-local invalid ALSA config also passes a closed window with>500normal presentations and no multi-guest advances; no system settings changed. Clock/audio and silent-fallback captures inspected, FPS behavior consistent with measured cadence.",
+    "Final container exports passed344 Windows/Wine and345 Linux tests,15 optional ignored each. Frozen source/doc hashes, archive privacy/integrity, resources/imported DLL set and GLIBC2.35 checks pass. Actual Linux archive cold-cache load/zoom/Undo/reload/resume/WM-close passes, battle/FPS/Undo captures inspected, Vulkan/no fallback/exit0.",
+    "Actual archive cadence capture has566successes,8anchors,558intervals/guest advances,0skips/backend changes/repeated or multi guest frames. Undo interrupts both audio/cadence ranges and reload does not reopen them. Lifecycle audio capture retains1762faithful holds in4callbacks,0drops/over-period; not a steady-scene performance result. Default-off ignores malformed flags with no diagnostic rows; benchmark ignores them/no cadence rows and matches240reference frames without private writes.",
+    "Updated canonical local portable archives only after checks, preserving previous exports. Existing clock/audio pacing, GPU backend, guest/save/cache ABI and default configuration remain unchanged."
+  ],
+  "limitations": [
+    "Host API-success intervals are not GPU completion or scanout. Virtual requested-VSync coverage does not prove physical60/high-Hz/native Windows behavior or original slow enemy episode. CPU/GPU phases remain whole-session; cadence range applies only to the new observer. No scheduler optimization is claimed."
+  ],
+  "files": [
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/perf.rs",
+    "crates/recomp/src/audio_profile.rs",
+    "crates/recomp/src/profile_window.rs",
+    "docs/fps_overlay.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/fps_overlay.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

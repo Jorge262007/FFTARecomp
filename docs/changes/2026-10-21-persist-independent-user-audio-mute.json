@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "persist-independent-user-audio-mute",
+  "title": "Add persistent user Mute without stopping audio consumption",
+  "kind": "added",
+  "platforms": [
+    "Desktop Linux and Windows GNU/Wine"
+  ],
+  "changes": [
+    "Add Audio > Mute On/Off and default-off audio.mute persistence through existing installed/portable paths; preserve selected volume across mute and volume edits.",
+    "Separate user mute from temporary Fast Silent/fallback state. Combine only at final output gain while consuming all source paths and retaining guest pacing/queues/DSP. Preserve user choice across timeline resets; unmute cannot cancel temporary silence.",
+    "Share audio configuration between startup and live menu changes, applying saved volume before the first callback. Retain the20ms exponential gain time constant, snap mute tail below-100dB to exact zero, and avoid video temporal-history rebuilds on audio-only edits."
+  ],
+  "validation": [
+    "Native release suites:27input/config,34menu,79runtime pass,4optional runtime ignored. Final callback gain-curve assertions pass separately. Windows GNU production/test builds warning-free; Wine27config/34menu/80runtime pass,4optional runtime ignored. Native production succeeds; canonical native/Windows binaries restored and verified by SHA-256, source mtime refreshed.",
+    "Config tests cover defaults/old configs/invalid booleans/roundtrip and Volume0 distinction. Shared menu navigation and mouse tests cover toggles, labels and volume edits while muted. Callback test covers Faithful/Enhanced/Fast/Normal startup, mute/unmute ramps, exact settled silence, retained edited volume, temporary mute and reset, with identical queues/consumption/counters to a reference and audible synthetic return.",
+    "Actual isolated Linux CPAL44.1kHz/native/Xvfb GUI:MuteOn20percent, edit30percent and EnhancedOn, clean restart retains both. Unmute after setting volume0; both runs load the private slot, exercise Fast4x and return~59.7INT/EXT. Inspected captures, unchanged slot bytes, clean exits. Playing171/170 and Fast108/108callbacks continue with0holds/drops/over-period; priming/pause separated. Local evidence under ignored target/audio-mute/."
+  ],
+  "limitations": [
+    "GUI uses saved user mute or Volume0 to stay quiet; physical listening/native Windows latency/controller hardware remain unverified. The slew time constant is20ms, with exact silence after settling below-100dB (~231ms from full volume), not a20ms hard cutoff.",
+    "No guest timing/save/native ABI or AndroidPort changes. No portable export, commit, push or release."
+  ],
+  "files": [
+    "crates/input-config/src/lib.rs",
+    "crates/menu/src/lib.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "docs/audio_controls.md",
+    "docs/packaging.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/audio_controls.md",
+    "docs/development/todo_bug_fix.md"
+  ]
+}

@@ -93,11 +93,15 @@ frame buffer before present, so it works under both the wgpu presenter
 and the CPU blit), identically in `recomp play` and in packaged
 binaries; `[runtime] menu = false` gates it out (Escape then quits as
 before). Audio/video changes apply **live** — screen model, darken,
-response, grid, and the enhanced-audio toggle all take effect without
+response, grid, volume, mute and the enhanced-audio toggle all take effect without
 a relaunch (enhanced audio crossfades over ~40 ms; both paths stay
 warm). Only the output gamut is restart-required (baked into the GPU
 presenter) and is labeled so. The pad opener is the guide/Mode button;
 keyboard Escape always works.
+The [audio controls](audio_controls.md) preserve the selected volume while
+muted and restore both saved volume and mute at startup.
+[Video > Fullscreen](fullscreen.md) shares F11 and persists its borderless
+preference; changing it preserves the running game.
 
 ## Outputs
 

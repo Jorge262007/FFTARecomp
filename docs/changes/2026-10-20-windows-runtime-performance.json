@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "windows-runtime-performance",
+  "title": "Reduce desktop runtime diagnostic overhead",
+  "kind": "performance",
+  "platforms": [
+    "Windows (Wine)",
+    "Linux"
+  ],
+  "changes": [
+    "Hoist tracing configuration out of native dispatch and filter unrelated diagnostic addresses early, preserving guest behavior and cache ABI (commit 0f46623).",
+    "Correct the optional native-observer test loader for TinyCC relocatable output and add a repeatable Windows runtime benchmark."
+  ],
+  "validation": [
+    "190 Windows tests passed through Wine; 159 Linux core tests passed serially before and after.",
+    "Framebuffers and OAM matched over 6,000 replay frames; three timed runs after 120 warmup frames gave median 16.043990 to 4.092949 ms/frame (74.49% reduction under Wine)."
+  ],
+  "limitations": [
+    "Wine environment lookup overhead can amplify the result; native Windows speed and AI-turn performance remain unmeasured.",
+    "The baseline parallel core suite has failures caused by shared display globals."
+  ],
+  "files": [
+    "crates/gba-core/src/machine.rs",
+    "crates/gba-core/src/mem.rs",
+    "crates/recomp-core/src/emit.rs",
+    "crates/recomp/src/main.rs",
+    "docs/windows_runtime_performance.md",
+    "scripts/benchmark_windows_runtime.py"
+  ],
+  "references": [
+    "docs/windows_runtime_performance.md"
+  ]
+}

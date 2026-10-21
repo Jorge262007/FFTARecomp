@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "fps-overlay",
+  "title": "Add configurable internal and external FPS overlay",
+  "kind": "added",
+  "platforms": [
+    "Windows (Wine)",
+    "Desktop"
+  ],
+  "changes": [
+    "Add Video > FPS counter with Off, Internal, External and Both modes, persisted as video.fps in av.cfg (commit 401922d).",
+    "Show a compact high-contrast HUD with guest frame and host presentation rates, independent of game zoom; reset sampling after pause or mode changes."
+  ],
+  "validation": [
+    "75 Windows tests passed through Wine across runtime, menu, configuration and GPU layer equivalence.",
+    "Interactive Wine smoke verified menu selection, persistence, normal INT/EXT rates and different rates under fast forward."
+  ],
+  "limitations": [
+    "External FPS counts successful host presentations, not physical display scanouts.",
+    "Native Windows interactive behavior remains unverified."
+  ],
+  "files": [
+    "crates/input-config/src/lib.rs",
+    "crates/menu/src/fps.rs",
+    "crates/menu/src/lib.rs",
+    "crates/recomp/src/fps.rs",
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/screen/src/ui_layer.rs",
+    "docs/fps_overlay.md"
+  ],
+  "references": [
+    "docs/fps_overlay.md"
+  ]
+}

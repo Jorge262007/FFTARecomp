@@ -17,6 +17,11 @@ pollster = { version = "0.4", optional = true }
 [dev-dependencies]
 naga = { version = "26", features = ["wgsl-in"] }
 
+# Only the ignored private device-loss regression needs a real window/fallback.
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dev-dependencies]
+winit = "0.30"
+softbuffer = "0.4"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-quartz-core = { version = "0.3", features = ["CAMetalLayer"] }

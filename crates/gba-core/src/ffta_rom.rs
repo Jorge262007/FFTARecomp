@@ -26,6 +26,34 @@ fn version_for_sha256(hash: &str) -> Option<Version> {
         _ => None,
     }
 }
+/// Additional immutable ROM entries verified with full-state/audio replay.
+/// These are addresses only, not guest bytes or RAM snapshot translations.
+pub fn native_rom_entries(hash: &str) -> &'static [u32] {
+    match hash {
+        EUROPE_SHA256 => &[
+            0x0801_0ec5,
+            0x0801_0f41,
+            0x0802_2eb9,
+            0x0802_2eed,
+            0x0802_2f01,
+            0x0802_2f19,
+            0x0802_2f47,
+            0x0802_3125,
+            0x0802_314f,
+            0x0802_315d,
+            0x0802_3169,
+            0x0802_3175,
+            0x0809_21cf,
+            0x0809_21d5,
+            0x0809_2485,
+            0x0809_248d,
+            0x0809_2493,
+            0x0814_5c19,
+        ],
+        _ => &[],
+    }
+}
+
 /// The map expansion hooks inspect runtime DMA descriptors and verify every
 /// reconstructed tile against the transfer. This ROM-region digest additionally
 /// pins the producer code independently for each exact regional image.
@@ -65,6 +93,7 @@ const EUR_SIZE_TABLE: &str = "6ff886b23cde2726a4ceb9cba8c5569bbb4dc6a1185769547f
 /// Exact-build addresses for host-side sprite expansion. Both ROM identity and
 /// each copied/native function body are verified before these hooks can run.
 #[derive(Clone, Copy, Debug)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteProfile {
     pub draw_a: u32,
     pub draw_b: u32,
@@ -224,6 +253,17 @@ pub fn sprite_pc(pc: u32) -> bool {
 #[cfg(test)]
 mod profile_tests {
     use super::*;
+    #[test]
+    fn native_entries_are_exact_image_rom_hints() {
+        let entries = native_rom_entries(EUROPE_SHA256);
+        assert!(!entries.is_empty());
+        assert!(entries.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(entries.iter().all(|key| key & 1 == 1
+            && (0x0800_0000..0x0900_0000).contains(&(key & !1))));
+        assert!(native_rom_entries(SHA256).is_empty());
+        assert!(native_rom_entries(&"0".repeat(64)).is_empty());
+    }
+
     #[test]
     fn exact_rom_hashes_select_distinct_profiles() {
         assert_eq!(version_for_sha256(SHA256), Some(Version::Usa));

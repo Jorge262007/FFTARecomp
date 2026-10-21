@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "reconcile-performance-todo-criteria",
+  "title": "Reconcile performance TODO criteria with completed evidence",
+  "kind": "docs",
+  "platforms": [
+    "Project development workflow"
+  ],
+  "changes": [
+    "Close PERF-03 correctness/A-B controls and PERF-08 CPU PPU reductions against their stated acceptance criteria and existing implementation/evidence; preserve the remaining original-lag, hardware and native Windows requirements under their open items.",
+    "Replace stale current-state claims that frame-window gating, enhanced-source counters and backend/cadence diagnostics are missing; remove the rejected pre-wait composition next action and already completed world-only UI next candidate.",
+    "Summarize the status of all13 parent criteria without rerunning completed validation or claiming optional GPU/parallel experiments are implemented."
+  ],
+  "validation": [
+    "Inspected current frontend guard ordering: incomplete frames return before completed-frame FPS, temporal history and frontend frame count updates. Read existing dispatch guard/full-state/audio equivalence records and benchmark protection/rollback evidence.",
+    "Read window-reference, per-scanline BG, empty-row, panel-row and world-only pixel records; inspected current local world-only headless, GUI and zoom6 result JSONs with passed status. Existing native/Wine174 core checks,3530-frame full-state/count parity and five headless/GUI timing pairs support PERF-08 closure.",
+    "Inspected the13 TODO criteria and current handoff; no tests, builds, replay or profiling runs repeated for this audit."
+  ],
+  "limitations": [
+    "The original rare slow episode remains unisolated. Closing controls and accepted PPU reductions does not prove the overall performance objective complete or establish native Windows/physical hardware results."
+  ],
+  "files": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/changes/2026-10-20-preserve-native-dispatch-in-cost-profiling.json",
+    "docs/changes/2026-10-21-evaluate-world-only-ui-pixels.json",
+    "docs/changes/2026-10-21-evaluate-composition-before-deadline.json"
+  ]
+}

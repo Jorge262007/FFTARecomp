@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "follow-effective-fast-audio-production",
+  "title": "Make Fast audio consumption follow actual guest production",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows GNU/Wine"
+  ],
+  "changes": [
+    "Add a host-only Fast audio clock measured from produced guest PCM pairs and output device frames:200ms production smoothing,250ms queue feedback,60ms post-callback reserve and100ms per-sample speed slew. Bound effective speed to0.05x through the requested multiplier plus2percent clock tolerance, without changing guest execution or pacing.",
+    "Use the same effective rate for faithful PCM, PSG, HLE and FIFO; disable independent queue steering only in Fast. Prime/rebuffer explicitly with silence and cleared old DSP history when a complete callback cannot be supplied. Ordinary1x, Normal and Silent retain their policies and existing epoch resets.",
+    "Use continuously blended conservative fractional-rate sinc tables prepared at stream creation, avoiding integer-cast selection of the1x cutoff. No new callback allocation, I/O, logging, lock or wall clock; coefficient banks add about1.4MiB per stream.",
+    "Extend opt-in audio profiles with ready/waiting output frames, rebuffer counts, effective/production rates and estimated source-queue delay under the existing guest-frame gate. Update Fast audio documentation, TODO and durable project facts; Normal backlog and physical hardware/event checks remain open."
+  ],
+  "validation": [
+    "Old nominal4x callback fails the ROM-free actual2x-production regression with536641steady faithful holds. The corrected Faithful/Enhanced callback has zero steady holds, audible synthetic output in every measured callback and no growing backlog.",
+    "Clock tests cover72sample-rate/buffer/request/production combinations at44.1/48/96kHz,256/2048frames, requested2/4/8x and actual0.5/1/1.75/full speed: no depleted queue or steady waiting, backlog below200ms and final rate error below5percent. Tests cover4->1->3->stop->2, reset/empty callbacks, fractional passband/alias attenuation and observable silent rebuffering.",
+    "Native release runtime suite:74passed/4optionalignored, followed by2targeted clock tests for the final empty-callback refinement. Windows GNU production/test builds are warning-free and75runtime tests pass under Wine,4optionalignored. Native production build succeeds; original canonical binaries restored by SHA-256.",
+    "Actual Linux CPAL44.1kHz/native translation/Xvfb-llvmpipe idle-battle Fast4x gates9400:11400 pass:357Faithful/359Enhanced callbacks, zero faithful holds, PSG/HLE empty reads, drops, over-period callbacks, waiting frames or rebuffers. Consumption means2.2032/2.1906 match production2.2030/2.1906, max estimated source queue107.3/108.0ms. Slot bytes unchanged; inspected hold/toggle/normal/paused captures and clean closes.",
+    "Enhanced retains Fast after pause. A targeted Faithful pause/Return-resume capture confirms130.0INT/32.5EXT and subsequent Fast-off59.7/59.7, resolving an ambiguous earlier capture. The local helper raised an obsolete launcher-log NameError only after asserting runtime exit0; completed captures/slot evidence were retained without repeating the run.",
+    "First GUI run overlapping Windows compilation remains negative variable-load evidence:0source holds/PSG-HLE empties, but3rebuffers/13171waiting frames at effective0.519..2.245x, maxqueue177.0ms. Only the failed steady-load criterion was repeated after compilation ended; baseline and completed suites reused.",
+    "Project-memory check and git diff --check pass. Local source hashes, candidate binary, tests, manifests and GUI evidence are retained under target/fast-audio-rate/. Source mtime is refreshed after restoring canonical binaries so a later Cargo build cannot silently reuse their old executable contents."
+  ],
+  "limitations": [
+    "GUI checks use real callbacks at volume zero and an idle battle, not audible transition quality, recognizable audio/video event latency or native Windows hardware. Queue delay is an estimate of application source backlog, not physical speaker latency.",
+    "Arbitrary host stalls/rate discontinuities may require explicit rebuffer silence; the variable-build-load result is retained and not presented as continuous-play success. No general no-stall/no-XRUN claim.",
+    "Normal retains its unbounded temporary file and blocking callback read path. No pitch-preserving time stretch, guest/save/native ABI change, AndroidPort update, portable export or public release is included."
+  ],
+  "files": [
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/fast_audio_rate.rs",
+    "crates/recomp/src/audio_profile.rs",
+    "docs/fast_forward_audio.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/TASK_HANDOFF.md"
+  ],
+  "references": [
+    "docs/fast_forward_audio.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

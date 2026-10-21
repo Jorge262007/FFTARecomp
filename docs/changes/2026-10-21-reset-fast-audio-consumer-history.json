@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "reset-fast-audio-consumer-history",
+  "title": "Discard callback history at Fast audio and pause boundaries",
+  "kind": "fixed",
+  "platforms": [
+    "Desktop Linux and Windows/Wine"
+  ],
+  "changes": [
+    "Add a host audio epoch: invalidating queues also resets faithful DAC/fraction, sinc histories, FIFO future impulses/integrator/timing, DC blockers and crossfade state on the next callback. Preserve tables and use the existing volume slew for new audio without callback allocation, I/O, logging, new locks or clocks.",
+    "Connect invalidation to Fast activation, multiplier and mode changes; pause discards output while retaining the Fast latch. The device-loss watchdog also replaces Normal backlog. Load/Undo retains stream recreation. Guest mixing, timing, snapshot and translation formats are unchanged.",
+    "Record the user-confirmed Fast audio 4x case and distinguish the completed stale-history correction from the newly reproduced nominal-consumption/underproduction mismatch. Keep adaptive consumption, bounded Normal backlog and hardware validation open in the TODO."
+  ],
+  "validation": [
+    "Before the fix, the synthetic queue-only invalidation regression failed with residual faithful output peak 0.19975911. The corrected regression passes all 20 source/speed cases; the added 28-case transition regression matches fresh callback samples and queues exactly at 44.1/48 kHz, observation on/off, including repeated invalidation.",
+    "Native release runtime suite: 68 passed, 4 optional ignored; the subsequently added fresh-history test passed separately. Final Windows GNU runtime suite under Wine: 70 passed, 4 optional ignored. Native candidate build succeeds; prior canonical runtime restored by SHA-256.",
+    "Actual Linux CPAL44.1kHz with Xvfb/llvmpipe and native translation passes Faithful and Enhanced Fast4x hold/release/toggle/pause/resume/WM-close with inspected captures and unchanged private slot bytes. Fast captures show INT121.7/128.2 versus EXT30.4/32.1; normal play returns to about59.7 and has zero faithful holds in207/205 callbacks.",
+    "The same runs expose sustained underproduction:497/499Fast callbacks all have faithful holds, about47percent PSG/HLE requests empty, zero producer drops and zero over-period callbacks. Enhanced configured targets are affected too; no sustained-sync fix is claimed.",
+    "Initial native build failed for missing local ALSA pkg-config paths; corrected sysroot reached the expected regression. Wine sandbox could not create server sockets/locks; host-access run passed. GUI helper failed only on a launcher-specific assertion after Faithful exited0; preserved its completed evidence and ran only previously unrun Enhanced after correcting the helper."
+  ],
+  "limitations": [
+    "The reported prolonged Fast4x desynchronization remains open: consumer speed still follows the requested multiplier when actual guest speed is lower. No adaptive-rate, backlog-trimming or guest-pacing policy change is included.",
+    "GUI validation used actual callbacks at volume zero in an idle battle: no audible-quality, event latency, physical reconnection or native Windows hardware claim. Backend-buffered samples cannot be retracted by the host epoch.",
+    "Normal retains its unbounded temporary file and blocking callback reads. Portable exports, AndroidPort and canonical runtime are unchanged; candidate artifacts stay local."
+  ],
+  "files": [
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/play.rs",
+    "docs/fast_forward_audio.md",
+    "docs/development/todo_bug_fix.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/fast_forward_audio.md",
+    "docs/development/todo_bug_fix.md"
+  ]
+}

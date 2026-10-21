@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "observe-enhanced-audio-source-requests",
+  "title": "Separate enhanced audio source demand from configured targets",
+  "kind": "added",
+  "platforms": [
+    "Native Linux",
+    "Windows GNU / Wine / Docker"
+  ],
+  "changes": [
+    "Count per-context PSG/HLE pair and FIFO event requests, empty reads and configured-target requests under the existing frame gate, without labelling inactive warm consumers as audible underruns.",
+    "Compile per-request counting out of the normal DSP specialization; select once per stream with a callback dispatch, without new callback locks, logging, IO or allocation. Preserve queue policy, arithmetic, DAC holds and crossfades."
+  ],
+  "validation": [
+    "Native runtime63 tests passed,4 optional ignored. New tests verify source counts including partial pairs/DAC holds, configured HLE/FIFO routing/backlog/mute labels, capped/gated totals, and exact output/queue/interpolator state parity; existing f32/i16/u16 callback parity passes.",
+    "Five alternating synthetic profile off/on pairs passed, median40666.215/40696.723ns per512-frame callback (+0.0750%); not a game performance or default-before/after comparison.",
+    "Inspected pinned CPAL0.16.0 ALSA XRun recovery: some EPIPE events are recovered without notifying the application, so device error counts cannot prove absence of backend XRUNs.",
+    "Native CPAL idle-battle frame8596:9196 pair passes accounting/closed-window/slot-privacy checks. Faithful and enhanced each236 callbacks; all PSG/HLE/FIFO empty-read counters zero. Enhanced targets PSG/HLE while FIFO stays warm; faithful has no configured enhanced target. Both scene captures inspected. Initial harness variable-shadowing aborted before enhanced measurement; faithful reused and only missing enhanced measured after fixing the driver.",
+    "Final container exports passed341 Windows/Wine and342 Linux tests,15 optional ignored each. Source/doc/archive privacy/integrity, PE resources/imported DLL set and GLIBC<=2.35 checks pass. Actual extracted Linux archive cold-cache lifecycle source accounting/load/zoom/Undo/reload/resume/WM-close passes with inspected battle/FPS and Undo captures, Vulkan/no unexpected fallback/exit0. Default-off produces no diagnostic rows and ignores invalid gate; callback-free benchmark ignores it and matches240reference frames without private writes.",
+    "Lifecycle playing capture contains2741PSG/HLE empty-pair requests and660empty events per FIFO, all in one callback, plus2741faithful holds; all enhanced configured-target requests are0 with faithful selected. Retain this transition observation separately from the zero-empty idle window; it is not evidence of audible enhanced starvation.",
+    "Updated canonical local archives only after final archive GUI checks and preserved old versions. No core/save/cache ABI, DSP policy, backend recovery or system audio configuration changed."
+  ],
+  "limitations": [
+    "Configured-target counts do not represent live crossfade weight, voice activity or output audibility. One idle-battle pair does not establish AI-turn/native Windows performance or resolution of the original stall. Backend XRUNs require independent telemetry because pinned CPAL/ALSA can recover without app error notification."
+  ],
+  "files": [
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/audio_profile.rs"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md"
+  ]
+}

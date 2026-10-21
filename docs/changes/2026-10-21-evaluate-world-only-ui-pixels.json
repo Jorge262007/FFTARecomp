@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "evaluate-world-only-ui-pixels",
+  "title": "Skip world-only sorting in native UI capture",
+  "kind": "performance",
+  "platforms": [
+    "Native Linux",
+    "Windows GNU / Wine / Docker"
+  ],
+  "changes": [
+    "Track actually admitted UI BG/portrait candidates per pixel. With none, keep the default destination write to clear stale data while bypassing world-candidate sorting and blending; retain the full loop as reference.",
+    "Keep row classification cache, real UI ordering/blending, windows, modal/backing and capture/anchor behavior; no state/cache ABI or guest timing change. Retain after headless and complete GUI work improvements with exact replay parity."
+  ],
+  "validation": [
+    "Native serial core suite passed174 tests,5 optional ignored. New mixed-row full-state comparisons exercise world-only holes, stale destinations, world alpha and portrait-only Stats UI, asserting the fixture actually reaches each case; existing full panel reference tests pass.",
+    "Native runtime/launcher and Windows GNU builds pass; Windows/Wine serial suite passed174 core tests,5 optional ignored. Headless replay matches all3530 framebuffer/OAM hashes, full final state and execution counts. Five alternating pairs improve median5.846082 to5.600360ms (4.2032%); separate profile p95/p99 also lower.",
+    "Native GUI correctness replay passed all3530 framebuffer/OAM matches, state/counts and private-data checks. Five alternating full-GUI pairs reduce median mean7.584102 to7.381503ms (2.6714%); all pairs improve2.018-2.953%.",
+    "Worldmap240-frame image/state/count parity and two1200-frame diagnostic pairs pass without regression. Zoom0:6 matches all3530 framebuffer/OAM hashes, full state and counts. Default GUI load/zoom/Undo/reload/resume/WM-close passes with Vulkan and no unexpected software fallback; battle/FPS and Undo captures visually inspected.",
+    "Container exports passed336 Windows/Wine and337 Linux tests,15 optional ignored each. Archive integrity/privacy, bundled docs, source hashes, PE resources/imported DLL set and GLIBC<=2.35 checks pass. Actual extracted Linux cold-cache GUI load/Undo/zoom/reload/resume/WM-close passes; battle/FPS and Undo captures inspected, Vulkan/no fallback/exit0 confirmed. Local dist archives replaced only after validation, previous archives preserved.",
+    "GUI median p95/p99 improve9.172928/9.698431 to8.846837/9.317414ms; scheduled UI payload stays316299008bytes. All source hashes remained frozen during validation."
+  ],
+  "limitations": [
+    "Native Linux unpaced work timing does not establish native Windows performance or resolution of the original rare AI stall. Physical controller, hardware fault and broader interactive pacing/audio coverage are unchanged."
+  ],
+  "files": [
+    "crates/gba-core/src/ppu.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/fps_overlay.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/fps_overlay.md"
+  ]
+}

@@ -5,6 +5,8 @@ use std::os::windows::process::CommandExt;
 
 fn fail(dir: &PathBuf, msg: &str) {
     let _ = fs::write(dir.join("play-error.log"), msg);
+    rfd::MessageDialog::new().set_title("FFTARecomp")
+        .set_description(msg).set_level(rfd::MessageLevel::Error).show();
 }
 
 fn main() {
@@ -14,10 +16,28 @@ fn main() {
 
     let local = dirs::data_local_dir().unwrap_or_else(||PathBuf::from("."))
         .join("FFTARecomp").join("ffta.gba");
-    let rom = if exe_dir.join("ffta.gba").exists() { exe_dir.join("ffta.gba") } else { local };
+    let portable = input_config::storage::portable_root().is_some();
+    let bundled_rom = exe_dir.join("ffta.gba");
+    let rom = if bundled_rom.is_file() || portable { bundled_rom } else { local };
 
     if !recomp.exists() { return fail(&exe_dir, &format!("Falta {}", recomp.display())); }
-    if !rom.exists()    { return fail(&exe_dir, &format!("Falta la ROM: {}", rom.display())); }
+    if !rom.is_file() && portable {
+        let Some(selected) = rfd::FileDialog::new()
+            .set_title("Choose your FFTA ROM (copied into the portable folder)")
+            .add_filter("Game Boy Advance ROM", &["gba"]).pick_file() else { return; };
+        // Never overwrite a file that appeared while the picker was open.
+        let result = (|| -> std::io::Result<()> {
+            use std::io::Write;
+            let bytes = fs::read(&selected)?;
+            let mut file = tempfile::NamedTempFile::new_in(&exe_dir)?;
+            file.write_all(&bytes)?;
+            file.as_file().sync_all()?;
+            file.persist_noclobber(&rom).map_err(|e| e.error)?;
+            Ok(())
+        })();
+        if let Err(e) = result { return fail(&exe_dir, &format!("Cannot copy ROM: {e}")); }
+    }
+    if !rom.is_file() { return fail(&exe_dir, &format!("Missing ROM: {}", rom.display())); }
 
     let mut command=Command::new(&recomp);
     command.arg("play");

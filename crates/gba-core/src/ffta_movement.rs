@@ -2,6 +2,7 @@
 use crate::mem::MemMap;
 
 #[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct MovementState {
     pub enabled: bool,
     pub europe_profile: bool,

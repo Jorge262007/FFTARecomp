@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1
+# Build on Bookworm rather than inheriting the developer machine's newer glibc.
+FROM rust:1.94.0-slim-bookworm@sha256:a86cada82e36ebd7a9bffed7548792c55a952fdb20718eea9278a936bcb76e62 AS build
+
+RUN test "$(dpkg --print-architecture)" = amd64 \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential ca-certificates pkg-config python3 libasound2-dev libudev-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+COPY assets/ assets/
+COPY TinyCC/ TinyCC/
+COPY Licenses/ Licenses/
+COPY gamedb.sqlite ./
+COPY scripts/package_ffta_linux.sh scripts/package_ffta_portable.py scripts/
+COPY docs/portable.md docs/docker.md docs/fps_overlay.md docs/menu_shortcuts.md docs/save_states.md docs/save_backups.md docs/rom_data.md docs/rom_data_runtime.md docs/
+
+# Source, game data and Docker sockets are never bind-mounted into the build.
+# Export outside the cache mount so a warm build still has real output files.
+RUN --mount=type=cache,id=ffta-linux-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=ffta-linux-cargo-git,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,id=ffta-linux-target-amd64,target=/workspace/target,sharing=locked \
+    bash scripts/package_ffta_linux.sh \
+    && cargo test --locked --release -p input-config -p menu -p gba-core -p screen -p recomp -- --test-threads=1 \
+    && mkdir /artifacts \
+    && cp dist/FFTARecomp-linux-portable.tar.gz /artifacts/ \
+    && { rustc --version; cargo --version; cat /etc/os-release; \
+         ldd --version | head -n 1; \
+         ldd target/release/recomp; ldd target/release/ffta-play; \
+         sha256sum /artifacts/FFTARecomp-linux-portable.tar.gz; \
+       } > /artifacts/BUILD-INFO.txt
+
+# This stage exports files only; it is not an image for running the GUI.
+FROM scratch AS export
+COPY --from=build /artifacts/ /

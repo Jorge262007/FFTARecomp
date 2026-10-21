@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "menu-shortcuts",
+  "title": "Add configurable keyboard and gamepad menu combinations",
+  "kind": "added",
+  "platforms": [
+    "Windows (Wine)",
+    "Desktop"
+  ],
+  "changes": [
+    "Add Open menu binding capture under keyboard, mouse/keyboard and gamepad input pages; persist key.menu and pad.menu.",
+    "Default to Escape and Start+Back/Select; preserve Escape recovery and Guide/Mode where available.",
+    "Capture the largest simultaneous combination and consume a completed shortcut through partial release, across desktop controller backends."
+  ],
+  "validation": [
+    "78 Windows tests passed through Wine: 25 configuration, 26 menu and 27 runtime tests.",
+    "Interactive Wine smoke with an isolated XInput test double verified default/custom gamepad shortcuts, partial release, keyboard capture and persistence."
+  ],
+  "limitations": [
+    "Physical controllers and native Windows manual behavior remain unverified.",
+    "An individual button retains its game action before the full combination is recognized."
+  ],
+  "files": [
+    "README.md",
+    "crates/input-config/src/lib.rs",
+    "crates/input-config/src/combo.rs",
+    "crates/menu/src/lib.rs",
+    "crates/menu/src/theme.rs",
+    "crates/recomp/src/play.rs",
+    "docs/menu_shortcuts.md"
+  ],
+  "references": [
+    "docs/menu_shortcuts.md"
+  ]
+}

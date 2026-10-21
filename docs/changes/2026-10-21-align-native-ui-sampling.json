@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "align-native-ui-sampling",
+  "title": "Align native UI texel selection with the software sampling policy",
+  "kind": "fixed",
+  "platforms": [
+    "Native Linux",
+    "Linux portable (Docker Bookworm)",
+    "Windows GNU/MinGW (Docker, Wine tests)"
+  ],
+  "changes": [
+    "Implement canonical sampling maps: compute integer UI/world indices using the existing CPU formulas, cache a bounded two-row RG32Uint map by exact layout/clip/view/dimension bits, and upload only changed maps. Shader lookup uses integer pixel indices instead of backend-dependent float floor expressions.",
+    "Retain the existing software policy, guest state, color blending, world-sharing and pixel/LUT revisions. Map origins/extents are bounded by device limits, with invalid UI entries for clipping and complete cache invalidation at resource recreation.",
+    "Conservatively bound UI rasterization using the exact transparent-pixel predicate and the integer sampling maps. Recompute source bounds only on pixel uploads and scissor only on bounds/geometry changes; preserve active source ownership even when no pixels draw."
+  ],
+  "validation": [
+    "Existing runtime/screen suites passed 58/44 tests (4/5 optional ignored), including two new map tests for legacy boundaries, clipping/clamping, complete key invalidation, cache hits and oversized-layout storage bounds.",
+    "On Radeon 780M/Vulkan, all three explicit native UI GPU tests passed: formerly fractional cases now match CPU for every layer; runtime 852x480 zoom 0-6 and exact-x2 variant have zero mismatches, plus previous revision/color/world-sharing byte checks.",
+    "New baseline runtime test found 43098 differing pixels at zoom 6 (852x480 synthetic patterned data), zero at zoom 0-5. Exact-x2 clamp still differed (86474); no production zoom clamp is proposed. Native baseline executable/source is reused from accepted shared-world implementation.",
+    "Expanded resize/DPI reuse matrix initially failed in test comparison indexing (one row-offset expression retained fixed width 852); production renderer had no failure. Corrected only the harness and rechecking that matrix before acceptance.",
+    "Expanded persistent-resource matrix passed 32 zoom/resize/DPI states at 852x480, 853x481 (125% UI scale), 320x160 and 1704x480, including original and exact-x2 views. All compared pixels match CPU with zero differences. Harness row indexing was corrected before this pass.",
+    "Table-only prototype completed five A/B pairs: median mean 8.220145 -> 8.562769 ms (+4.1681%), all pairs slower. Correctness/state/counts pass; prototype retained locally but not accepted. This regression justifies changing raster coverage and measuring the changed implementation, rather than shipping the slowdown.",
+    "Bounds candidate native suites passed 58 runtime/45 screen tests (4/5 optional ignored) and all three explicit Radeon UI GPU tests: strict CPU equality, growing/empty visible bounds, source-sharing graphs, resize/DPI and byte accounting.",
+    "Final bounds candidate passed all 3530 reference framebuffer/OAM hashes, final state and dispatch counts, private files unchanged. Five new-code A/B pairs improve 5.36-6.08%; median mean 8.229995 -> 7.774799 ms (-5.5309%), median p95/p99 10.003106/10.432033 -> 9.351037/9.847532 ms. UI payload remains 316299008 measured bytes; maps stay cached during this interval.",
+    "World-map 240-frame correctness matches reference images/state/counts and two alternating diagnostic 1200-frame pairs have comparable means (candidate 3.026715/3.027036 ms, baseline 3.005388/3.059836 ms); private data unchanged.",
+    "Native default GUI with profiling off and both FPS counters passed load, running at zoom 6, Undo load, reload/resume and window-close checks; inspected the saved battle/HUD and Undo-menu captures. Physical Radeon Vulkan/Wayland replay matched all 3530 reference image/OAM hashes, state/counts, unchanged private files and clean exit.",
+    "Final Docker exports passed 332 Windows/Wine and 333 Linux tests (14 optional ignored each). Inspected archive integrity and privacy, bundled feature-doc identity, unchanged source hashes, PE resources/imports and Linux GLIBC 2.35 maximum requirement.",
+    "Actual newly exported Linux portable passed cold-cache isolated GUI load, zoom-6 running, Undo load, reload/resume and WM close with profiling off and both FPS counters. Inspected battle/HUD and Undo captures. The initial preparation assertion was corrected for the archive empty cache-directory scaffold before launching; no runtime check failed.",
+    "Updated local dist Docker Windows/Linux archives and BUILD-INFO after checks, preserving previous exports. Archive SHA256: Windows 183168d27a998ab0c8f8613d1e60cf878f297748e8d3447bdfe078cd881302cd; Linux 6062bfbd254161a47d28d7eabacb0d2e8b7b547bea53f302f9106fa2ac2eefc0. These are local artifacts, not a public release.",
+    "project_memory.py render, check and check --base HEAD passed; git diff whitespace check passed with core.whitespace=cr-at-eol. Updated the TODO leaf and handoff as complete without closing the broader performance goal."
+  ],
+  "limitations": [
+    "Timing scope is native Linux unpaced llvmpipe Vulkan with CPU profiling enabled, no realtime audio callback, GPU timestamps or per-frame logging. Five-pair correctness verification is separate from timing. No AI-turn speedup or native Windows device/timing coverage is claimed.",
+    "Physical-controller, older-distro and AndroidPort checks remain outside this change. No guest state/ABI, save format or zoom/FOV change; the broader performance TODO remains open."
+  ],
+  "files": [
+    "crates/screen/src/ui_layer.rs",
+    "crates/screen/src/ui_layer.wgsl",
+    "crates/screen/src/ui_layer/coords.rs",
+    "docs/development/TASK_HANDOFF.md",
+    "crates/screen/src/present.rs",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/fps_overlay.md"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/development/PERFORMANCE_WORKFLOW.md"
+  ]
+}

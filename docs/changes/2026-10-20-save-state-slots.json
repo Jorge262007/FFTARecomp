@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "save-state-slots",
+  "title": "Nine automatic save slots with previews and controller-only menu flow",
+  "kind": "changed",
+  "platforms": [
+    "Windows (Wine)",
+    "Desktop"
+  ],
+  "changes": [
+    "Replace save/load file dialogs with nine numbered slots, wraparound selection, screenshot previews and in-menu success/error feedback.",
+    "Store slot-1.ffstate through slot-9.ffstate under SaveStates/<ROM SHA-256>/ beside the selected cartridge save, isolating different ROMs and preserving slots across restarts.",
+    "Commit the 240x160 game-view/native-UI preview and machine snapshot as one atomic file; require explicit in-menu replacement confirmation and protect newly occupied slots from unconfirmed writes.",
+    "Keep loading compatibility for original raw .ffstate checkpoints copied into a numbered slot; retain the existing core state version and native cache ABI."
+  ],
+  "validation": [
+    "Windows GNU release under Wine: 29 menu tests and 31 runtime tests passed, covering all nine paths, ROM isolation, fresh-machine loading, no-clobber/confirmed replacement, matching previews, damaged files and legacy states.",
+    "Preview drawing and mouse hit geometry passed at 240x160, 640x480, 1280x720 and 3840x2160. Controller navigation tests passed for slot wraparound, empty loads and safe confirmation defaults.",
+    "Interactive simulated-XInput smoke saved slot 9, displayed its preview, cancelled and confirmed replacement, loaded it, exercised empty-slot feedback and loaded slot 1 after restart; both sessions resumed and exited cleanly.",
+    "Five memory-tool tests and development skill validation passed. Release archive CRC, executable equality, TinyCC/notices presence and private-data/test-double exclusion checks passed."
+  ],
+  "limitations": [
+    "Validation used Wine and simulated XInput, not physical controllers or native Windows. AndroidPort remains unchanged.",
+    "Original files outside the numbered slot folder are preserved; importing one requires copying it into an unused slot. A legacy preview appears after resaving.",
+    "Slot location follows the selected cartridge save directory. Loading also restores cartridge memory, subsequently persisted by normal autosave or exit."
+  ],
+  "files": [
+    "crates/recomp/src/save_state.rs",
+    "crates/recomp/src/play.rs",
+    "crates/menu/src/lib.rs",
+    "crates/menu/src/save_states.rs",
+    "crates/menu/src/theme.rs",
+    "README.md",
+    "docs/save_states.md",
+    "docs/development/PROJECT_STATE.md",
+    ".cursor/skills/ffta-development/SKILL.md"
+  ],
+  "references": [
+    "docs/save_states.md",
+    "docs/development/PROJECT_STATE.md"
+  ]
+}

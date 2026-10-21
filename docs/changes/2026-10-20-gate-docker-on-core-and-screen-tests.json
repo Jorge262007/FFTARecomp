@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "gate-docker-on-core-and-screen-tests",
+  "title": "Gate portable container exports on core and renderer regression suites",
+  "kind": "changed",
+  "platforms": [
+    "Linux and Windows Docker builds"
+  ],
+  "changes": [
+    "Run input/config, menu, core, screen and runtime tests serially in both container recipes before exporting portable artifacts. This includes panel-bound equivalence and surface-recovery tests and respects shared core display globals."
+  ],
+  "validation": [
+    "Windows Docker cross-build/Wine passed 306 tests: 164 core, 26 input/config, 33 menu, 45 runtime and 38 screen. Eight optional cases stayed ignored. Exported ZIP passed CRC, private-data exclusions, production-marker and BUILD-INFO SHA-256 checks.",
+    "Linux Docker passed 307 tests: 164 core, 26 input/config, 33 menu, 44 runtime and 40 screen. Eight optional cases stayed ignored. Exported tar.gz passed integrity, executable-mode, private-data exclusion, production-marker and BUILD-INFO SHA-256 checks."
+  ],
+  "limitations": [
+    "Optional local-ROM, GPU readback and microbenchmark cases remain ignored in the default recipes; native GPU, physical controllers and native Windows require separate validation."
+  ],
+  "files": [
+    "Dockerfile.linux",
+    "Dockerfile.windows"
+  ],
+  "references": [
+    "docs/docker.md"
+  ]
+}

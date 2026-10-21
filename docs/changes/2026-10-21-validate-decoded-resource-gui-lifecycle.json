@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-decoded-resource-gui-lifecycle",
+  "title": "Validate decoded-resource GUI Fast, restore and audio lifecycle",
+  "kind": "docs",
+  "platforms": [
+    "Linux X11/CPAL/llvmpipe",
+    "Windows GNU/Wine/llvmpipe"
+  ],
+  "changes": [
+    "Close the local EUR ROMDATA-05-OBJ-GUI gate with existing source-verified production candidates, immutable prepared data and protected battle fixtures; update the validation protocol, runtime documentation and remaining TODO gates. No runtime implementation or executable rebuild is required."
+  ],
+  "validation": [
+    "Actual Linux native-translation and Windows/Wine native-translation/interpreter GUI runs pass battle Slot Load, momentary Fast, release, toggle, pause/Return-resume preserving Fast, return to 1x, Undo load, reload, resumed battle and clean WM close0. Captures inspected; FPS Fast INT/EXT ratios stay about4 and return to about59.7/59.7 at1x. Existing TinyCC objects are reused in isolated caches; all original fixture/executable/library/dataset and imported slot hashes remain unchanged.",
+    "Every session reports positive decoded guest/host ROM/host RAM use. Native Linux bus14640/hostROM27061/hostRAM222040; Wine native15744/29102/238784; Wine interpreter14874/27473/225589. No dynamic-RAM fallback is observed in these idle battles, and no resource regeneration occurs.",
+    "Actual volume-zero callbacks execute in playing/paused/Fast contexts at44.1kHz Linux and48kHz Wine. Fast callback counts382/1634/1631; device errors, callback-over-period and producer drops0 in all sessions. Inclusive Fast p99 totals0.836176/0.265100/0.256200ms. Retain transition priming/waiting and Linux playing holds rather than claiming steady zero-starvation or a speedup.",
+    "A separate Windows/Wine native GUI backup check starts from a new copy of the GUI-generated test save, observes safe Cancel-default confirmation, Restore and restart success, exact restored primary bytes while paused, Resume clean boot and clean close. Backup files do not rotate/change, imported slot/source save remain unchanged, resource usage survives reset and three actual stream constructions report0device errors.",
+    "Final project_memory.py check, CRLF-aware git diff --check and affected local-document links pass. Final runtime/source (excluding documented post-export outcome docs), canonical, public archive-member, artifact and original private-fixture hashes are checked; all selected handles are terminal and the next USA initializer criterion is recorded."
+  ],
+  "limitations": [
+    "Local EUR first-family GUI coverage with muted final gain; not audible quality, physical audio/video latency, native Windows hardware, all-mode steady callback performance or cross-platform timing equality. Native Linux capture clips the wide window right edge on its smaller virtual screen; FPS/menu/battle were inspected, while complete-frame equality remains the previously closed headless check. Windows runs use a larger virtual screen. USA initializer trace, actual updated archives and native Windows remain before normal enablement; other families/mods remain open. No production code, canonical executable, release, AndroidPort, commit or push changes."
+  ],
+  "files": [
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/rom_data_runtime.md"
+  ],
+  "references": [
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/rom_data_runtime.md",
+    "docs/fast_forward_audio.md",
+    "docs/save_backups.md"
+  ]
+}

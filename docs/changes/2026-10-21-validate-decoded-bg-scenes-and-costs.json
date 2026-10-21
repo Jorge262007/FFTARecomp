@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-decoded-bg-scenes-and-costs",
+  "title": "Validate decoded BG metadata scenes and costs",
+  "kind": "changed",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Extend the recorded-scene diagnostic to reuse an explicitly selected existing dataset, report BG reads separately and optionally require actual BG consumption; preserve original full-state, image, dispatch and complete audio equality checks.",
+    "Declare BG scene/startup/frame/RSS/disk limits before measurements and reuse frozen same-path release reference/candidate binaries, native caches and private recordings."
+  ],
+  "validation": [
+    "Warning-free Linux/Windows GNU diagnostic builds pass. New Linux/Wine worldmap240,battle/menu3530and boot-to-battle8476comparisons match every full state/image/OAM/dispatch and complete mixed/PSG/both FIFO/HLE stream (HLE by bits). Stable scenes use BG0;8476requires and records53BG reads each. Existing e3datasets, snapshots, inputs and native caches are reused and protected.",
+    "Frozen same-root-path release binaries pass five alternating native pairs with matching every-frame framebuffer/OAM, initial/final full state and dispatch. Median mean worldmap2.153014->2.182296ms(+1.3600%),enemy-menu6.011131->5.974965ms(-0.6017%);p95/p99deltas+1.7286/+2.0514%and+1.0092/-2.0592% pass predeclared limits. CPU15 with sampled SMT14mean busy0.661/0.578%,1s maxima1.98/12%;no overlapping agent builds/heavy verification. Neutral local work result, not speedup or realtime/native Windows evidence.",
+    "Seven first/cached observations pass250/100ms median gates:Linux51.943/40.225ms(max58.944/41.429),Wine66.387/47.001ms(max72.946/49.630). Each three-file generation107861logical/118784allocated bytes;managed root107879/139264bytes. Owned29112B. Whole ready-dataset command medians baseline/candidate264.836/314.892ms Linux,364.999/415.250ms Wine warm-prefix, reported separately from isolated resource stages.",
+    "Native seven-pair RSS fails the predeclared2048KiB gate:median+2864KiB,max+2944KiB. All original values are retained. Seven prepared-only reference runs have median184996/max185140KiB versus active185004/185224KiB, attributing most excess to preparation/parsing rather than29KiB ownership; these distributions do not prove an exact per-owner RSS delta.",
+    "Isolated typed allocation probes preserve162records and exact source projection hash. Existing TOML0.8requires1942055bytes of requested temporary heap;inline-table TOML1952069,and cached TOML1.1requires3381232,so both alternatives are rejected as memory remedies. Pretty JSON deserializes directly into the same typed data with22528bytes peak;its default149261byte file exceeds the predeclared128KiB logical budget,so no default-format migration is claimed. A one-space pretty encoding is evaluated separately before selecting a remedy. Direct rlib setup initially rejected different build/runtime serde trait identities;isolated Cargo graph unifies them without a production dependency change. One-space pretty JSON is123663bytes and preserves22528byte parser peak, so fits the existing128KiB logical dataset budget including the other files; this remains a diagnostic prototype, not a migrated runtime."
+  ],
+  "limitations": [
+    "Frozen e3 observations remain terminal: scene/frame/startup/disk checks pass and native RSS exceeds the former2048KiB diagnostic gate. Later user steering removes extracted-data space minimization; standard readable e4 JSON is now implemented/validated in its separate record, without one-space formatting or another budget-only campaign. Current JSON whole-process RSS is not inferred from the parser probe. BG GUI/archives, native Windows, other families/catalogs and mods remain open. No canonical executable update, public export, AndroidPort change, agent commit or push."
+  ],
+  "files": [
+    "crates/recomp/src/rom_data/validation_tests.rs"
+  ],
+  "references": [
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/rom_data_runtime.md",
+    "docs/rom_data_graphics.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/changes/2026-10-21-parse-readable-bg-json-datasets.json"
+  ]
+}

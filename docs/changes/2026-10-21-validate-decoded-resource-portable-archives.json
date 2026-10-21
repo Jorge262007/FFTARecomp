@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-decoded-resource-portable-archives",
+  "title": "Include resource guides in container exports and validate actual portable bundles",
+  "kind": "fixed",
+  "platforms": [
+    "Linux Docker/Ubuntu X11",
+    "Windows GNU Docker/Wine"
+  ],
+  "changes": [
+    "Align the Docker allowlist and both Dockerfile COPY lists with the packager's two required resource guides. The missing inputs were found before the real builds; no runtime logic or launcher behavior changes.",
+    "Build/test/export actual candidate bundles into an isolated validation directory from frozen current-worktree inputs, inspect archive/binary/privacy requirements and run the actual extracted executables with decoded data."
+  ],
+  "validation": [
+    "Both container build/test/export stages pass:392Windows/Wine and395Linux tests,24optional ignored per platform. Rust/compiler output has no warnings; cold Windows apt setup has only missing optional man-page alternatives warnings.",
+    "Actual zip/tar integrity, safe member types/paths, executable modes, selected document/TinyCC/source hashes and nested TinyCC source archive pass. Archive file paths/content hashes exclude known ROMs, saves/states/recordings, extracted data, native game caches and generated code. Only bundled libtcc.dll appears in the Windows DLL set; both PE executables contain resources and require no unbundled GCC/C++/pthread runtime. Linux binary maximum GLIBC requirement is2.35 with resolved host runtime libraries.",
+    "Actual extracted Windows/Wine and Linux runtimes automatically locate bundled TinyCC without FFTA_TCC_LIBRARY, create portable Data/resources without an override and consume the data while loading the protected battle slot, Undoing, reloading and closing0. Captures inspected, original inputs and every public archive-member hash remain unchanged. Private fixtures/caches are added only after privacy inspection; archive bytes stay unchanged.",
+    "The preservation guard reports one changed prior dist/docker-linux/BUILD-INFO.txt hash, while all prior archive bytes and canonical runtimes match their original hashes. Its current contents match the actual identical Linux archive; cause is unestablished and exact old bytes are unavailable, so no invented restoration or all-metadata-preserved claim is made. Both actual build/export stages had passed before this guard assertion; metadata difference is retained.",
+    "An inspection helper initially matched an empty TinyCC source file to the empty prepare.lock hash, and its inspect.py name shadowed the standard module in error reporting. Rename the helper, exclude the empty lock identity and verify the surviving extraction byte-for-byte before completing inspection; no build or extraction is repeated.",
+    "Final project_memory.py check, CRLF-aware git diff --check and affected local-document links pass. Final runtime/source (excluding documented post-export outcome docs), canonical, public archive-member, artifact and original private-fixture hashes are checked; all selected handles are terminal and the next USA initializer criterion is recorded."
+  ],
+  "limitations": [
+    "Native Windows hardware, USA initializer trace and the remaining family/catalog migrations/mods are still open; base resource use stays opt-in. Actual GUI archive checks are Xvfb/llvmpipe and Wine compatibility, not new speed/audio-quality/physical-device claims. Existing archive bytes and canonical binaries remain unchanged; one prior BUILD-INFO metadata difference is explicitly retained. No AndroidPort update, external publication, agent commit or push."
+  ],
+  "files": [
+    ".dockerignore",
+    "Dockerfile.windows",
+    "Dockerfile.linux"
+  ],
+  "references": [
+    "docs/docker.md",
+    "docs/rom_data_runtime.md",
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

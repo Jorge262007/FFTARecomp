@@ -100,6 +100,7 @@ struct Ctx<'a> {
     thumb: bool,
     /// Cycles accumulated since the last tick flush.
     cycles: u64,
+    remaining_cycles: u32,
 }
 
 impl Ctx<'_> {
@@ -107,6 +108,18 @@ impl Ctx<'_> {
         if self.cycles > 0 {
             let _ = writeln!(self.out, "    a->tick(m, {}u);", self.cycles);
             self.cycles = 0;
+        }
+    }
+
+    /// A store/shell can advance time through DMA, enable an IRQ or halt.
+    /// Recheck the remaining budget before executing more native instructions.
+    fn guard_continuation(&mut self, next: u32) {
+        self.out.push_str("    fuel = 0u;\n");
+        if self.remaining_cycles != 0 {
+            let _ = writeln!(self.out,
+                "    fuel = a->guard(m, 0u, 0u, 0x{:016x}ull); if ((fuel & 0x{:08x}u) || fuel <= {}u) {{ c[15] = 0x{:08x}u; return 0x{next:08x}u; }} fuel -= {}u;",
+                gba_core::capi::EVENT_GUARD_TAG, gba_core::capi::EVENT_YIELD,
+                self.remaining_cycles, next & !1, self.remaining_cycles);
         }
     }
 
@@ -132,6 +145,7 @@ fn emit_shell(cx: &mut Ctx, instr: &Instr, expect: u32, last: bool) {
             cx.out,
             "    pc = a->interp_one(m); if (pc != 0x{expect:08x}u) return pc;"
         );
+        cx.guard_continuation(expect);
     }
 }
 
@@ -477,14 +491,11 @@ fn label(key: u32) -> String {
 
 /// Emit a static control transfer to `key` (caller has already set
 /// c[15] and any link register): a direct goto when the target belongs
-/// to the same chain group — gated on back-edges so native loops still
-/// return for IRQ delivery and frame pacing — else a dispatcher return.
-fn transfer(out: &mut String, chain: Option<&ChainCtx>, src_addr: u32, key: u32, ind: &str) {
+/// to the same chain group, whose entries all check event budgets, else a
+/// dispatcher return. Entry guards also cover forward edges and loop back-edges.
+fn transfer(out: &mut String, chain: Option<&ChainCtx>, _src_addr: u32, key: u32, ind: &str) {
     if let Some(ch) = chain {
         if ch.members.contains(&key) {
-            if key & !1 <= src_addr {
-                let _ = writeln!(out, "{ind}if (a->chain_gate(m)) return 0x{key:08x}u;");
-            }
             let _ = writeln!(out, "{ind}goto {};", label(key));
             return;
         }
@@ -536,11 +547,24 @@ fn emit_block(out: &mut String, b: &Block, view: &crate::analyze::View, chain: O
     } else {
         let _ = writeln!(
             out,
-            "uint32_t b_{:08x}_{}(const RtApi* a, void* m) {{\n    uint32_t* c = (uint32_t*)m;\n    uint32_t pc; (void)pc;",
+            "uint32_t b_{:08x}_{}(const RtApi* a, void* m) {{\n    uint32_t* c = (uint32_t*)m;\n    uint32_t pc; (void)pc;\n    uint32_t fuel = 0u;",
             b.addr,
             if b.thumb { "t" } else { "a" }
         );
     }
+
+    let mut cycle_budget = vec![0u32; b.instrs.len() + 1];
+    for i in (0..b.instrs.len()).rev() {
+        let cost = u32::try_from(gba_core::machine_instr_cost(region, &b.instrs[i])).unwrap();
+        cycle_budget[i] = cycle_budget[i + 1].checked_add(cost).unwrap();
+    }
+    // Reserve a conservative budget. Chained blocks reuse the remaining
+    // allowance; an exhausted allowance is refreshed against the actual clock.
+    // Near an event, one interpreter step retains exact frame/IRQ boundaries.
+    let _ = writeln!(out,
+        "    if (fuel <= {}u) {{ fuel = a->guard(m, 0u, 0u, 0x{:016x}ull); if (fuel & 0x{:08x}u) {{ c[15] = 0x{:08x}u; return 0x{:08x}u; }} if (fuel <= {}u) {{ c[15] = 0x{:08x}u; return a->interp_one(m); }} }} fuel -= {}u;",
+        cycle_budget[0], gba_core::capi::EVENT_GUARD_TAG, gba_core::capi::EVENT_YIELD,
+        b.addr, b.key(), cycle_budget[0], b.addr, cycle_budget[0]);
 
     // RAM-resident blocks were translated from a profiling snapshot;
     // guard the whole block's content (one FNV-1a hash call) so swapped
@@ -584,10 +608,12 @@ fn emit_block(out: &mut String, b: &Block, view: &crate::analyze::View, chain: O
         out,
         thumb: b.thumb,
         cycles: 0,
+        remaining_cycles: 0,
     };
     let mut i = 0;
     while i < b.instrs.len() {
         let instr = &b.instrs[i];
+        cx.remaining_cycles = cycle_budget[i + 1];
         if gba_core::ffta_log::enabled()
             && ((0x080014c8..0x080016c8).contains(&instr.addr)
                 || (0x080016d4..0x08001882).contains(&instr.addr)
@@ -734,6 +760,10 @@ fn emit_block(out: &mut String, b: &Block, view: &crate::analyze::View, chain: O
                 }
             }
         }
+        if matches!(instr.op, Op::Mem { load: false, .. } | Op::BlockMem { load: false, .. }) {
+            cx.flush_ticks();
+            cx.guard_continuation(expect);
+        }
         i += 1;
     }
 
@@ -828,7 +858,7 @@ fn emit_group(out: &mut String, blocks: &[Block], members: &[usize], view: &crat
     let gid = blocks[members[0]].key();
     let _ = writeln!(
         out,
-        "static uint32_t g_{gid:08x}(const RtApi* a, void* m, uint32_t entry) {{\n    uint32_t* c = (uint32_t*)m;\n    uint32_t pc; (void)pc;\n    switch (entry) {{"
+        "static uint32_t g_{gid:08x}(const RtApi* a, void* m, uint32_t entry) {{\n    uint32_t* c = (uint32_t*)m;\n    uint32_t pc; (void)pc;\n    uint32_t fuel = 0u;\n    switch (entry) {{"
     );
     for (n, &i) in members.iter().enumerate() {
         let _ = writeln!(out, "    case {n}u: goto {};", label(blocks[i].key()));
@@ -909,6 +939,26 @@ pub fn emit_c_chunked(
 
 #[cfg(test)]
 mod ffta_logging_tests {
+    // MemoryTcc writes an ELF relocatable cache, including on Windows; it
+    // must be loaded by TinyCC rather than the operating system's DLL loader.
+    enum TestCode {
+        Dll(libloading::Library),
+        TinyCc(crate::tcc_memory::NativeCode),
+    }
+
+    impl TestCode {
+        fn blocks(&self) -> &[gba_core::capi::RcgBlock] {
+            match self {
+                Self::TinyCc(code) => code.blocks().unwrap(),
+                Self::Dll(library) => unsafe {
+                    let blocks = library.get::<*const gba_core::capi::RcgBlock>(b"rcg_blocks\0").unwrap();
+                    let count = library.get::<*const u64>(b"rcg_block_count\0").unwrap();
+                    std::slice::from_raw_parts(*blocks, **count as usize)
+                },
+            }
+        }
+    }
+
     #[test]
     #[ignore = "requires FFTA_OAM_LOG=1 and a native C compiler"]
     fn native_observers_preserve_guest_state_and_cycles() {
@@ -922,7 +972,12 @@ mod ffta_logging_tests {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/ffta-log-validation");
         std::fs::create_dir_all(&directory).unwrap();
         let path = directory.join(if cfg!(windows) { "synthetic.dll" } else { "synthetic.so" });
-        crate::build::build_library(&view,&[0x080014c9],&crate::build::Compiler::detect(),&path,0,&mut |_,_| {}).unwrap();
+        let compiler = crate::build::Compiler::detect();
+        crate::build::build_library(&view,&[0x080014c9],&compiler,&path,0,&mut |_,_| {}).unwrap();
+        let code = match compiler.backend {
+            crate::build::Backend::MemoryTcc(_) => TestCode::TinyCc(crate::tcc_memory::NativeCode::load(&path).unwrap()),
+            _ => TestCode::Dll(unsafe { libloading::Library::new(&path).unwrap() }),
+        };
         let new_machine = || {
             let mut m = gba_core::Machine::new(rom.clone());
             m.cpu.cpsr |= 0x20;
@@ -937,11 +992,8 @@ mod ffta_logging_tests {
         reference.bus.ffta_diagnostics = None;
         for _ in 0..5 { reference.step(); }
         let mut observed = new_machine();
-        unsafe {
-            let library = libloading::Library::new(&path).unwrap();
-            let blocks = library.get::<*const gba_core::capi::RcgBlock>(b"rcg_blocks\0").unwrap();
-            let count = library.get::<*const u64>(b"rcg_block_count\0").unwrap();
-            let block = std::slice::from_raw_parts(*blocks,**count as usize).iter().find(|b| b.key==0x080014c9).unwrap();
+        {
+            let block = code.blocks().iter().find(|b| b.key==0x080014c9).unwrap();
             (block.func)(&gba_core::capi::RT_API,&mut observed as *mut _ as *mut std::ffi::c_void);
         }
         assert_eq!(observed.cpu.regs,reference.cpu.regs);
@@ -967,11 +1019,8 @@ mod ffta_logging_tests {
             reference.step();
             let mut observed = machine();
             assert!(observed.bus.ffta_sprites.enabled);
-            unsafe {
-                let library = libloading::Library::new(&path).unwrap();
-                let blocks = library.get::<*const gba_core::capi::RcgBlock>(b"rcg_blocks\0").unwrap();
-                let count = library.get::<*const u64>(b"rcg_block_count\0").unwrap();
-                let block = std::slice::from_raw_parts(*blocks,**count as usize).iter().find(|b| b.key==0x080014c9).unwrap();
+            {
+                let block = code.blocks().iter().find(|b| b.key==0x080014c9).unwrap();
                 let next = (block.func)(&gba_core::capi::RT_API,&mut observed as *mut _ as *mut std::ffi::c_void);
                 assert_eq!(next, 0x080014cb);
             }
@@ -981,6 +1030,165 @@ mod ffta_logging_tests {
             assert_eq!(observed.bus.iwram, reference.bus.iwram);
             assert_eq!(observed.bus.oam, reference.bus.oam);
             println!("FFTA_NATIVE verified_ROM_entry=INTERPRETER cpu=IDENTICAL memory=IDENTICAL cycles=IDENTICAL");
+        }
+    }
+}
+
+#[cfg(test)]
+mod native_event_tests {
+    use gba_core::{Bus, Machine};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static QUERIES: AtomicUsize = AtomicUsize::new(0);
+    extern "C" fn counted_guard(m: *mut core::ffi::c_void, addr: u32, len: u32, tag: u64) -> u32 {
+        if len == 0 && tag == gba_core::capi::EVENT_GUARD_TAG {
+            QUERIES.fetch_add(1, Ordering::Relaxed);
+        }
+        (gba_core::capi::RT_API.guard)(m, addr, len, tag)
+    }
+
+    #[test]
+    #[ignore = "requires FFTA_TCC_LIBRARY pointing to the desktop TinyCC adapter"]
+    fn native_blocks_preserve_frame_irq_and_dma_boundaries() {
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target/native-event-validation");
+        std::fs::create_dir_all(&base).unwrap();
+        let mut rom = vec![0u8; 0x1a0];
+        rom[..4].copy_from_slice(&0xE12FFF10u32.to_le_bytes());
+        for (start, ops) in [
+            (0x100, vec![0x7821u16, 0x3401, 0x3801, 0xD1FB, 0x4770]),
+            (0x140, vec![0x8008, 0x2207, 0x4770]),
+        ] {
+            for (i, op) in ops.into_iter().enumerate() {
+                rom[start + i * 2..start + i * 2 + 2].copy_from_slice(&op.to_le_bytes());
+            }
+        }
+        for (i, op) in [0xE1010092u32, 0xE3A03007, 0xE12FFF1E]
+            .into_iter()
+            .enumerate()
+        {
+            rom[0x180 + i * 4..0x184 + i * 4].copy_from_slice(&op.to_le_bytes());
+        }
+        let view = crate::analyze::View {
+            rom: &rom,
+            ewram: None,
+            iwram: None,
+            bios: None,
+        };
+        let path = base.join("guarded-synthetic.so");
+        let cc = crate::Compiler::detect();
+        assert!(matches!(cc.backend, crate::Backend::MemoryTcc(_)));
+        crate::build_library(
+            &view,
+            &[0x08000101, 0x08000141, 0x08000180],
+            &cc,
+            &path,
+            0,
+            &mut |_, _| {},
+        )
+        .unwrap();
+        let code = crate::tcc_memory::NativeCode::load(&path).unwrap();
+        let blocks = code.blocks().unwrap();
+        let api = gba_core::capi::RtApi {
+            guard: counted_guard,
+            ..gba_core::capi::RT_API
+        };
+
+        let fixture = |pc, offset| {
+            let mut m = Machine::new(rom.clone());
+            m.cpu.cpsr = if pc & 1 != 0 { 0x3f } else { 0x1f };
+            m.cpu.regs[0] = 1000;
+            m.cpu.regs[4] = 0x02000000;
+            m.cpu.regs[15] = pc & !1;
+            for i in 0..64 {
+                m.bus.ewram[i] = i as u8 + 1;
+            }
+            m.bus.write32(0x03000000, 0xE12FFF1E);
+            m.bus.write32(0x03007FFC, 0x03000000);
+            m.bus.write16(0x04000004, 8);
+            m.bus.write16(0x04000200, 1);
+            m.bus.write16(0x04000208, 1);
+            m.bus
+                .tick(gba_core::mem::CYCLES_PER_SCANLINE * 160 - offset);
+            assert!(!m.bus.frame_ready);
+            m
+        };
+        for offset in [1, 2, 3, 4, 8, 16, 32, 64, 128] {
+            let mut reference = fixture(0x08000101, offset);
+            let mut native = fixture(0x08000101, offset);
+            let mut reference_steps = 0;
+            while !reference.bus.frame_ready {
+                reference.step();
+                reference_steps += 1;
+            }
+            let mut calls = 0;
+            QUERIES.store(0, Ordering::Relaxed);
+            while !native.bus.frame_ready {
+                calls += 1;
+                assert!(calls < 1000);
+                let key = native.cpu.regs[15] | native.cpu.thumb() as u32;
+                if native.bus.halted
+                    || (native.bus.irq_pending() && !native.cpu.flag(gba_core::cpu::FLAG_I))
+                {
+                    native.step();
+                } else if let Some(b) = blocks.iter().find(|b| b.key == key) {
+                    (b.func)(&api, &mut native as *mut _ as *mut std::ffi::c_void);
+                } else {
+                    native.step();
+                }
+            }
+            if offset == 128 {
+                assert!(
+                    calls < reference_steps,
+                    "the safe native batching path must run"
+                );
+                assert!(
+                    QUERIES.load(Ordering::Relaxed) < reference_steps / 4,
+                    "chained blocks must amortize scheduling queries"
+                );
+            }
+            assert_eq!(
+                reference.save_state().unwrap(),
+                native.save_state().unwrap(),
+                "frame offset {offset}"
+            );
+            reference.step();
+            native.step();
+            assert_eq!(reference.cpu.mode(), gba_core::Mode::Irq);
+            assert_eq!(
+                reference.save_state().unwrap(),
+                native.save_state().unwrap(),
+                "IRQ offset {offset}"
+            );
+        }
+        for (name, pc) in [
+            ("inline-store-dma", 0x08000141),
+            ("shell-swap-dma", 0x08000180),
+        ] {
+            let setup = || {
+                let mut m = fixture(pc, 64);
+                m.cpu.regs[1] = if pc & 1 != 0 { 0x040000DE } else { 0x040000DC };
+                m.cpu.regs[0] = 0x8400;
+                m.cpu.regs[2] = 0x8400012C;
+                for i in 0..300u32 {
+                    m.bus.write32(0x02001000 + i * 4, i);
+                }
+                m.bus.write32(0x040000D4, 0x02001000);
+                m.bus.write32(0x040000D8, 0x03001000);
+                m.bus.write16(0x040000DC, 300);
+                m
+            };
+            let mut reference = setup();
+            let mut native = setup();
+            reference.step();
+            assert!(reference.bus.frame_ready);
+            let b = blocks.iter().find(|b| b.key == pc).unwrap();
+            (b.func)(&api, &mut native as *mut _ as *mut std::ffi::c_void);
+            assert_eq!(
+                reference.save_state().unwrap(),
+                native.save_state().unwrap(),
+                "{name}"
+            );
         }
     }
 }

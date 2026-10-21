@@ -198,6 +198,7 @@ impl<'a> MemView<'a> {
 /// and track volume; the sampler persists across ticks and resets on
 /// note-on, so position can never drift unboundedly from the guest's.
 #[derive(Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Voice {
     on: bool,
     /// Guest address of the first sample byte (wave header + 16).
@@ -216,6 +217,7 @@ struct Voice {
     g1: (f32, f32),
     /// Decoded DPCM block cache (33 bytes -> 64 samples).
     blk_idx: u32,
+    #[serde(with = "crate::save_state::array")]
     blk: [i8; 64],
     /// Canon-domain check copy: the guest mixer samples this voice at
     /// ITS mix rate (decimation aliasing and all) — the self-check
@@ -247,6 +249,7 @@ impl Default for Voice {
 
 /// The MP2K HLE shadow mixer. Lives on the bus; fed by the dispatch
 /// hook (`frame_hook`) and the audio grid (`render`).
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Mp2kHle {
     /// Dispatch keys (SoundMainRAM entry | thumb) the loops compare PC
     /// against — more than one when the image links several driver

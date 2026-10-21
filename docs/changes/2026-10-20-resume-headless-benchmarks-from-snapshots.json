@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "slug": "resume-headless-benchmarks-from-snapshots",
+  "title": "Resume native headless benchmarks from validated desktop snapshots",
+  "kind": "added",
+  "platforms": [
+    "Root desktop CLI and Python benchmark runner; native Linux and Windows via Wine validation"
+  ],
+  "changes": [
+    "Add runc --state for read-only desktop slots with previews and legacy raw snapshots through the existing transactional menu validator; preserve state version, guest clocks and translation ABI.",
+    "Replay N additional frames after loading, with input, zoom and benchmark warm-up relative to the loaded point. Preserve absolute guest counters and legacy guest-cycle/character diagnostics; no-snapshot runs retain boot frame zero.",
+    "Reject conflicting cartridge/snapshot starts and diagnostic output over the snapshot path or its symlink. Extend benchmark input protection, checksums, initial-machine identity, exact frame-range validation and summary origin metadata.",
+    "Record a reproducible idle battle baseline from the supplied local snapshot and prioritize detailed CPU PPU/UI extraction profiling; this change does not alter the renderer or claim an AI speedup."
+  ],
+  "validation": [
+    "47 native Linux runtime release tests passed serially, with three optional fixture cases ignored. The new command test rejects conflicting --sav/--state and snapshot output collisions, including symlinks on Unix, without changing the source file. Eleven Python behavioral tests passed, including nonzero origins, incomplete/duplicate captures, differing initial identities, output collisions and invalid start options.",
+    "The supplied desktop slot passed the actual native headless pipeline over five alternating same-binary pairs, 600 additional frames and 120 warm-up frames, pinned to CPU 15 with RECOMP_MP2K=1. Per-frame framebuffer/OAM, full final machine state and execution counts matched; input hashes were unchanged. Median work times were 20.950177/20.856358 ms/frame, measuring variability rather than an optimization.",
+    "Both separate instrumented battle runs captured 480 post-warmup frames, 76800 hardware scanlines, zero zoom calls and no invalid intervals. Mean scanline cost was 16.238810/15.286284 ms and core remainder 5.017627/4.764722 ms, about 76 percent scanlines. Instrumentation overhead estimates of +1.487/-3.837 percent show single-run variation and are not a speedup.",
+    "A second snapshot pipeline applied zoom at relative frames 0 and 30 despite a nonzero guest origin. Both instrumented runs recorded 50 measured frames, 8000 hardware scanlines and 30 zoom calls with matching final state and execution counts.",
+    "A legacy raw snapshot derived locally from the same slot loaded with the same machine identity; zero additional frames preserved the complete serialized state and original frame counter. An existing native binary and the new runtime also matched all 3000 introductory framebuffer/OAM captures, final machine state and execution counts without --state.",
+    "Final Docker builds passed 313 Linux tests (167 core, 26 input/config, 33 menu, 47 runtime, 40 screen) and 312 Windows/Wine tests (167 core, 26 input/config, 33 menu, 48 runtime, 38 screen), with nine optional tests ignored on each target. Both portable archives passed integrity, private-data/library exclusion and BUILD-INFO SHA-256 checks; Linux executable modes were preserved.",
+    "The actual exported Linux and Windows/Wine CLIs loaded the supplied desktop slot with zero additional frames. Both matched the native legacy-loader run on original frame counter, initial/final full machine identity and framebuffer result. This tests cross-platform loading without claiming cross-platform gameplay/audio equivalence.",
+    "Original ZIP hash and selected source save/snapshot bytes remained unchanged after the tests. Project-memory checks passed for the working tree and --base HEAD, and the diff whitespace check passed."
+  ],
+  "limitations": [
+    "The baseline is an idle battle snapshot, not an identified slow enemy-turn replay. Headless work excludes presentation, UI composition in the window and the audio-device callback; detailed PPU substage and GPU timings remain pending.",
+    "Native Windows, physical controllers and AndroidPort are not validated by the Linux measurements. No native/generated guest semantics or snapshot format changed."
+  ],
+  "files": [
+    "crates/recomp/src/main.rs",
+    "crates/recomp/src/save_state.rs",
+    "scripts/benchmark_windows_runtime.py",
+    "scripts/tests/test_benchmark_runtime.py"
+  ],
+  "references": [
+    "docs/development/PERFORMANCE_WORKFLOW.md",
+    "docs/development/PERFORMANCE_TODO.md",
+    "docs/save_states.md"
+  ]
+}

@@ -23,6 +23,12 @@ Windows: `python TinyCC/build.py --cc C:/path/to/gcc.exe`
 
 Linux: `python3 TinyCC/build.py --platform linux`
 
+Cross-compile Windows from Linux: use `--platform windows
+--cc x86_64-w64-mingw32-gcc --host-cc gcc` and choose a Windows output DLL path
+with `--output`. The build-time `c2str` helper must run on the build host;
+`--host-cc` compiles that helper while `--cc` builds the target library.
+The Windows Docker builder wires these flags automatically.
+
 Copy the resulting library into `tcc/` beside `recomp`, or set
 `FFTA_TCC_LIBRARY` to its absolute path. Compatible modified libraries are
 accepted. Preserve the documented TinyCC API/ABI, the adapter entry point

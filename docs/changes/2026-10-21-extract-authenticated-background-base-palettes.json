@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "extract-authenticated-background-base-palettes",
+  "title": "Extract authenticated background base palettes as readable typed banks",
+  "kind": "added",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Add bounded raw0/LZ7710palette decoding with exact source consumption and complete16-bit banks, preserving bit15. Extract every162base record and its162source-provenance entries, including127unique sources/aliases; alternate environment programs remain separate.",
+    "Add graphics.bg-base-palettes as standard readable JSON. Schema1/extractor5/decoder4 uses four fixed files and preserves previous e4/e3/e2/e1 namespaces. Manifest64KiB/OBJ16KiB/BG256KiB/palettes512KiB/total768KiB bounds protect malformed input; no compression or storage-tuning target.",
+    "Use a borrowed complete-file view for source validation/runtime identity; all three resource IDs/hashes participate atomically. Four-file write/sync/verify/publication, reuse/repair and startup status include palettes; missing/corrupt/forged data fail explicitly before live binding. Gameplay palette consumption remains ROM and is reported as prepared/runtime=rom."
+  ],
+  "validation": [
+    "Release affected defaults32Linux/30Wine plus seven private cases each pass(39/37total):3palette core+2source+7runtime+9/8file+11/10preparation. New tests cover endian/high-bit preservation, exact raw/LZ77 extents, malformed headers/sizes/tags/banks/JSON, rehashed edits, partial palette writes, missing-file repair and per-family/total input bounds.",
+    "Four original producer cases now use the new typed model as expected data and still match1296calls/72792instructions per region/target with full output/guards, unchanged EWRAM and restored SP. All162models match retained decoded buffers;127unique source hashes/aliases agree across regions.",
+    "Private regional four-file tests cover actual e4retention, whole-set identity on semantic-equal palette bytes, rehashed mutation/missing activation preserving live Arc/snapshot, create/reuse/corrupt-or-missing repair/move, plus original Load/Undo/backup and native BG provenance. Earlier OBJ/BG file bytes are unchanged.",
+    "Both production builds warning-free;22actual CLI operations per target pass regional extract/reuse/verify, managed creation/reuse, BG and palette corruption/missing repair, unrelated-cwd relocation and old e2refusal/retention. All current files match across targets. Actual interpreter/native1200-frame CLI pairs match legacy frame hashes and native final full state, with53BG reads and explicit palette-prepared/runtime-ROM diagnostics; dataset mtimes/input/cache/canonical hashes remain unchanged. Tar/zip marker scenarios exclude the new palette file."
+  ],
+  "limitations": [
+    "This completes typed palette decoding/extraction/preparation, not palette gameplay migration. The next step must consume the decoded banks while preserving original writes/cycles and native/save/Load semantics. Alternate programs, other catalogs/languages/families, GUI/archives/native Windows/default enablement and mods remain open. No speedup, compression, public asset/code export, AndroidPort update, agent commit or push."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/bg_palettes.rs",
+    "crates/gba-core/src/rom_data/runtime.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/preparation.rs",
+    "crates/recomp/src/rom_data/managed_tests.rs",
+    "crates/recomp/src/rom_data/bg_runtime_tests.rs",
+    "crates/recomp/src/rom_data/bg_palette_tests.rs",
+    "crates/recomp/src/rom_data/palette_data_tests.rs",
+    "crates/recomp/src/main.rs",
+    "scripts/tests/test_portable_resources.py"
+  ],
+  "references": [
+    "docs/rom_data.md",
+    "docs/rom_data_graphics.md",
+    "docs/rom_data_runtime.md",
+    "docs/development/ROM_DATA_INVENTORY.md",
+    "docs/development/ROM_DATA_TODO.md"
+  ]
+}

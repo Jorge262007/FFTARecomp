@@ -6,6 +6,7 @@ fn preference() -> Option<PathBuf> {
 }
 
 pub fn remember(save: &Path) {
+    if input_config::storage::portable_root().is_some() { return; }
     let result = (|| -> std::io::Result<()> {
         let Some(file) = preference() else { return Ok(()); };
         std::fs::create_dir_all(file.parent().unwrap())?;
@@ -28,16 +29,25 @@ fn candidates(rom: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(saves)
 }
 
+fn available_or_backed_up(save: &Path) -> bool {
+    save.is_file() || crate::save_backups::Backups::new(save).has_copies()
+}
+
 pub fn resolve(rom: &Path) -> Result<PathBuf, String> {
     if let Some(path) = std::env::var_os("FFTA_SAVE_PATH") {
         return Ok(PathBuf::from(path));
     }
+    if let Some(root) = input_config::storage::portable_root() {
+        let dir = root.join("Data").join("saves");
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        return Ok(dir.join("ffta.sav"));
+    }
     if let Some(saved) = preference().and_then(|p| std::fs::read_to_string(p).ok()) {
         let saved = PathBuf::from(saved);
-        if saved.is_file() { return Ok(saved); }
+        if available_or_backed_up(&saved) { return Ok(saved); }
     }
     let expected = rom.with_extension("sav");
-    if expected.is_file() { return Ok(expected); }
+    if available_or_backed_up(&expected) { return Ok(expected); }
     let saves = candidates(rom)?;
     match saves.as_slice() {
         [] => Ok(expected),
@@ -59,6 +69,20 @@ pub fn resolve(rom: &Path) -> Result<PathBuf, String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn missing_primary_keeps_its_location_when_recovery_copies_exist() {
+        let dir = tempfile::tempdir().unwrap();
+        let save = dir.path().join("custom-progress.sav");
+        assert!(!super::available_or_backed_up(&save));
+        std::fs::write(&save, vec![7;65536]).unwrap();
+        let backups = crate::save_backups::Backups::new(&save);
+        backups.capture_startup().unwrap();
+        std::fs::remove_file(&save).unwrap();
+        assert!(super::available_or_backed_up(&save));
+        assert!(!save.exists());
+        assert!(!super::available_or_backed_up(&dir.path().join("unrelated.sav")));
+    }
+
     #[test]
     fn arbitrary_names_and_multiple_saves_are_preserved() {
         let dir = std::env::temp_dir().join(format!("ffta-save-resolve-{}",std::process::id()));

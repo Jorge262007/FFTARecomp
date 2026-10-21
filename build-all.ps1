@@ -15,31 +15,22 @@ if (-not $SkipAndroid) {
     }
 }
 
-Write-Host '==> [1/5] Building Windows workspace...' -ForegroundColor Cyan
+Write-Host '==> [1/5] Building Windows portable runtime...' -ForegroundColor Cyan
 $oldErrorAction = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-& cargo build --release
+& cargo build --locked --release -p recomp -p ffta-play
 $cargoExit = $LASTEXITCODE
 $ErrorActionPreference = $oldErrorAction
-if ($cargoExit -ne 0) { throw 'Windows workspace build failed' }
+if ($cargoExit -ne 0) { throw 'Windows runtime build failed' }
 
-Write-Host '==> [2/5] Copying Windows installer and game...' -ForegroundColor Cyan
-New-Item -ItemType Directory -Force (Join-Path $PSScriptRoot 'Installer') | Out-Null
-New-Item -ItemType Directory -Force (Join-Path $PSScriptRoot 'Installer\payload') | Out-Null
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\installer.exe') -Destination (Join-Path $PSScriptRoot 'Installer\Installer.exe') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\recomp.exe') -Destination (Join-Path $PSScriptRoot 'Installer\payload\recomp.exe') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\ffta-play.exe') -Destination (Join-Path $PSScriptRoot 'Installer\payload\FFTARecomp.exe') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gamedb.sqlite') -Destination (Join-Path $PSScriptRoot 'Installer\payload\gamedb.sqlite') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Licenses') -Destination (Join-Path $PSScriptRoot 'Installer') -Recurse -Force
+Write-Host '==> [2/5] Preparing Windows portable runtime...' -ForegroundColor Cyan
+# The Windows deliverable is a standalone ZIP, with no installer or shortcuts.
 
-Write-Host '==> [3/5] Building compact TinyCC compiler...' -ForegroundColor Cyan
+Write-Host '==> [3/5] Building and packaging TinyCC with the portable runtime...' -ForegroundColor Cyan
 & python (Join-Path $PSScriptRoot 'TinyCC\build.py')
 if ($LASTEXITCODE -ne 0) { throw 'TinyCC Windows build failed' }
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\tcc') -Destination (Join-Path $PSScriptRoot 'Installer\payload') -Recurse -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'TinyCC') -Destination (Join-Path $PSScriptRoot 'Installer\payload') -Recurse -Force
-if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Installer\payload\toolchain')) {
-    Write-Warning 'Legacy payload/toolchain is no longer needed. Remove it before packaging the Windows release.'
-}
+& python (Join-Path $PSScriptRoot 'scripts\package_ffta_windows.py')
+if ($LASTEXITCODE -ne 0) { throw 'Windows portable packaging failed' }
 
 Write-Host '==> [4/5] Building Linux x86_64 and Steam Deck installers...' -ForegroundColor Cyan
 # Keep the Linux cross-compilation environment out of the Android build.
@@ -68,4 +59,4 @@ if (-not $SkipAndroid) {
 } else {
     Write-Host '==> [5/5] Android skipped (-SkipAndroid).'
 }
-Write-Host "Done: $PSScriptRoot\Installer (Windows), Installer\Linux (Linux/Steam Deck), Installer\Android (APK when enabled)." -ForegroundColor Green
+Write-Host "Done: $PSScriptRoot\dist\FFTARecomp-windows-portable.zip (Windows), Installer\Linux (Linux/Steam Deck), Installer\Android (APK when enabled)." -ForegroundColor Green

@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "slug": "validate-decoded-base-palette-scenes",
+  "title": "Validate decoded base palettes through recorded EUR scenes",
+  "kind": "changed",
+  "platforms": [
+    "Linux",
+    "Windows GNU/Wine"
+  ],
+  "changes": [
+    "Extend the existing ignored recorded-scene diagnostic with palette source-bus/byte and decoded-call/output counters, a required decoded-use guard and bounded progress reports. New e6owner/source routing/HLE inputs justify the changed-input scene checks without reopening frozen e3outcomes or recreating fixtures."
+  ],
+  "validation": [
+    "Warning-free release test builds and all six scene comparisons pass:240worldmap/3530battle-menu/8476boot-to-battle frames on Linux and Wine. Every full machine state, central/wide image, OAM, native/fallback dispatch and mixed/PSG/bothFIFO/HLE-bit audio stream matches its platform legacy path. All audio streams are nonempty. Stable scenes record zero palette/BGsource reads; transition records one160Bdecoded palette, one source tag-byte read and53BGreads.",
+    "Existing current e6files and exact recorded snapshot/input/cartridge/native/TinyCC fixtures reused; all protected hashes, implementation source hashes and canonical executable hashes retained. Source mask reaches direct/copy3atframe5400. No production rebuild, duplicate core/default suite, capture recreation, generated asset export or agent commit/push."
+  ],
+  "limitations": [
+    "Completes the declared EURscene correctness unit, not the full ROM data goal or other catalogs/languages. Each platform uses its own existing native cache; matching per-platform states/audio does not claim cross-platform dispatch identity or speedup. Current startup/frame/RSS costs, GUI/archives, native Windows/default enablement and other families/mods remain separate. User currently has Linux/Wine only."
+  ],
+  "files": [
+    "crates/recomp/src/rom_data/validation_tests.rs"
+  ],
+  "references": [
+    "docs/development/ROM_DATA_VALIDATION.md",
+    "docs/development/ROM_DATA_TODO.md",
+    "docs/rom_data_runtime.md"
+  ]
+}
