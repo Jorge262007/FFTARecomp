@@ -5,8 +5,10 @@ description: Develop FFTARecomp runtime, UI, input, rendering and recompiler fea
 
 # FFTARecomp development
 
-Read `AGENTS.md` and `docs/development/PROJECT_STATE.md` from the repository
-root. Inspect current code and Git state; historical docs include old build
+Read `AGENTS.md`, the short `docs/development/TASK_HANDOFF.md` including its
+final PASSAGGIO DI TESTIMONE, Git status and only relevant PROJECT_STATE sections.
+Do not preload archive, full CHANGELOG/PROJECT_STATE or unrelated TODOs.
+Inspect current code and Git state; historical docs include old build
 flags and paths, so manifests and implementations resolve disagreements.
 
 Before choosing a work unit, especially after compaction or goal continuation,
@@ -26,6 +28,12 @@ selected ID's existing outcome; completed/rejected work requires a recorded
 reopening reason. Validate an already implemented request instead of doing it
 again. Check linked terminal results before trusting an old next-action line;
 close a completed/rejected selection before choosing another unit.
+Closed history goes to TASK_COMPLETED_ARCHIVE; keep only incomplete criteria
+under the original IDs in the operational handoff (10–20 KiB). Never append
+after its final handover. Publish through the shared-lock/preimage protocol
+in MEMORY_WORKFLOW. A pause/interruption selects no replacement task or ROM
+exploration. Check async job ownership, handles and outputs without stopping
+another agent's process; sandbox ps cannot establish host inactivity.
 
 Choose the narrowest relevant area:
 - `crates/recomp/src/play.rs`: desktop event loop, pacing and presentation.

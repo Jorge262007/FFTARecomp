@@ -23,12 +23,21 @@ and return findings to Terra without spawning more agents.
 
 ## Terra: start with existing evidence
 
-Follow AGENTS and the task handoff before choosing work. Read
+Follow AGENTS and the short task handoff, including its final PASSAGGIO DI
+TESTIMONE, before choosing work. Read only the selected task's source/evidence
+and relevant PROJECT_STATE sections; never preload historical archive,
+CHANGELOG or unrelated TODOs. Read
 [ffta-development](../ffta-development/SKILL.md) for implementation and
 [ffta-windows-validation](../ffta-windows-validation/SKILL.md) when validating
 Windows behavior. Preserve existing user changes and accepted results.
 Record the selected task, expected/observed behavior, reproduction or existing
 failure evidence, working hypothesis and cheapest useful discriminator.
+Keep task execution state explicit (active/suspended/interrupted/failed/waiting)
+and separate from partial acceptance. Pause/interruption authorizes no new
+task or ROM exploration. Check async ownership/handles/output without killing
+others' jobs; sandbox visibility does not establish host inactivity. Use the
+shared memory lock/preimage protocol; keep handover last and move only verified
+terminal outcomes to the archive. Retain partial IDs and accepted substeps.
 
 Continue directly while the cause and next useful action are supported by
 evidence. An ordinary compile error with a clear fix needs no consultation.

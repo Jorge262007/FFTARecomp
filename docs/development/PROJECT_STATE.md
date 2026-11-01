@@ -4,11 +4,14 @@ This file stores durable facts and entry points. Chronological changes and their
 validation belong in [CHANGELOG.md](../../CHANGELOG.md) and `docs/changes/`.
 Read current source and manifests before relying on older build instructions.
 
-Task selection after compaction or goal continuation starts with
-[TASK_HANDOFF.md](TASK_HANDOFF.md): completed substeps, rejected experiments,
-evidence and one next open work unit. An unchecked parent TODO does not reopen
-completed children. See [repeat rules](MEMORY_WORKFLOW.md#resume-and-repeat-decisions)
-before rebuilding, rerecording fixtures or rerunning an unchanged benchmark.
+Task selection starts with the bounded [TASK_HANDOFF.md](TASK_HANDOFF.md) and its
+final PASSAGGIO DI TESTIMONE, Git state and only task-relevant evidence/sections
+of this document. Do not load full PROJECT_STATE/CHANGELOG/TODOs or history at
+startup. [TASK_COMPLETED_ARCHIVE.md](TASK_COMPLETED_ARCHIVE.md) preserves the
+original history exactly; consult only a named ID/section when needed. Open
+parents do not reopen accepted children. The [memory workflow](MEMORY_WORKFLOW.md#resume-and-repeat-decisions)
+defines explicit task states, pause/async handling and locked preimage-checked
+publication; `scripts/task_handoff.py check` enforces structure and preservation.
 
 ## Architecture and current scope
 

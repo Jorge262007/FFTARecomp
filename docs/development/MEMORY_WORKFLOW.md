@@ -21,62 +21,116 @@ instructions; they cannot guarantee that every editor or agent follows them.
 
 At session start, after compaction, and on automatic goal continuation:
 
-0. Identify the latest user request and its scope. A compacted summary helps
-   locate evidence; it does not supersede that request or authorize executing
-   every historical next action. For workflow-only or status requests, finish
-   that request and retain unrelated pending implementation as pending.
-1. Read [TASK_HANDOFF.md](TASK_HANDOFF.md), current Git status and relevant
-   PROJECT_STATE facts. Use the linked records and cheap file/hash/log reads to
-   reconcile stale context; do not begin by rebuilding or replaying everything.
-2. Check the selected ID in the linked change records and terminal results. If
-   a newer recorded outcome closes it, correct the stale handoff/TODO selection
-   before acting; a stale next-action line cannot reopen that outcome. Resolve
-   ambiguous evidence with cheap inspection, not an automatic rerun.
-   Choose one unfinished subtask with a stable ID, a missing acceptance criterion
-   and a concrete deliverable. A parent TODO may remain open while several
-   children are done. Rejected experiments are terminal decisions too.
-3. Before an expensive repeat, record in the handoff the task ID, what changed
-   or failed, which prior result is invalidated, and the smallest necessary check.
-   Valid reasons include an affected implementation/input/toolchain change, an
-   actual failed check, new evidence contradicting the result, an uncovered
-   requirement, or an explicit user request. Context loss, missing conversation,
-   an unchecked parent and a desire for another identical calibration are not
-   reasons. Do not reopen an unrelated completed unit when checking new work.
-4. Check any recorded live process handle before restarting. A lost handle or
-   observation timeout alone does not establish process failure: inspect the
-   current process/artifact state. Reuse a completed successful output; resume
-   only genuinely unfinished work after establishing its state.
+1. Reconcile the latest user request first. A summary is an evidence locator,
+   not authorization to execute its older queue. Workflow-only work does not
+   resume unrelated implementation. An explicit pause/interruption selects no
+   replacement task and no speculative ROM exploration.
+2. Read only the short [TASK_HANDOFF.md](TASK_HANDOFF.md), including the final
+   **PASSAGGIO DI TESTIMONE**, and `git status --short`. Inspect the relevant diff
+   before attributing changes. Then read only the selected task's source,
+   relevant PROJECT_STATE/feature/TODO sections and linked terminal results.
+   Never automatically load TASK_COMPLETED_ARCHIVE, full CHANGELOG, full
+   PROJECT_STATE or large unrelated TODOs. Name the ID/section needed before
+   historical inspection; search and read a bounded interval.
+3. Verify the selected ID's actual status with cheap file/hash/log reads. A
+   newer terminal result overrides a stale next-action line. Choose a genuinely
+   missing acceptance criterion and concrete deliverable within the request.
+   Partial tasks retain original IDs, accepted results and exact missing scope.
+   An unchecked parent never reopens accepted children or rejected experiments.
+   Reopening a closed ID also requires a concrete `Riapertura` field; the checker
+   rejects a closed ID returning to the queue without that reason.
+4. Check recorded async handles, owner, source/input pins and current artifacts
+   before restarting anything. A timeout, lost handle or no immediate result
+   does not prove failure. Sandbox ps does not prove host inactivity. Record
+   the observation time and visibility limit; leave other agents' processes,
+   prefixes, displays, locks and canonical binaries intact. Do not signal or
+   terminate others' jobs without authorization.
+5. Before the first mutation/expensive command, update the selected task/final
+   handover with a checkpoint: latest request, stable ID, existing outcome and
+   evidence, missing deliverable and next action. Use the publication protocol
+   below. If already implemented, validate its existing evidence and close the
+   selection instead of duplicating code or records.
+6. Before an expensive repeat, record what changed/failed, the invalidated
+   prior result and the smallest affected check. Valid reasons: implementation,
+   input or toolchain change, actual failure, contradictory new evidence,
+   uncovered requirement or explicit request. Context loss, unavailable retired
+   payloads, an open parent or desire for identical calibration are not reasons.
 
-Before the first mutation or expensive command after resumption, write a brief
-selection checkpoint in the handoff: latest request, selected task ID, existing
-status/evidence, missing deliverable and next action. If the selected ID is
-already completed or rejected, stop that selection unless a concrete reopening
-reason above is recorded. If the request is already implemented, validate the
-existing change and report it instead of producing a duplicate implementation
-or change record. Ordinary read-only inspection needs no new checkpoint.
+### Operational structure and task states
 
-As soon as a unit completes or is rejected, close its selection and remove its
-obsolete next action before starting another unit. Record the evidence and exact
-remaining scope at that point; do not defer closure until the end of a long
-benchmark/build sequence. Keep each stable ID in one current outcome entry,
-linking its detailed record rather than copying a second competing status.
+The operational handoff targets 10–20 KiB (checker maximum 20 KiB), in this order:
+`Stato operativo`; `Task in esecuzione o sospesi`; `Task incompleti e criteri aperti`;
+`Blocchi, dipendenze e risorse condivise`; **`PASSAGGIO DI TESTIMONE` last**.
+Nothing may append a new section or chronology after the handover. Its six fields
+are only task, last verified result, remaining work, errors/blockers, concrete
+next action and required references, one Markdown source line per field (the
+renderer wraps them). A completed final selection may remain as
+this brief stopping instruction; its detailed outcome belongs in the archive.
 
-Maintain the handoff at work-unit boundaries, before the final response and
-before known compaction. Replace stale next actions; keep it short enough to
-read in full. Each closed unit needs its scope, decision and an evidence link.
-Each partial unit needs the exact remaining criterion. Each running unit needs
-its process/artifact locator and last observed state, without claiming that an
-old observation is still live. Keep commands/logs and fixture manifests in
-ignored local storage; tracked records must still describe the verified result
-when those files are unavailable. Missing local artifacts are an availability
-issue, not automatic reversal of completed work.
+Use `### ORIGINAL-TASK-ID` with `Stato`, `Esito`, `Verificato`, `Manca`, `Ripresa`:
 
-The handoff is agent-maintained. There is no compaction hook or background
-process writing it automatically; AGENTS and the local skills require its
-use. The memory checker validates records and coverage, not whether an agent
-actually read the handoff or chose useful work. Revalidate only the scope
-affected by new evidence, and update the handoff and underlying TODO together
-when their current-state descriptions disagree.
+- `attivo`: selected work with owner and current process/output locators if any.
+- `sospeso`: preserved but outside current selection or explicitly paused;
+  record the reason and what authorizes resumption. This does not change another
+  thread's goal state or authorize stopping its already running jobs.
+- `interrotto` / `fallito`: interrupted execution or observed failure; retain
+  diagnostics and exact incomplete criterion. Neither state implies completion.
+- `in_attesa`: dependency/input/ownership prerequisite missing; name it.
+- `Esito: parziale`, `integrato_non_verificato` or `non_iniziato` records acceptance
+  separately from execution. Do not infer it from a symbol's existence in code.
+
+Completed, rejected and definitively closed units leave the operational queue.
+Verify their acceptance criteria, record actual results and remaining limits in
+`docs/changes/`/feature docs, append a concise terminal entry to
+[TASK_COMPLETED_ARCHIVE.md](TASK_COMPLETED_ARCHIVE.md), then remove stale
+operational directions. Link existing detailed records instead of copying logs.
+A failed experiment can be rejected without claiming the parent completed.
+Update the final handover immediately at each boundary and before final response
+or known compaction; do not leave an obsolete next action pointing at closed work.
+
+The archive's 2026-11-01 legacy snapshot is immutable provenance, including old
+pending descriptions needed for lossless preservation. It does **not** close
+those tasks: current missing criteria remain operational. Original section byte
+ranges/hashes and explicitly terminal scoped ID locators are in
+`TASK_HANDOFF_MIGRATION.json`; the index does not recertify whole parent features.
+Source snapshot line numbers count from its begin marker. Do not load the
+manifest or archive as routine startup context. Retired local artifacts affect
+availability, not previously recorded acceptance; tracked records retain results.
+
+### Coordinated memory publication
+
+One cooperating writer at a time updates handoff/archive. Before editing, read
+both preimages only when publication is needed, retain their SHA256 values, and
+prepare proposals in temporary files. Another writer's update must be merged,
+never overwritten. Publish through:
+
+```sh
+python3 scripts/task_handoff.py update \
+  --expected-handoff HANDOFF_SHA256 --expected-archive ARCHIVE_SHA256 \
+  --handoff /tmp/handoff-proposal.md --archive /tmp/archive-proposal.md
+python3 scripts/task_handoff.py check
+python3 scripts/project_memory.py check
+```
+
+The helper takes `docs/development/.task-handoff.lock` exclusively and checks
+both exact preimages. A held lock or stale hash refuses without changing memory;
+re-read and merge. Do not delete another writer's lock. A leftover lock after an
+interruption requires owner/process coordination, not age alone. Editors that
+ignore this protocol are not protected by its cooperative lock; stop and reconcile
+when their updates are detected. Apply the same coordination to shared change
+records/CHANGELOG and re-render after merging another record.
+
+Archive updates must append to its exact existing bytes. Removing an operational
+ID requires a matching appended `### ID` entry with `Esito: completato`, `respinto`
+or `chiuso`, and `Criteri verificati`, `Prove`, `Limiti`. The writer assesses the
+criteria; the helper cannot certify runtime acceptance. Partial histories stay
+linked from their original open ID. Publication writes archive first, then
+atomically replaces handoff. A crash between them may duplicate context, but
+cannot discard it from both. Re-read both before recovery; never blindly retry
+an old proposal. No background service or compaction hook writes memory or starts
+work automatically; agents perform these updates at boundaries, and CI checks
+structure/preservation. The checker cannot prove that an agent read the handoff,
+that a claimed acceptance is true, or that a host process is idle.
 
 ## After a meaningful change
 

@@ -1,15 +1,21 @@
 # FFTARecomp project guidance
 
-Read [the current project state](docs/development/PROJECT_STATE.md) and inspect
-`git status --short` before changing code. Existing uncommitted work belongs
-to the user; preserve it and inspect the diff before attributing changes.
+Start with the short [operational handoff](docs/development/TASK_HANDOFF.md),
+including its final **PASSAGGIO DI TESTIMONE**, and `git status --short`.
+Read only task-relevant source, evidence and PROJECT_STATE sections before
+changing code. Existing uncommitted work belongs to the user; preserve it and
+inspect the diff before attributing changes. Do not automatically load the
+historical archive, full CHANGELOG, full PROJECT_STATE or unrelated large TODOs.
 
 ## Resume work without repeating completed tasks
 
 At session start, after context compaction, and on automatic goal continuation,
 read [the task handoff](docs/development/TASK_HANDOFF.md) before selecting work.
-It distinguishes completed substeps and rejected experiments from the remaining
-criteria in broad TODO items. An unchecked parent does not reopen its children.
+It contains only active, suspended, partial, interrupted/failed and dependency-
+waiting work, with accepted substeps and exact missing criteria. Closed/rejected
+history belongs in [TASK_COMPLETED_ARCHIVE.md](docs/development/TASK_COMPLETED_ARCHIVE.md),
+read only by specific ID/section to resolve a concrete doubt. An unchecked
+parent does not reopen its children.
 Check the linked evidence with cheap reads; do not rerun builds, benchmarks or
 fixture creation merely to reconstruct context. Follow the repeat/reopen rules
 in [the memory workflow](docs/development/MEMORY_WORKFLOW.md#resume-and-repeat-decisions).
@@ -22,6 +28,21 @@ reopening reason. Validate already implemented requests rather than redo them.
 Check linked terminal results before trusting an old next-action line. Close a
 completed/rejected selection immediately, before choosing the next unit.
 Update the handoff before ending a work unit or a known context handoff.
+Keep its five ordered sections and 10–20 KiB target; **PASSAGGIO DI TESTIMONE
+must always be last**, with only task, verified result, remaining work, errors,
+next action and references. Never append chronology after it. On completion,
+verify acceptance, record evidence/limits, append the closed outcome to the
+archive and remove obsolete operational instructions. Partial tasks retain
+their original IDs, accepted results and missing criteria.
+
+Use the shared lock and both preimage hashes through
+`scripts/task_handoff.py update` for coordinated memory writes; merge on conflict.
+See [the publication protocol](docs/development/MEMORY_WORKFLOW.md#coordinated-memory-publication).
+Do not overwrite another agent's newer update or remove its lock/process.
+Pause/interruption never selects new work or authorizes ROM exploration.
+Check associated handles, outputs and ownership before touching asynchronous
+work; a lost handle/timeout is not failure. Sandbox-only process visibility
+does not establish host inactivity. Keep other agents' jobs intact.
 
 ## Local skills
 
@@ -60,7 +81,9 @@ or decision changed. Record the actual checks and remaining limitations.
 Read-only questions do not require a new changelog entry.
 
 Run `python3 scripts/project_memory.py check` before handing off changes.
-The checker identifies changed implementation files without a changed memory
+Also run `python3 scripts/task_handoff.py check`; CI checks its size, final
+handover, open states and lossless historical snapshot.
+The project-memory checker identifies implementation files without a changed memory
 record. Use `check --base <commit>` to cover a branch or commit range.
 The CI workflow runs the same check; it does not invent change descriptions.
 

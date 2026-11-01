@@ -5,8 +5,11 @@ description: Maintain FFTARecomp's changelog, task handoff and durable memory af
 
 # Record project memory
 
-Read `AGENTS.md`, `docs/development/PROJECT_STATE.md`, relevant existing
-records and the current diff. Use files, Git and test output as evidence;
+Read `AGENTS.md`, the short operational `docs/development/TASK_HANDOFF.md`
+including its final PASSAGGIO DI TESTIMONE, Git status and the current diff.
+Read only task-relevant PROJECT_STATE sections and evidence. Do not preload
+TASK_COMPLETED_ARCHIVE, full CHANGELOG/PROJECT_STATE or unrelated large TODOs.
+Use files, Git and test output as evidence;
 conversation recollection only helps locate it. Preserve unrelated work.
 
 For resumption, read `docs/development/TASK_HANDOFF.md` first and follow
@@ -51,9 +54,22 @@ After a meaningful change:
    stable subtask ID, terminal/partial status, evidence, remaining criterion,
    next action and any live process/artifact locator. Mark rejected experiments
    explicitly. Separate unavailable local artifacts from unfinished work.
-   A broad open task must retain its completed children. Replace stale next
-   actions rather than appending another competing queue. Record repeat reasons
-   before an expensive rerun; do not invent successful validation.
+   Keep only incomplete work in the five ordered operational sections, targeting
+   10–20 KiB; PASSAGGIO DI TESTIMONE is always last, never followed by chronology.
+   Verify acceptance before closing; append terminal history with evidence and
+   limitations to TASK_COMPLETED_ARCHIVE, remove obsolete operational directions
+   and preserve partial IDs, accepted substeps and exact missing criteria.
+   Replace stale next actions. Record repeat reasons before an expensive rerun;
+   do not invent successful validation. Run `python3 scripts/task_handoff.py check`.
+
+Use `scripts/task_handoff.py update` with both expected preimage hashes and
+reviewed proposals, following MEMORY_WORKFLOW's coordinated publication protocol.
+The helper rejects stale updates, a held lock, rewritten archive bytes and
+removed tasks without an explicit terminal evidence entry. It does not decide
+acceptance or run a background writer. Keep active/suspended/interrupted/failed/
+dependency-waiting states distinct. Pause/interruption never selects new work;
+check async handles/output/ownership without terminating other agents' jobs or
+inferring host inactivity from sandbox-only process visibility.
 
 `CHANGELOG.md` is generated from records; edit the JSON source rather than
 the generated Markdown. See `docs/development/MEMORY_WORKFLOW.md` for schema,

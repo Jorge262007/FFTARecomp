@@ -12,7 +12,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Test memory tooling
-        run: python3 -m unittest discover -s scripts/tests -p test_project_memory.py
+        run: |
+          python3 -m unittest discover -s scripts/tests -p test_project_memory.py
+          python3 -m unittest discover -s scripts/tests -p test_task_handoff.py
+      - name: Check bounded handoff and preserved history
+        run: python3 scripts/task_handoff.py check
       - name: Check change documentation
         env:
           MEMORY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}

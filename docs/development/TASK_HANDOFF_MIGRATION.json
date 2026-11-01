@@ -1,0 +1,3311 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "original_commit": "6de2baab7088e2911f09da2f8e10bb472b39a1d9",
+  "original_bytes": 1729308,
+  "original_lines": 17996,
+  "original_sha256": "85562ac0e8b146c2e51b819c8ba58054104274f37facc1aca425aea7a5edc57e",
+  "archive": "docs/development/TASK_COMPLETED_ARCHIVE.md",
+  "history_policy": "Exact frozen legacy text, including superseded pending descriptions as provenance. Those descriptions do not close tasks. Closed index counts distinct explicitly terminal scoped IDs, not whole feature completion; no acceptance newly inferred.",
+  "sections": [
+    {
+      "title": "# Task handoff",
+      "start_line": 1,
+      "end_line": 6,
+      "start_byte": 0,
+      "end_byte": 235,
+      "sha256": "3235f60beeafe1e2b35d614fcb9d8299b8fa7b7318d511b6eb34197284670539"
+    },
+    {
+      "title": "## Current request checkpoint",
+      "start_line": 7,
+      "end_line": 1110,
+      "start_byte": 235,
+      "end_byte": 187933,
+      "sha256": "52edc51599b912d2741a593475d0b5c4ea22b449882a8aedf2a4eb23cbd51261"
+    },
+    {
+      "title": "## Previous pending request (not selected by branch alignment)",
+      "start_line": 1111,
+      "end_line": 4708,
+      "start_byte": 187933,
+      "end_byte": 523183,
+      "sha256": "2003dce2b0116817fda3fe6a45f3713243f5036a115a14d8e47527aa82010c2d"
+    },
+    {
+      "title": "### Previous planning outcome (retained)",
+      "start_line": 4709,
+      "end_line": 4729,
+      "start_byte": 523183,
+      "end_byte": 524628,
+      "sha256": "1633e41c1d4a04ed50694ebf04b7d6cf279ae29725dc190224b6b539b3ec859d"
+    },
+    {
+      "title": "## Previous desktop request outcomes",
+      "start_line": 4730,
+      "end_line": 4997,
+      "start_byte": 524628,
+      "end_byte": 596738,
+      "sha256": "2204cb9b9439f508579bf7e8f7059ad3cd1ff49eb0dc227008ebf9a98a275517"
+    },
+    {
+      "title": "## Pending performance context (not selected by the current request)",
+      "start_line": 4998,
+      "end_line": 5049,
+      "start_byte": 596738,
+      "end_byte": 600632,
+      "sha256": "2f8bb825e4898c5e41741cce7c71f94d276ad30e85c461ba5e18788e378a9d69"
+    },
+    {
+      "title": "## Latest completed unit and current exports",
+      "start_line": 5050,
+      "end_line": 5092,
+      "start_byte": 600632,
+      "end_byte": 603364,
+      "sha256": "a1e23266ef328a440de822d362256ca6b1f25f25a69603389a8f267db8b9b441"
+    },
+    {
+      "title": "## Previous completed CPU triage and rejected compact IDs — reuse evidence",
+      "start_line": 5093,
+      "end_line": 5122,
+      "start_byte": 603364,
+      "end_byte": 605387,
+      "sha256": "02796257ab2f09e4fb7cc1e37f9c32f50b16fc75a8a62e68e0c559e2c7ca1952"
+    },
+    {
+      "title": "## Previous completed backend observation — reuse evidence",
+      "start_line": 5123,
+      "end_line": 5153,
+      "start_byte": 605387,
+      "end_byte": 607382,
+      "sha256": "b5175b29018814c20df16d19cb56a4761fd61f259b5e928f39682e69ae24f45c"
+    },
+    {
+      "title": "## Previous enhanced-source unit — exports superseded, reuse evidence",
+      "start_line": 5154,
+      "end_line": 5199,
+      "start_byte": 607382,
+      "end_byte": 610525,
+      "sha256": "0753589ccf02ae19dafa2257c535861e39a5b35def0d58f417722154fe23f33e"
+    },
+    {
+      "title": "## Closed units — reuse evidence",
+      "start_line": 5200,
+      "end_line": 5329,
+      "start_byte": 610525,
+      "end_byte": 619969,
+      "sha256": "af1f022e84b64cfc07443c273581a98c1ffbc3be06a914f0210a5678c68b2ede"
+    },
+    {
+      "title": "## Rejected units — keep the decisions",
+      "start_line": 5330,
+      "end_line": 5361,
+      "start_byte": 619969,
+      "end_byte": 621993,
+      "sha256": "92bde3aa58b4d266ebd52592b5e3dd28889912673ce8e9a439c760c049220cdc"
+    },
+    {
+      "title": "## Artifact locators and remaining scope",
+      "start_line": 5362,
+      "end_line": 12361,
+      "start_byte": 621993,
+      "end_byte": 1151782,
+      "sha256": "ee6bd6a643aeef5b26395f4fc8da659196923e334a5f0371711ea153948d235a"
+    },
+    {
+      "title": "## Current ROM data handoff — UI property OBJ extension closed (2026-10-26)",
+      "start_line": 12362,
+      "end_line": 17996,
+      "start_byte": 1151782,
+      "end_byte": 1729308,
+      "sha256": "c9389f6bee6051b7e18e5b65b711a1d1d71dcdbb2123ad789eedf9bdb5efed23"
+    }
+  ],
+  "closed_outcomes": [
+    {
+      "id": "ROMDATA-04-E104-QUATERNARY-COMPACT-OBJ-CLI",
+      "original_line": 11,
+      "scope": "ROMDATA-04-E104-QUATERNARY-COMPACT-OBJ-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-E103-QUATERNARY-COMPACT-OBJ",
+      "original_line": 13,
+      "scope": "ROMDATA-03-04-E103-QUATERNARY-COMPACT-OBJ — bounded EUR/Wine managed + native PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-E103-ROOT-6C87DC",
+      "original_line": 15,
+      "scope": "ROMDATA-02-E103-ROOT-6C87DC — EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-E103-ROOT-6C87DC",
+      "original_line": 17,
+      "scope": "ROMDATA-01-E103-ROOT-6C87DC — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E103-COMPACT-OBJ-CANDIDATE-TABLE",
+      "original_line": 19,
+      "scope": "ROMDATA-05-E103-COMPACT-OBJ-CANDIDATE-TABLE — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E103-COMPACT-OBJ-UI-SELECTION",
+      "original_line": 21,
+      "scope": "ROMDATA-05-E103-COMPACT-OBJ-UI-SELECTION — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E103-COMPACT-OBJ-RECORD222",
+      "original_line": 23,
+      "scope": "ROMDATA-05-E103-COMPACT-OBJ-RECORD222 — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E103-COMPACT-OBJ-ORDINARY-ROUTE",
+      "original_line": 25,
+      "scope": "ROMDATA-05-E103-COMPACT-OBJ-ORDINARY-ROUTE — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-E103-TERTIARY-COMPACT-OBJ-CLI",
+      "original_line": 27,
+      "scope": "ROMDATA-04-E103-TERTIARY-COMPACT-OBJ-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-E102-TERTIARY-COMPACT-OBJ",
+      "original_line": 29,
+      "scope": "ROMDATA-03-04-E102-TERTIARY-COMPACT-OBJ — bounded EUR/Wine managed + native PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-E102-ROOT-6BF490",
+      "original_line": 31,
+      "scope": "ROMDATA-02-E102-ROOT-6BF490 — EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-E102-ROOT-6BF490",
+      "original_line": 33,
+      "scope": "ROMDATA-01-E102-ROOT-6BF490 — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-E102-SECONDARY-COMPACT-OBJ-CLI",
+      "original_line": 35,
+      "scope": "ROMDATA-04-E102-SECONDARY-COMPACT-OBJ-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-E101-SECONDARY-COMPACT-OBJ",
+      "original_line": 37,
+      "scope": "ROMDATA-03-04-E101-SECONDARY-COMPACT-OBJ — bounded EUR/Wine managed + native PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-E101-ROOT-6C6460",
+      "original_line": 39,
+      "scope": "ROMDATA-02-E101-ROOT-6C6460 — EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-E101-ROOT-6C6460",
+      "original_line": 41,
+      "scope": "ROMDATA-01-E101-ROOT-6C6460 — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E101-COMPACT-OBJ-SELECTOR33-ELIGIBILITY",
+      "original_line": 43,
+      "scope": "ROMDATA-05-E101-COMPACT-OBJ-SELECTOR33-ELIGIBILITY — bounded EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E101-COMPACT-OBJ-FLAG-ACTION",
+      "original_line": 45,
+      "scope": "ROMDATA-05-E101-COMPACT-OBJ-FLAG-ACTION — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E101-COMPACT-OBJ-ACTOR-FLAG-PRODUCER",
+      "original_line": 47,
+      "scope": "ROMDATA-05-E101-COMPACT-OBJ-ACTOR-FLAG-PRODUCER — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E101-COMPACT-OBJ-STATE6-PREDICATE",
+      "original_line": 49,
+      "scope": "ROMDATA-05-E101-COMPACT-OBJ-STATE6-PREDICATE — bounded EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E101-COMPACT-OBJ-CONTEXT-PROVENANCE",
+      "original_line": 51,
+      "scope": "ROMDATA-05-E101-COMPACT-OBJ-CONTEXT-PROVENANCE — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-E101-COMPACT-OBJ-ORDINARY-ROUTE",
+      "original_line": 53,
+      "scope": "ROMDATA-05-E101-COMPACT-OBJ-ORDINARY-ROUTE — conditional EUR source / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-E101-COMPACT-OBJ-CLI",
+      "original_line": 55,
+      "scope": "ROMDATA-04-E101-COMPACT-OBJ-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-E100-COMPACT-OBJ",
+      "original_line": 57,
+      "scope": "ROMDATA-03-04-E100-COMPACT-OBJ — bounded EUR/Wine managed + native PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-E100-ROOT-6B9B80",
+      "original_line": 59,
+      "scope": "ROMDATA-02-E100-ROOT-6B9B80 — EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-E100-ROOT-6B9B80",
+      "original_line": 61,
+      "scope": "ROMDATA-01-E100-ROOT-6B9B80 — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-E100-UNOWNED-ROOT-CENSUS",
+      "original_line": 63,
+      "scope": "ROMDATA-01-E100-UNOWNED-ROOT-CENSUS — bounded candidate census / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-DYNAMIC-FRAGMENT-SELECTOR-WITNESSES",
+      "original_line": 65,
+      "scope": "ROMDATA-01-DYNAMIC-FRAGMENT-SELECTOR-WITNESSES — bounded EUR source inspection / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-DYNAMIC-FRAGMENT-STATE2-ENTRY",
+      "original_line": 67,
+      "scope": "ROMDATA-01-DYNAMIC-FRAGMENT-STATE2-ENTRY — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-DYNAMIC-FRAGMENT-STATE4-PRODUCER",
+      "original_line": 69,
+      "scope": "ROMDATA-01-DYNAMIC-FRAGMENT-STATE4-PRODUCER — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-DYNAMIC-FRAGMENT-ORDINARY-ROUTE",
+      "original_line": 71,
+      "scope": "ROMDATA-05-DYNAMIC-FRAGMENT-ORDINARY-ROUTE — bounded source investigation / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-DYNAMIC-FRAGMENT-USAGE-CLI",
+      "original_line": 73,
+      "scope": "ROMDATA-04-DYNAMIC-FRAGMENT-USAGE-CLI — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-DYNAMIC-FRAGMENT-USAGE-DIAGNOSTICS",
+      "original_line": 75,
+      "scope": "ROMDATA-04-DYNAMIC-FRAGMENT-USAGE-DIAGNOSTICS — focused EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6EE4-COMBO-DISPATCH",
+      "original_line": 77,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6EE4-COMBO-DISPATCH — bounded source inspection / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6EE4-PACKED-NEW-ROUTE",
+      "original_line": 79,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6EE4-PACKED-NEW-ROUTE — conditional candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E0B44-MASKS-ORDINARY-PAIR",
+      "original_line": 81,
+      "scope": "ROMDATA-05-GAMEPLAY-6E0B44-MASKS-ORDINARY-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E0B44-MASKS-ORDINARY",
+      "original_line": 83,
+      "scope": "ROMDATA-05-GAMEPLAY-6E0B44-MASKS-ORDINARY — bounded EUR/Wine positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E0B44-MASKS-ORDINARY-ROUTE",
+      "original_line": 85,
+      "scope": "ROMDATA-05-GAMEPLAY-6E0B44-MASKS-ORDINARY-ROUTE — source-backed headgear candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-6E0B44-MASKS-CLI",
+      "original_line": 87,
+      "scope": "ROMDATA-04-GAMEPLAY-6E0B44-MASKS-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-GAMEPLAY-6E0B44-MASKS",
+      "original_line": 89,
+      "scope": "ROMDATA-03-04-GAMEPLAY-6E0B44-MASKS — bounded EUR/Wine managed + native prefix PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-6E0B44-MASKS",
+      "original_line": 91,
+      "scope": "ROMDATA-02-GAMEPLAY-6E0B44-MASKS — EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-6E0B44-MASKS",
+      "original_line": 93,
+      "scope": "ROMDATA-01-GAMEPLAY-6E0B44-MASKS — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-FIELD4-PAIR",
+      "original_line": 95,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-FIELD4-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-FIELD4",
+      "original_line": 97,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-FIELD4 — bounded EUR/Wine positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-FIELD4-ROUTE",
+      "original_line": 99,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-FIELD4-ROUTE — source-backed Steal-menu candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-INFO-PAIR",
+      "original_line": 101,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-INFO-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-INFO",
+      "original_line": 103,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-INFO — bounded EUR/Wine positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-KIND-RECONCILE",
+      "original_line": 105,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANKS-KIND-RECONCILE — retained EUR/Wine evidence / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-FIELD4-PAIR",
+      "original_line": 107,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-FIELD4-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-FIELD4",
+      "original_line": 109,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-FIELD4 — bounded EUR/Wine positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-FIELD4-ROUTE",
+      "original_line": 111,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-FIELD4-ROUTE — source-backed battle Item-menu candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-ORDINARY-PAIR",
+      "original_line": 113,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-ORDINARY-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-ORDINARY",
+      "original_line": 115,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-ORDINARY — bounded EUR/Wine positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-ORDINARY-ROUTE",
+      "original_line": 117,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-BANK0-ORDINARY-ROUTE — source-backed Item-info candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-TEST-6DF4D4-E99-COMPAT",
+      "original_line": 119,
+      "scope": "ROMDATA-TEST-6DF4D4-E99-COMPAT — test-only correction / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-6DF4D4-BANK0-CLI",
+      "original_line": 121,
+      "scope": "ROMDATA-04-GAMEPLAY-6DF4D4-BANK0-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-GAMEPLAY-6DF4D4-BANK0",
+      "original_line": 123,
+      "scope": "ROMDATA-03-04-GAMEPLAY-6DF4D4-BANK0 — bounded EUR/Wine managed + native prefix PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-6DF4D4-BANK0",
+      "original_line": 125,
+      "scope": "ROMDATA-02-GAMEPLAY-6DF4D4-BANK0 — bounded EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-6DF4D4-BANK0",
+      "original_line": 127,
+      "scope": "ROMDATA-01-GAMEPLAY-6DF4D4-BANK0 — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-ORDINARY-PAIR",
+      "original_line": 129,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-ORDINARY-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-ORDINARY",
+      "original_line": 131,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-ORDINARY — bounded EUR/Wine positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6DF4D4-ORDINARY-ROUTE",
+      "original_line": 133,
+      "scope": "ROMDATA-05-GAMEPLAY-6DF4D4-ORDINARY-ROUTE — source-backed Ability candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-6DF4D4-CLI",
+      "original_line": 135,
+      "scope": "ROMDATA-04-GAMEPLAY-6DF4D4-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-GAMEPLAY-6DF4D4-DESCRIPTORS",
+      "original_line": 137,
+      "scope": "ROMDATA-03-04-GAMEPLAY-6DF4D4-DESCRIPTORS — bounded EUR/Wine managed + native prefix PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-6DF4D4-DESCRIPTORS",
+      "original_line": 139,
+      "scope": "ROMDATA-02-GAMEPLAY-6DF4D4-DESCRIPTORS — bounded EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-6DF4D4-DESCRIPTORS",
+      "original_line": 141,
+      "scope": "ROMDATA-01-GAMEPLAY-6DF4D4-DESCRIPTORS — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6EE4-ORDINARY",
+      "original_line": 143,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6EE4-ORDINARY — bounded EUR/Wine F09 NEGATIVE / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6EE4-ORDINARY-ROUTE",
+      "original_line": 145,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6EE4-ORDINARY-ROUTE — source-backed F09 candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-6E6EE4-CLI",
+      "original_line": 147,
+      "scope": "ROMDATA-04-GAMEPLAY-6E6EE4-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-GAMEPLAY-6E6EE4-PACKED",
+      "original_line": 149,
+      "scope": "ROMDATA-03-04-GAMEPLAY-6E6EE4-PACKED — bounded EUR/Wine managed + native prefix PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-6E6EE4-PACKED",
+      "original_line": 151,
+      "scope": "ROMDATA-02-GAMEPLAY-6E6EE4-PACKED — bounded EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-6E6EE4-ROOT",
+      "original_line": 153,
+      "scope": "ROMDATA-01-GAMEPLAY-6E6EE4-ROOT — conditional EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6DBC-ORDINARY-PAIR",
+      "original_line": 155,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6DBC-ORDINARY-PAIR — EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6DBC-ORDINARY",
+      "original_line": 157,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6DBC-ORDINARY — EUR/Wine bounded positive / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-6E6DBC-ORDINARY-ROUTE",
+      "original_line": 159,
+      "scope": "ROMDATA-05-GAMEPLAY-6E6DBC-ORDINARY-ROUTE — source-backed candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-6E6DBC-CLI",
+      "original_line": 161,
+      "scope": "ROMDATA-04-GAMEPLAY-6E6DBC-CLI — EUR/Wine production CLI PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-GAMEPLAY-6E6DBC-LOOKUP",
+      "original_line": 163,
+      "scope": "ROMDATA-03-04-GAMEPLAY-6E6DBC-LOOKUP — bounded EUR/Wine managed + native prefix PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-6E6DBC-LOOKUP",
+      "original_line": 165,
+      "scope": "ROMDATA-02-GAMEPLAY-6E6DBC-LOOKUP — bounded EUR/Wine model PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-6E6DBC-LOOKUP",
+      "original_line": 167,
+      "scope": "ROMDATA-01-GAMEPLAY-6E6DBC-LOOKUP — bounded EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-E95-HISTORICAL-READ-RESIDUE",
+      "original_line": 169,
+      "scope": "ROMDATA-01-E95-HISTORICAL-READ-RESIDUE — scoped reclassification PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-CLAN-TABLE-ALIAS-BANK-ENTRY",
+      "original_line": 171,
+      "scope": "ROMDATA-05-CLAN-TABLE-ALIAS-BANK-ENTRY — bounded EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-CLAN-TABLE-ALIAS-ROUTE",
+      "original_line": 173,
+      "scope": "ROMDATA-01-CLAN-TABLE-ALIAS-ROUTE — source-backed Bank entry candidate / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-05-CLAN-TABLE-ALIAS-ORDINARY",
+      "original_line": 175,
+      "scope": "ROMDATA-05-CLAN-TABLE-ALIAS-ORDINARY — bounded EUR/Wine clean-boot NEGATIVE / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-CLAN-TABLE-ALIAS-CLI",
+      "original_line": 177,
+      "scope": "ROMDATA-04-CLAN-TABLE-ALIAS-CLI — EUR/Wine registration PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-CLAN-TABLE-ALIAS-NATIVE",
+      "original_line": 748,
+      "scope": "ROMDATA-04-CLAN-TABLE-ALIAS-NATIVE — bounded EUR/Wine PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "LOCAL-RETENTION-WINE-AUDIT-20261031",
+      "original_line": 750,
+      "scope": "LOCAL-RETENTION-WINE-AUDIT-20261031 — completed bounded audit (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-03-04-LOCALIZED-TABLE-ALIAS",
+      "original_line": 754,
+      "scope": "ROMDATA-03-04-LOCALIZED-TABLE-ALIAS — EUR/Wine managed + interpreted prefix PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-LOCALIZED-TABLE-ALIAS",
+      "original_line": 756,
+      "scope": "ROMDATA-01-LOCALIZED-TABLE-ALIAS — bounded EUR source PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "DBG2-12",
+      "original_line": 760,
+      "scope": "DBG2-12 — complete (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-01-DYNAMIC-RAW-DISPATCH-LIFECYCLE",
+      "original_line": 787,
+      "scope": "ROMDATA-01-DYNAMIC-RAW-DISPATCH-LIFECYCLE — bounded Area List NEGATIVE / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-DYNAMIC-RAW-ORIGINAL-NATIVE",
+      "original_line": 791,
+      "scope": "ROMDATA-04-DYNAMIC-RAW-ORIGINAL-NATIVE — EUR/Wine isolated PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "DBG2-11",
+      "original_line": 793,
+      "scope": "DBG2-11 — complete (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-04-DYNAMIC-RAW-FRAGMENTS-CLI",
+      "original_line": 821,
+      "scope": "ROMDATA-04-DYNAMIC-RAW-FRAGMENTS-CLI — EUR/Wine registration PASS / CLOSED (2026-10-31)."
+    },
+    {
+      "id": "DBG2-10",
+      "original_line": 823,
+      "scope": "DBG2-10 — complete (2026-10-31)."
+    },
+    {
+      "id": "ROMDATA-02-LOCALIZED-RAW-DYNAMIC-FRAGMENTS",
+      "original_line": 858,
+      "scope": "ROMDATA-02-LOCALIZED-RAW-DYNAMIC-FRAGMENTS — complete for bounded EUR/Wine source model (2026-10-31)."
+    },
+    {
+      "id": "WF-DEBUG-TERRA-SOL-THINKING",
+      "original_line": 874,
+      "scope": "WF-DEBUG-TERRA-SOL-THINKING — complete (2026-10-31)."
+    },
+    {
+      "id": "WF-DEBUG-TERRA-SOL",
+      "original_line": 896,
+      "scope": "WF-DEBUG-TERRA-SOL — complete (2026-10-31)."
+    },
+    {
+      "id": "DBG2-09",
+      "original_line": 922,
+      "scope": "DBG2-09 — complete (2026-10-30)."
+    },
+    {
+      "id": "DBG2-08",
+      "original_line": 965,
+      "scope": "DBG2-08 — complete (2026-10-30)."
+    },
+    {
+      "id": "DBG2-07",
+      "original_line": 995,
+      "scope": "DBG2-07 — complete (2026-10-30)."
+    },
+    {
+      "id": "DBG2-06",
+      "original_line": 1033,
+      "scope": "DBG2-06 — complete (2026-10-30)."
+    },
+    {
+      "id": "CI-MEMORY-BRANCH-ALIGNMENT",
+      "original_line": 1068,
+      "scope": "CI-MEMORY-BRANCH-ALIGNMENT — complete locally (2026-10-29)."
+    },
+    {
+      "id": "REPO-ALIGN-MAIN",
+      "original_line": 1084,
+      "scope": "REPO-ALIGN-MAIN — complete (2026-10-29)."
+    },
+    {
+      "id": "REPO-ALIGN-OPTIMIZATIONS",
+      "original_line": 1096,
+      "scope": "REPO-ALIGN-OPTIMIZATIONS — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG2-05",
+      "original_line": 1117,
+      "scope": "DBG2-05 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG2-04",
+      "original_line": 1149,
+      "scope": "DBG2-04 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG2-03",
+      "original_line": 1180,
+      "scope": "DBG2-03 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG2-02",
+      "original_line": 1214,
+      "scope": "DBG2-02 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG2-01",
+      "original_line": 1255,
+      "scope": "DBG2-01 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG2-PLAN",
+      "original_line": 1282,
+      "scope": "DBG2-PLAN — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-22",
+      "original_line": 1305,
+      "scope": "Full debugtools goal / DBG-22 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-21",
+      "original_line": 1362,
+      "scope": "DBG-21 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-20",
+      "original_line": 1406,
+      "scope": "DBG-20 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-19",
+      "original_line": 1450,
+      "scope": "DBG-19 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-18",
+      "original_line": 1488,
+      "scope": "DBG-18 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-17",
+      "original_line": 1555,
+      "scope": "DBG-17 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-16",
+      "original_line": 1611,
+      "scope": "DBG-16 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-15",
+      "original_line": 1672,
+      "scope": "DBG-15 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-14",
+      "original_line": 1726,
+      "scope": "DBG-14 — complete (2026-10-29)."
+    },
+    {
+      "id": "DBG-13",
+      "original_line": 1780,
+      "scope": "DBG-13 — complete (2026-10-28)."
+    },
+    {
+      "id": "REPORT-HOME",
+      "original_line": 1851,
+      "scope": "REPORT-HOME — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-12",
+      "original_line": 1888,
+      "scope": "DBG-12 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-11",
+      "original_line": 1948,
+      "scope": "DBG-11 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-10",
+      "original_line": 2016,
+      "scope": "DBG-10 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-09",
+      "original_line": 2077,
+      "scope": "DBG-09 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-08",
+      "original_line": 2137,
+      "scope": "DBG-08 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-07",
+      "original_line": 2187,
+      "scope": "DBG-07 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-06",
+      "original_line": 2229,
+      "scope": "DBG-06 — complete (2026-10-28)."
+    },
+    {
+      "id": "CHEATS-CATALOG-01",
+      "original_line": 2280,
+      "scope": "CHEATS-CATALOG-01 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-05",
+      "original_line": 2298,
+      "scope": "DBG-05 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-04",
+      "original_line": 2344,
+      "scope": "DBG-04 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-03",
+      "original_line": 2383,
+      "scope": "DBG-03 — complete (2026-10-28)."
+    },
+    {
+      "id": "DBG-02",
+      "original_line": 2414,
+      "scope": "DBG-02 — complete (2026-10-27)."
+    },
+    {
+      "id": "DBG-01",
+      "original_line": 2446,
+      "scope": "DBG-01 — complete (2026-10-27)."
+    },
+    {
+      "id": "DEBUG-TOOLS-PLAN",
+      "original_line": 2471,
+      "scope": "DEBUG-TOOLS-PLAN — complete (2026-10-27)."
+    },
+    {
+      "id": "ROM-COVERAGE-LIVE-GENERATION",
+      "original_line": 2497,
+      "scope": "ROM-COVERAGE-LIVE-GENERATION — complete (2026-10-26)."
+    },
+    {
+      "id": "DEBUG-SAVES-DS20-USER",
+      "original_line": 2551,
+      "scope": "DEBUG-SAVES-DS20-USER — complete (2026-10-26)."
+    },
+    {
+      "id": "ROM-COVERAGE-REFRESH",
+      "original_line": 2574,
+      "scope": "ROM-COVERAGE-REFRESH — complete (2026-10-25)."
+    },
+    {
+      "id": "ROM-COVERAGE-DOCKER",
+      "original_line": 2625,
+      "scope": "ROM-COVERAGE-DOCKER — complete (2026-10-24)."
+    },
+    {
+      "id": "DEBUG-SAVES-RESUME-MODE",
+      "original_line": 2661,
+      "scope": "DEBUG-SAVES-RESUME-MODE — complete (2026-10-23)."
+    },
+    {
+      "id": "DEBUG-SAVES-STATUS-10",
+      "original_line": 2670,
+      "scope": "DEBUG-SAVES-STATUS-10 / VICTORY-13 / NAME-23 / MAP-24 — complete for stated scope (2026-10-23)."
+    },
+    {
+      "id": "VICTORY-13",
+      "original_line": 2670,
+      "scope": "DEBUG-SAVES-STATUS-10 / VICTORY-13 / NAME-23 / MAP-24 — complete for stated scope (2026-10-23)."
+    },
+    {
+      "id": "NAME-23",
+      "original_line": 2670,
+      "scope": "DEBUG-SAVES-STATUS-10 / VICTORY-13 / NAME-23 / MAP-24 — complete for stated scope (2026-10-23)."
+    },
+    {
+      "id": "MAP-24",
+      "original_line": 2670,
+      "scope": "DEBUG-SAVES-STATUS-10 / VICTORY-13 / NAME-23 / MAP-24 — complete for stated scope (2026-10-23)."
+    },
+    {
+      "id": "DEBUG-SAVES-SCENES-2",
+      "original_line": 2690,
+      "scope": "DEBUG-SAVES-SCENES-2 — historical increment complete (2026-10-23)."
+    },
+    {
+      "id": "ROM-COVERAGE-MAP",
+      "original_line": 2737,
+      "scope": "ROM-COVERAGE-MAP — complete (2026-10-23)."
+    },
+    {
+      "id": "DEBUG-SAVES-CATALOG",
+      "original_line": 2756,
+      "scope": "DEBUG-SAVES-CATALOG — initial audit complete (2026-10-23)."
+    },
+    {
+      "id": "DEBUG-EXTENDED-SAVES",
+      "original_line": 2785,
+      "scope": "DEBUG-EXTENDED-SAVES — complete (2026-10-23), Windows/Wine scope."
+    },
+    {
+      "id": "LOCAL-ARTIFACT-CLEANUP",
+      "original_line": 2806,
+      "scope": "LOCAL-ARTIFACT-CLEANUP — complete (2026-10-23), Linux checkout."
+    },
+    {
+      "id": "VIDEO-UI-GRID",
+      "original_line": 2827,
+      "scope": "VIDEO-UI-GRID — complete (2026-10-23), Windows/Wine scope."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-EXTRA-DIRECT-LISTS",
+      "original_line": 2847,
+      "scope": "ROMDATA-02-OBJ-EXTRA-DIRECT-LISTS / ROMDATA-04-OBJ-EXTRA-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-OBJ-EXTRA-CONSUMPTION",
+      "original_line": 2847,
+      "scope": "ROMDATA-02-OBJ-EXTRA-DIRECT-LISTS / ROMDATA-04-OBJ-EXTRA-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-EXTRA-SCENE-CLI",
+      "original_line": 2849,
+      "scope": "ROMDATA-05-OBJ-EXTRA-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-OBJ-ZERO-COUNT-PAIR-ROOTS",
+      "original_line": 2854,
+      "scope": "ROMDATA-01-OBJ-ZERO-COUNT-PAIR-ROOTS — static discovery complete; later contract/migration closed below."
+    },
+    {
+      "id": "ROMDATA-01-OBJ-ZERO-COUNT-PAIR-CONTRACT",
+      "original_line": 2856,
+      "scope": "ROMDATA-01-OBJ-ZERO-COUNT-PAIR-CONTRACT — complete for declared EUR/Wine nonrepeat scope."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-ZERO-COUNT-DATA",
+      "original_line": 2858,
+      "scope": "ROMDATA-02-OBJ-ZERO-COUNT-DATA / ROMDATA-04-OBJ-ZERO-COUNT-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-OBJ-ZERO-COUNT-CONSUMPTION",
+      "original_line": 2858,
+      "scope": "ROMDATA-02-OBJ-ZERO-COUNT-DATA / ROMDATA-04-OBJ-ZERO-COUNT-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-ZERO-COUNT-SCENE-CLI",
+      "original_line": 2860,
+      "scope": "ROMDATA-05-OBJ-ZERO-COUNT-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-LOCALIZED-SOURCE-ORACLE",
+      "original_line": 2867,
+      "scope": "ROMDATA-02-OBJ-LOCALIZED-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-LOCALIZED-SCENE-CLI",
+      "original_line": 2869,
+      "scope": "ROMDATA-05-OBJ-LOCALIZED-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-CUSTOM-SOURCE-ORACLE",
+      "original_line": 2875,
+      "scope": "ROMDATA-02-OBJ-CUSTOM-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-CUSTOM-GRAPHICS",
+      "original_line": 2877,
+      "scope": "ROMDATA-02-OBJ-CUSTOM-GRAPHICS / ROMDATA-04-OBJ-CUSTOM-CONSUMPTION / ROMDATA-05-OBJ-CUSTOM-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-OBJ-CUSTOM-CONSUMPTION",
+      "original_line": 2877,
+      "scope": "ROMDATA-02-OBJ-CUSTOM-GRAPHICS / ROMDATA-04-OBJ-CUSTOM-CONSUMPTION / ROMDATA-05-OBJ-CUSTOM-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-CUSTOM-SCENE-CLI",
+      "original_line": 2877,
+      "scope": "ROMDATA-02-OBJ-CUSTOM-GRAPHICS / ROMDATA-04-OBJ-CUSTOM-CONSUMPTION / ROMDATA-05-OBJ-CUSTOM-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-UI-RAW-PALETTE-SOURCE-ORACLE",
+      "original_line": 2879,
+      "scope": "ROMDATA-02-UI-RAW-PALETTE-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-UI-RAW-PALETTE-MANAGED",
+      "original_line": 2881,
+      "scope": "ROMDATA-02-UI-RAW-PALETTE-MANAGED / ROMDATA-04-UI-RAW-PALETTE-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-UI-RAW-PALETTE-CONSUMPTION",
+      "original_line": 2881,
+      "scope": "ROMDATA-02-UI-RAW-PALETTE-MANAGED / ROMDATA-04-UI-RAW-PALETTE-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-UI-RAW-PALETTE-SCENE-CLI",
+      "original_line": 2883,
+      "scope": "ROMDATA-05-UI-RAW-PALETTE-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-UI-CUSTOM-SOURCE-ORACLE",
+      "original_line": 2887,
+      "scope": "ROMDATA-02-UI-CUSTOM-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-UI-CUSTOM-GRAPHICS",
+      "original_line": 2889,
+      "scope": "ROMDATA-02-UI-CUSTOM-GRAPHICS / ROMDATA-04-UI-CUSTOM-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-UI-CUSTOM-CONSUMPTION",
+      "original_line": 2889,
+      "scope": "ROMDATA-02-UI-CUSTOM-GRAPHICS / ROMDATA-04-UI-CUSTOM-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-UI-CUSTOM-SCENE-CLI",
+      "original_line": 2891,
+      "scope": "ROMDATA-05-UI-CUSTOM-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-UI-LOCALIZED-SOURCE-ORACLE",
+      "original_line": 2895,
+      "scope": "ROMDATA-02-UI-LOCALIZED-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-UI-LOCALIZED-GRAPHICS",
+      "original_line": 2897,
+      "scope": "ROMDATA-02-UI-LOCALIZED-GRAPHICS / ROMDATA-04-UI-LOCALIZED-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-UI-LOCALIZED-CONSUMPTION",
+      "original_line": 2897,
+      "scope": "ROMDATA-02-UI-LOCALIZED-GRAPHICS / ROMDATA-04-UI-LOCALIZED-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-UI-LOCALIZED-SCENE-CLI",
+      "original_line": 2899,
+      "scope": "ROMDATA-05-UI-LOCALIZED-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-ITEM-SOURCE-ORACLE",
+      "original_line": 2903,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-ITEM-DATA",
+      "original_line": 2905,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-DATA / ROMDATA-04-GAMEPLAY-ITEM-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-ITEM-CONSUMPTION",
+      "original_line": 2905,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-DATA / ROMDATA-04-GAMEPLAY-ITEM-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-ITEM-SCENE-CLI",
+      "original_line": 2907,
+      "scope": "ROMDATA-05-GAMEPLAY-ITEM-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-ITEM-SECONDARY-ROOTS",
+      "original_line": 2909,
+      "scope": "ROMDATA-01-GAMEPLAY-ITEM-SECONDARY-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-ITEM-LINK-SOURCE-ORACLE",
+      "original_line": 2911,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-LINK-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-ITEM-LINK-DATA",
+      "original_line": 2913,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-LINK-DATA / ROMDATA-04-GAMEPLAY-ITEM-LINK-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-ITEM-LINK-CONSUMPTION",
+      "original_line": 2913,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-LINK-DATA / ROMDATA-04-GAMEPLAY-ITEM-LINK-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-ITEM-LINK-SCENE-CLI",
+      "original_line": 2915,
+      "scope": "ROMDATA-05-GAMEPLAY-ITEM-LINK-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA16-ROOTS",
+      "original_line": 2917,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA16-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA16-SOURCE-ORACLE",
+      "original_line": 2919,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA16-SOURCE-ORACLE — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA16-DATA",
+      "original_line": 2921,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA16-DATA / ROMDATA-04-GAMEPLAY-METADATA16-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-METADATA16-CONSUMPTION",
+      "original_line": 2921,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA16-DATA / ROMDATA-04-GAMEPLAY-METADATA16-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-METADATA16-SCENE-CLI",
+      "original_line": 2923,
+      "scope": "ROMDATA-05-GAMEPLAY-METADATA16-SCENE-CLI — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA52-ROOTS",
+      "original_line": 2925,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA52-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA52-SOURCE-ORACLE",
+      "original_line": 2927,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA52-SOURCE-ORACLE — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA52-DATA",
+      "original_line": 2929,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA52-DATA / ROMDATA-04-GAMEPLAY-METADATA52-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-METADATA52-CONSUMPTION",
+      "original_line": 2929,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA52-DATA / ROMDATA-04-GAMEPLAY-METADATA52-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-METADATA52-SCENE-CLI",
+      "original_line": 2931,
+      "scope": "ROMDATA-05-GAMEPLAY-METADATA52-SCENE-CLI — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA4-ROOTS",
+      "original_line": 2933,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA4-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA4-SOURCE-ORACLE",
+      "original_line": 2935,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA4-SOURCE-ORACLE — complete for declared EUR/Wine prefix scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA4-DATA",
+      "original_line": 2937,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA4-DATA / ROMDATA-04-GAMEPLAY-METADATA4-CONSUMPTION — complete for declared EUR/Wine prefix scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-METADATA4-CONSUMPTION",
+      "original_line": 2937,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA4-DATA / ROMDATA-04-GAMEPLAY-METADATA4-CONSUMPTION — complete for declared EUR/Wine prefix scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-METADATA4-SCENE-CLI",
+      "original_line": 2939,
+      "scope": "ROMDATA-05-GAMEPLAY-METADATA4-SCENE-CLI — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA2-MAP-ROOTS",
+      "original_line": 2941,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA2-MAP-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA2-SOURCE-ORACLE",
+      "original_line": 2943,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA2-SOURCE-ORACLE — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-OBJ-UI-ANIMATION-ROOTS",
+      "original_line": 2955,
+      "scope": "ROMDATA-01-OBJ-UI-ANIMATION-ROOTS / ROMDATA-02-OBJ-UI-ANIMATION-DATA — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-UI-ANIMATION-DATA",
+      "original_line": 2955,
+      "scope": "ROMDATA-01-OBJ-UI-ANIMATION-ROOTS / ROMDATA-02-OBJ-UI-ANIMATION-DATA — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-ANIMATION-MANAGED",
+      "original_line": 2957,
+      "scope": "ROMDATA-02-OBJ-ANIMATION-MANAGED / ROMDATA-04-OBJ-ANIMATION-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-OBJ-ANIMATION-CONSUMPTION",
+      "original_line": 2957,
+      "scope": "ROMDATA-02-OBJ-ANIMATION-MANAGED / ROMDATA-04-OBJ-ANIMATION-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-ANIMATION-SCENE-CLI",
+      "original_line": 2959,
+      "scope": "ROMDATA-05-OBJ-ANIMATION-SCENE-CLI — complete for declared EUR/Wine menu transition."
+    },
+    {
+      "id": "ROMDATA-01-OBJ-STATIC-LISTS",
+      "original_line": 2972,
+      "scope": "ROMDATA-01-OBJ-STATIC-LISTS / ROMDATA-02-OBJ-STATIC-DATA — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-STATIC-DATA",
+      "original_line": 2972,
+      "scope": "ROMDATA-01-OBJ-STATIC-LISTS / ROMDATA-02-OBJ-STATIC-DATA — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-OBJ-STATIC-MANAGED",
+      "original_line": 2974,
+      "scope": "ROMDATA-02-OBJ-STATIC-MANAGED / ROMDATA-04-OBJ-STATIC-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-OBJ-STATIC-CONSUMPTION",
+      "original_line": 2974,
+      "scope": "ROMDATA-02-OBJ-STATIC-MANAGED / ROMDATA-04-OBJ-STATIC-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-STATIC-SCENE-CLI",
+      "original_line": 2976,
+      "scope": "ROMDATA-05-OBJ-STATIC-SCENE-CLI — complete for one declared EUR/Wine transition."
+    },
+    {
+      "id": "ROMDATA-04-OBJ-STATIC-HOST-READERS",
+      "original_line": 2978,
+      "scope": "ROMDATA-04-OBJ-STATIC-HOST-READERS — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-FONT-KEYBOARD-DATA",
+      "original_line": 2990,
+      "scope": "ROMDATA-02-FONT-KEYBOARD-DATA — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-FONT-KEYBOARD-MANAGED",
+      "original_line": 2997,
+      "scope": "ROMDATA-02-FONT-KEYBOARD-MANAGED / ROMDATA-04-FONT-KEYBOARD-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-FONT-KEYBOARD-CONSUMPTION",
+      "original_line": 2997,
+      "scope": "ROMDATA-02-FONT-KEYBOARD-MANAGED / ROMDATA-04-FONT-KEYBOARD-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-FONT-KEYBOARD-SCENE-CLI",
+      "original_line": 3014,
+      "scope": "ROMDATA-05-FONT-KEYBOARD-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-NAME-KEYBOARD-HOST-ROWS",
+      "original_line": 3023,
+      "scope": "ROMDATA-04-NAME-KEYBOARD-HOST-ROWS — complete for EUR/Wine."
+    },
+    {
+      "id": "PERF-ROMDATA-E12-LINUX-SAMPLE",
+      "original_line": 3045,
+      "scope": "PERF-ROMDATA-E12-LINUX-SAMPLE — complete (2026-10-22)."
+    },
+    {
+      "id": "TOOLS-LINUX-BUILDER-INTERRUPTION",
+      "original_line": 3072,
+      "scope": "TOOLS-LINUX-BUILDER-INTERRUPTION — complete (2026-10-22)."
+    },
+    {
+      "id": "TOOLS-EXTRACT-DEFAULT-ROM",
+      "original_line": 3101,
+      "scope": "TOOLS-EXTRACT-DEFAULT-ROM — complete (2026-10-22)."
+    },
+    {
+      "id": "TOOLS-SCRIPT-PATH-AUDIT",
+      "original_line": 3120,
+      "scope": "TOOLS-SCRIPT-PATH-AUDIT — path checks/fix complete (2026-10-22)."
+    },
+    {
+      "id": "ROMDATA-04-BG-TRANSFER-CONSUMPTION",
+      "original_line": 3142,
+      "scope": "ROMDATA-04-BG-TRANSFER-CONSUMPTION — complete for reduced EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-BG-TRANSFER-SCENE",
+      "original_line": 3160,
+      "scope": "ROMDATA-05-BG-TRANSFER-SCENE — complete for one EUR/Wine transition."
+    },
+    {
+      "id": "ROMDATA-05-BG-TRANSFER-CLI",
+      "original_line": 3168,
+      "scope": "ROMDATA-05-BG-TRANSFER-CLI — complete for EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-TEXT-SHORT-STRINGS",
+      "original_line": 3183,
+      "scope": "ROMDATA-01-TEXT-SHORT-STRINGS / ROMDATA-02-TEXT-SHORT-DATA — complete for the declared EUR offline catalog."
+    },
+    {
+      "id": "ROMDATA-02-TEXT-SHORT-DATA",
+      "original_line": 3183,
+      "scope": "ROMDATA-01-TEXT-SHORT-STRINGS / ROMDATA-02-TEXT-SHORT-DATA — complete for the declared EUR offline catalog."
+    },
+    {
+      "id": "ROMDATA-02-TEXT-SHORT-MANAGED",
+      "original_line": 3206,
+      "scope": "ROMDATA-02-TEXT-SHORT-MANAGED — complete for EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-TEXT-SHORT-CONSUMPTION",
+      "original_line": 3227,
+      "scope": "ROMDATA-04-TEXT-SHORT-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-TEXT-REMAINING-CATALOGS",
+      "original_line": 3250,
+      "scope": "ROMDATA-01-TEXT-REMAINING-CATALOGS / ROMDATA-02-TEXT-CATALOG-DATA — complete for declared EUR offline reader block."
+    },
+    {
+      "id": "ROMDATA-02-TEXT-CATALOG-DATA",
+      "original_line": 3250,
+      "scope": "ROMDATA-01-TEXT-REMAINING-CATALOGS / ROMDATA-02-TEXT-CATALOG-DATA — complete for declared EUR offline reader block."
+    },
+    {
+      "id": "ROMDATA-02-TEXT-CATALOG-MANAGED",
+      "original_line": 3278,
+      "scope": "ROMDATA-02-TEXT-CATALOG-MANAGED — complete for EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-TEXT-CATALOG-CONSUMPTION",
+      "original_line": 3303,
+      "scope": "ROMDATA-04-TEXT-CATALOG-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-TEXT-CATALOG-SCENE-CLI",
+      "original_line": 3326,
+      "scope": "ROMDATA-05-TEXT-CATALOG-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-TEXT-AUXILIARY-ROOTS",
+      "original_line": 3346,
+      "scope": "ROMDATA-01-TEXT-AUXILIARY-ROOTS — static discovery complete."
+    },
+    {
+      "id": "TOOLS-SCRIPTS-PLATFORM-LAYOUT",
+      "original_line": 3361,
+      "scope": "TOOLS-SCRIPTS-PLATFORM-LAYOUT — complete (2026-10-22)."
+    },
+    {
+      "id": "ROMDATA-TOOLS-EXTRACT-DOCKER",
+      "original_line": 3382,
+      "scope": "ROMDATA-TOOLS-EXTRACT-DOCKER — complete (2026-10-22)."
+    },
+    {
+      "id": "ROMDATA-TOOLS-EXTRACT-SCRIPT",
+      "original_line": 3405,
+      "scope": "ROMDATA-TOOLS-EXTRACT-SCRIPT — complete (2026-10-22)."
+    },
+    {
+      "id": "ROMDATA-04-BG-GRAPHICS-CONSUMPTION",
+      "original_line": 3424,
+      "scope": "ROMDATA-04-BG-GRAPHICS-CONSUMPTION — complete for reduced EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-BG-GRAPHICS-SCENE",
+      "original_line": 3439,
+      "scope": "ROMDATA-05-BG-GRAPHICS-SCENE — complete for one EUR/Wine transition."
+    },
+    {
+      "id": "ROMDATA-05-BG-GRAPHICS-CLI",
+      "original_line": 3446,
+      "scope": "ROMDATA-05-BG-GRAPHICS-CLI — complete for EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-BG-TRANSFER-VARIANT",
+      "original_line": 3459,
+      "scope": "ROMDATA-01-BG-TRANSFER-VARIANT / ROMDATA-02-BG-TRANSFER-DATA — complete for the declared EUR offline catalog."
+    },
+    {
+      "id": "ROMDATA-02-BG-TRANSFER-DATA",
+      "original_line": 3459,
+      "scope": "ROMDATA-01-BG-TRANSFER-VARIANT / ROMDATA-02-BG-TRANSFER-DATA — complete for the declared EUR offline catalog."
+    },
+    {
+      "id": "ROMDATA-02-BG-TRANSFER-MANAGED",
+      "original_line": 3481,
+      "scope": "ROMDATA-02-BG-TRANSFER-MANAGED — complete for EUR/Wine."
+    },
+    {
+      "id": "WORKFLOW-MEMORY-CI-37",
+      "original_line": 3508,
+      "scope": "WORKFLOW-MEMORY-CI-37 — complete locally (2026-10-22)."
+    },
+    {
+      "id": "ROMDATA-01-BG-MAIN-GRAPHICS",
+      "original_line": 3525,
+      "scope": "ROMDATA-01-BG-MAIN-GRAPHICS / ROMDATA-02-BG-GRAPHICS-DATA — complete for the declared EUR/Wine catalog."
+    },
+    {
+      "id": "ROMDATA-02-BG-GRAPHICS-DATA",
+      "original_line": 3525,
+      "scope": "ROMDATA-01-BG-MAIN-GRAPHICS / ROMDATA-02-BG-GRAPHICS-DATA — complete for the declared EUR/Wine catalog."
+    },
+    {
+      "id": "ROMDATA-02-BG-GRAPHICS-MANAGED",
+      "original_line": 3545,
+      "scope": "ROMDATA-02-BG-GRAPHICS-MANAGED — complete for EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-BG-PACKET-CONSUMPTION",
+      "original_line": 3576,
+      "scope": "ROMDATA-04-BG-PACKET-CONSUMPTION — complete for reduced EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-BG-PACKET-SCENE",
+      "original_line": 3594,
+      "scope": "ROMDATA-05-BG-PACKET-SCENE — complete for one declared EUR/Wine scene."
+    },
+    {
+      "id": "ROMDATA-05-BG-PACKET-CLI",
+      "original_line": 3604,
+      "scope": "ROMDATA-05-BG-PACKET-CLI — complete for EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-02-BG-PACKET-MANAGED",
+      "original_line": 3620,
+      "scope": "ROMDATA-02-BG-PACKET-MANAGED — complete for EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-01-BG-PACKET-CATALOG",
+      "original_line": 3685,
+      "scope": "ROMDATA-01-BG-PACKET-CATALOG — complete for descriptor04/08/10 of the verified162-record block."
+    },
+    {
+      "id": "ROMDATA-05-BG-ALTERNATE-SCENES",
+      "original_line": 3727,
+      "scope": "ROMDATA-05-BG-ALTERNATE-SCENES — complete for two declared EUR pub transitions on Linux/Wine."
+    },
+    {
+      "id": "ROMDATA-05-BG-ALTERNATE-GUI",
+      "original_line": 3741,
+      "scope": "ROMDATA-05-BG-ALTERNATE-GUI — complete for declared EUR Linux/Wine scope."
+    },
+    {
+      "id": "FEAT-RESTART-ROM",
+      "original_line": 3762,
+      "scope": "FEAT-RESTART-ROM / BUG-01-LAWS-DEPLOYMENT — implementation and local validation complete; integrated locally into decomp."
+    },
+    {
+      "id": "BUG-01-LAWS-DEPLOYMENT",
+      "original_line": 3762,
+      "scope": "FEAT-RESTART-ROM / BUG-01-LAWS-DEPLOYMENT — implementation and local validation complete; integrated locally into decomp."
+    },
+    {
+      "id": "REPO-BRANCH-DECOMP",
+      "original_line": 3802,
+      "scope": "REPO-BRANCH-DECOMP — complete (local Git refs only)."
+    },
+    {
+      "id": "ROMDATA-01-CONTRACT",
+      "original_line": 3821,
+      "scope": "ROMDATA-01-CONTRACT — complete"
+    },
+    {
+      "id": "ROMDATA-02-OBJ-DIMENSIONS",
+      "original_line": 3827,
+      "scope": "ROMDATA-02-OBJ-DIMENSIONS — complete"
+    },
+    {
+      "id": "ROMDATA-02-CLI-PRODUCTION",
+      "original_line": 3844,
+      "scope": "ROMDATA-02-CLI-PRODUCTION — complete"
+    },
+    {
+      "id": "ROMDATA-03-OBJ-STARTUP",
+      "original_line": 3851,
+      "scope": "ROMDATA-03-OBJ-STARTUP — complete for opt-in first-family preparation"
+    },
+    {
+      "id": "ROMDATA-04-OBJ-CONSUMPTION",
+      "original_line": 3888,
+      "scope": "ROMDATA-04-OBJ-CONSUMPTION — complete for opt-in first-family implementation and initial correctness/provenance gates."
+    },
+    {
+      "id": "ROMDATA-04-EUR-ALIAS",
+      "original_line": 3898,
+      "scope": "ROMDATA-04-EUR-ALIAS — complete"
+    },
+    {
+      "id": "ROMDATA-05-OBJ-GUI",
+      "original_line": 3999,
+      "scope": "ROMDATA-05-OBJ-GUI — complete for local EUR declared scope."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-ARCHIVES",
+      "original_line": 4028,
+      "scope": "ROMDATA-05-OBJ-ARCHIVES — complete for declared container/host scope."
+    },
+    {
+      "id": "ROMDATA-05-OBJ-USA-INITIALIZER",
+      "original_line": 4066,
+      "scope": "ROMDATA-05-OBJ-USA-INITIALIZER — complete on Linux and Windows GNU/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GRAPHICS-LZ77",
+      "original_line": 4088,
+      "scope": "ROMDATA-01-GRAPHICS-LZ77 / ROMDATA-02-LZ77-DECODER — complete for observed early producers and offline codec"
+    },
+    {
+      "id": "ROMDATA-02-LZ77-DECODER",
+      "original_line": 4088,
+      "scope": "ROMDATA-01-GRAPHICS-LZ77 / ROMDATA-02-LZ77-DECODER — complete for observed early producers and offline codec"
+    },
+    {
+      "id": "ROMDATA-02-BG-PACKETS",
+      "original_line": 4147,
+      "scope": "ROMDATA-02-BG-PACKETS — complete for offline typed packet component."
+    },
+    {
+      "id": "ROMDATA-01-BG-DESCRIPTOR-PREFIX",
+      "original_line": 4185,
+      "scope": "ROMDATA-01-BG-DESCRIPTOR-PREFIX / ROMDATA-02-BG-DESCRIPTOR-METADATA — complete for authenticated contiguous metadata contract/offline decoder."
+    },
+    {
+      "id": "ROMDATA-02-BG-DESCRIPTOR-METADATA",
+      "original_line": 4185,
+      "scope": "ROMDATA-01-BG-DESCRIPTOR-PREFIX / ROMDATA-02-BG-DESCRIPTOR-METADATA — complete for authenticated contiguous metadata contract/offline decoder."
+    },
+    {
+      "id": "ROMDATA-02-BG-MANAGED",
+      "original_line": 4220,
+      "scope": "ROMDATA-02-BG-MANAGED — complete for three-file extraction/verification/ preparation and whole-set activation authentication."
+    },
+    {
+      "id": "ROMDATA-04-BG-CONSUMPTION",
+      "original_line": 4259,
+      "scope": "ROMDATA-04-BG-CONSUMPTION — complete for bounded metadata implementation and initial correctness/provenance gates."
+    },
+    {
+      "id": "ROMDATA-02-BG-JSON",
+      "original_line": 4406,
+      "scope": "ROMDATA-02-BG-JSON — complete"
+    },
+    {
+      "id": "ROMDATA-01-BG-PALETTES",
+      "original_line": 4458,
+      "scope": "ROMDATA-01-BG-PALETTES — complete for the declared base catalog"
+    },
+    {
+      "id": "ROMDATA-02-BG-BASE-PALETTE-DATA",
+      "original_line": 4503,
+      "scope": "ROMDATA-02-BG-BASE-PALETTE-DATA — complete"
+    },
+    {
+      "id": "ROMDATA-04-BG-BASE-PALETTE-CONSUMPTION",
+      "original_line": 4532,
+      "scope": "ROMDATA-04-BG-BASE-PALETTE-CONSUMPTION — complete for the declared base catalog and initial correctness/provenance."
+    },
+    {
+      "id": "ROMDATA-05-BG-BASE-PALETTE-SCENES",
+      "original_line": 4567,
+      "scope": "ROMDATA-05-BG-BASE-PALETTE-SCENES — complete for declared EURscenes."
+    },
+    {
+      "id": "ROMDATA-01-BG-ALTERNATE-PALETTE-PROGRAMS",
+      "original_line": 4604,
+      "scope": "ROMDATA-01-BG-ALTERNATE-PALETTE-PROGRAMS — complete for valid indices."
+    },
+    {
+      "id": "ROMDATA-02-BG-ALTERNATE-PALETTE-CODEC",
+      "original_line": 4620,
+      "scope": "ROMDATA-02-BG-ALTERNATE-PALETTE-CODEC — complete"
+    },
+    {
+      "id": "ROMDATA-02-BG-ALTERNATE-PALETTE-MANAGED",
+      "original_line": 4643,
+      "scope": "ROMDATA-02-BG-ALTERNATE-PALETTE-MANAGED — complete"
+    },
+    {
+      "id": "ROMDATA-04-BG-ALTERNATE-PALETTE-CONSUMPTION",
+      "original_line": 4671,
+      "scope": "ROMDATA-04-BG-ALTERNATE-PALETTE-CONSUMPTION — complete"
+    },
+    {
+      "id": "FEAT-02-FULLSCREEN",
+      "original_line": 4734,
+      "scope": "FEAT-02-FULLSCREEN — complete / retained for implemented desktop scope."
+    },
+    {
+      "id": "FEAT-01-MUTE",
+      "original_line": 4763,
+      "scope": "FEAT-01-MUTE — complete / retained."
+    },
+    {
+      "id": "BUG-02-FPS",
+      "original_line": 4782,
+      "scope": "BUG-02-FPS — complete for the reported scope."
+    },
+    {
+      "id": "BUG-03-NORMAL-BOUNDS",
+      "original_line": 4796,
+      "scope": "BUG-03-NORMAL-BOUNDS — complete / retained."
+    },
+    {
+      "id": "BUILD-01-WARNING-CLEANUP",
+      "original_line": 4856,
+      "scope": "BUILD-01-WARNING-CLEANUP — complete."
+    },
+    {
+      "id": "BUG-01-IMAGE-HISTORY",
+      "original_line": 4919,
+      "scope": "BUG-01-IMAGE-HISTORY — complete / remote verified."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA2-DATA",
+      "original_line": 4926,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA2-DATA / ROMDATA-04-GAMEPLAY-METADATA2-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-METADATA2-CONSUMPTION",
+      "original_line": 4926,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA2-DATA / ROMDATA-04-GAMEPLAY-METADATA2-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-METADATA2-SCENE-CLI",
+      "original_line": 4928,
+      "scope": "ROMDATA-05-GAMEPLAY-METADATA2-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-DEFAULT48-TEMPLATE",
+      "original_line": 4930,
+      "scope": "ROMDATA-01-GAMEPLAY-DEFAULT48-TEMPLATE — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-DEFAULT48-SOURCE-ORACLE",
+      "original_line": 4932,
+      "scope": "ROMDATA-02-GAMEPLAY-DEFAULT48-SOURCE-ORACLE — complete for declared EUR/Wine constructor-prefix scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-DEFAULT48-DATA",
+      "original_line": 4934,
+      "scope": "ROMDATA-02-GAMEPLAY-DEFAULT48-DATA / ROMDATA-04-GAMEPLAY-DEFAULT48-CONSUMPTION — complete for declared EUR/Wine constructor-prefix scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-DEFAULT48-CONSUMPTION",
+      "original_line": 4934,
+      "scope": "ROMDATA-02-GAMEPLAY-DEFAULT48-DATA / ROMDATA-04-GAMEPLAY-DEFAULT48-CONSUMPTION — complete for declared EUR/Wine constructor-prefix scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-DEFAULT48-SCENE-CLI",
+      "original_line": 4936,
+      "scope": "ROMDATA-05-GAMEPLAY-DEFAULT48-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-CONSTRUCTOR-ALTERNATES",
+      "original_line": 4938,
+      "scope": "ROMDATA-01-GAMEPLAY-CONSTRUCTOR-ALTERNATES — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-CONSTRUCTOR-ALTERNATES-SOURCE-ORACLE",
+      "original_line": 4940,
+      "scope": "ROMDATA-02-GAMEPLAY-CONSTRUCTOR-ALTERNATES-SOURCE-ORACLE — complete for declared EUR/Wine prefix scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-CONSTRUCTOR-ALTERNATES-DATA",
+      "original_line": 4942,
+      "scope": "ROMDATA-02-GAMEPLAY-CONSTRUCTOR-ALTERNATES-DATA / ROMDATA-04-GAMEPLAY-CONSTRUCTOR-ALTERNATES-CONSUMPTION — complete for declared EUR/Wine prefix scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-CONSTRUCTOR-ALTERNATES-CONSUMPTION",
+      "original_line": 4942,
+      "scope": "ROMDATA-02-GAMEPLAY-CONSTRUCTOR-ALTERNATES-DATA / ROMDATA-04-GAMEPLAY-CONSTRUCTOR-ALTERNATES-CONSUMPTION — complete for declared EUR/Wine prefix scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-CONSTRUCTOR-ALTERNATES-SCENE-CLI",
+      "original_line": 4944,
+      "scope": "ROMDATA-05-GAMEPLAY-CONSTRUCTOR-ALTERNATES-SCENE-CLI — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA14-ROOTS",
+      "original_line": 4946,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA14-ROOTS — declared bounded static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA14-SOURCE-ORACLE",
+      "original_line": 4948,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA14-SOURCE-ORACLE — complete for declared EUR/Wine getter/palette/initializer-prefix scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA14-DATA",
+      "original_line": 4950,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA14-DATA / ROMDATA-04-GAMEPLAY-METADATA14-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-METADATA14-CONSUMPTION",
+      "original_line": 4950,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA14-DATA / ROMDATA-04-GAMEPLAY-METADATA14-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-METADATA14-SCENE-CLI",
+      "original_line": 4952,
+      "scope": "ROMDATA-05-GAMEPLAY-METADATA14-SCENE-CLI — complete for declared EUR/Wine Pub scope."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA12-ROOTS",
+      "original_line": 4954,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA12-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA12-SOURCE-ORACLE",
+      "original_line": 4956,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA12-SOURCE-ORACLE — complete for declared EUR/Wine source scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-METADATA12-DATA",
+      "original_line": 4958,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA12-DATA / ROMDATA-04-GAMEPLAY-METADATA12-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-METADATA12-CONSUMPTION",
+      "original_line": 4958,
+      "scope": "ROMDATA-02-GAMEPLAY-METADATA12-DATA / ROMDATA-04-GAMEPLAY-METADATA12-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-METADATA12-SCENE-CLI",
+      "original_line": 4960,
+      "scope": "ROMDATA-05-GAMEPLAY-METADATA12-SCENE-CLI — complete for declared EUR/Wine ordinary scope."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-GLOBAL-PAIR-FLAGS",
+      "original_line": 4962,
+      "scope": "ROMDATA-01-GAMEPLAY-GLOBAL-PAIR-FLAGS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-GLOBAL-PAIR-FLAGS-SOURCE-ORACLE",
+      "original_line": 4964,
+      "scope": "ROMDATA-02-GAMEPLAY-GLOBAL-PAIR-FLAGS-SOURCE-ORACLE — complete for declared EUR/Wine source scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-GLOBAL-PAIR-FLAGS-DATA",
+      "original_line": 4966,
+      "scope": "ROMDATA-02-GAMEPLAY-GLOBAL-PAIR-FLAGS-DATA / ROMDATA-04-GAMEPLAY-GLOBAL-PAIR-FLAGS-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-GLOBAL-PAIR-FLAGS-CONSUMPTION",
+      "original_line": 4966,
+      "scope": "ROMDATA-02-GAMEPLAY-GLOBAL-PAIR-FLAGS-DATA / ROMDATA-04-GAMEPLAY-GLOBAL-PAIR-FLAGS-CONSUMPTION — complete for declared EUR/Wine."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-NUMERIC-PAIR-ROOTS",
+      "original_line": 4970,
+      "scope": "ROMDATA-01-GAMEPLAY-NUMERIC-PAIR-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-EVALUATION-PARAMETERS-SOURCE-ORACLE",
+      "original_line": 4972,
+      "scope": "ROMDATA-02-GAMEPLAY-EVALUATION-PARAMETERS-SOURCE-ORACLE — complete for declared EUR/Wine prefixes."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-EVALUATION-PARAMETERS-DATA",
+      "original_line": 4974,
+      "scope": "ROMDATA-02-GAMEPLAY-EVALUATION-PARAMETERS-DATA / ROMDATA-04-GAMEPLAY-EVALUATION-PARAMETERS-CONSUMPTION — complete for declared EUR/Wine prefixes."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-EVALUATION-PARAMETERS-CONSUMPTION",
+      "original_line": 4974,
+      "scope": "ROMDATA-02-GAMEPLAY-EVALUATION-PARAMETERS-DATA / ROMDATA-04-GAMEPLAY-EVALUATION-PARAMETERS-CONSUMPTION — complete for declared EUR/Wine prefixes."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-EVALUATION-PARAMETERS-SCENE-CLI",
+      "original_line": 4976,
+      "scope": "ROMDATA-05-GAMEPLAY-EVALUATION-PARAMETERS-SCENE-CLI — complete for declared EUR/Wine score use."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-METADATA10-ROOTS",
+      "original_line": 4978,
+      "scope": "ROMDATA-01-GAMEPLAY-METADATA10-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-PROGRESSION-REWARDS-SOURCE-ORACLE",
+      "original_line": 4980,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-REWARDS-SOURCE-ORACLE — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-PROGRESSION-REWARDS-DATA",
+      "original_line": 4982,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-REWARDS-DATA / ROMDATA-04-GAMEPLAY-PROGRESSION-REWARDS-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-PROGRESSION-REWARDS-CONSUMPTION",
+      "original_line": 4982,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-REWARDS-DATA / ROMDATA-04-GAMEPLAY-PROGRESSION-REWARDS-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-PROGRESSION-REWARDS-SCENE-CLI",
+      "original_line": 4984,
+      "scope": "ROMDATA-05-GAMEPLAY-PROGRESSION-REWARDS-SCENE-CLI — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-PROGRESSION-GATES-ROOTS",
+      "original_line": 4986,
+      "scope": "ROMDATA-01-GAMEPLAY-PROGRESSION-GATES-ROOTS — declared static inventory complete."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-PROGRESSION-GATES-SOURCE-ORACLE",
+      "original_line": 4988,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-GATES-SOURCE-ORACLE — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-PROGRESSION-GATES-DATA",
+      "original_line": 4990,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-GATES-DATA / ROMDATA-04-GAMEPLAY-PROGRESSION-GATES-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-PROGRESSION-GATES-CONSUMPTION",
+      "original_line": 4990,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-GATES-DATA / ROMDATA-04-GAMEPLAY-PROGRESSION-GATES-CONSUMPTION — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-PROGRESSION-GATES-SCENE-CLI",
+      "original_line": 4992,
+      "scope": "ROMDATA-05-GAMEPLAY-PROGRESSION-GATES-SCENE-CLI — complete for declared EUR/Wine scope."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-EVALUATION-THRESHOLD-ACCEPT-SCENE",
+      "original_line": 4994,
+      "scope": "ROMDATA-05-GAMEPLAY-EVALUATION-THRESHOLD-ACCEPT-SCENE — complete for declared EUR/Wine class1 scope (2026-10-23)."
+    },
+    {
+      "id": "PERF-07-TIMER-AUDIO-ORDER",
+      "original_line": 5052,
+      "scope": "PERF-07-TIMER-AUDIO-ORDER — complete."
+    },
+    {
+      "id": "PERF-10-PRESENTATION-CADENCE",
+      "original_line": 5087,
+      "scope": "PERF-10-PRESENTATION-CADENCE — previously completed, retained."
+    },
+    {
+      "id": "PERF-09-BACKEND-OBSERVABILITY",
+      "original_line": 5125,
+      "scope": "PERF-09-BACKEND-OBSERVABILITY — completed for local PipeWire."
+    },
+    {
+      "id": "PERF-09-ENHANCED-SOURCE-EVENTS",
+      "original_line": 5156,
+      "scope": "PERF-09-ENHANCED-SOURCE-EVENTS — completed."
+    },
+    {
+      "id": "PERF-09-INTERACTIVE-GATING",
+      "original_line": 5202,
+      "scope": "PERF-09-INTERACTIVE-GATING — completed."
+    },
+    {
+      "id": "PERF-08-UI-WORLD-ONLY-PIXELS",
+      "original_line": 5206,
+      "scope": "PERF-08-UI-WORLD-ONLY-PIXELS — retained."
+    },
+    {
+      "id": "PERF-08-UI-PANEL-ROW-CLASSIFICATION",
+      "original_line": 5211,
+      "scope": "PERF-08-UI-PANEL-ROW-CLASSIFICATION — retained."
+    },
+    {
+      "id": "PERF-07-FALLBACK-CANDIDATES",
+      "original_line": 5217,
+      "scope": "PERF-07-FALLBACK-CANDIDATES — triage complete."
+    },
+    {
+      "id": "PERF-04-DEVICE-LOSS",
+      "original_line": 5225,
+      "scope": "PERF-04-DEVICE-LOSS — controlled invalidation fixed/complete."
+    },
+    {
+      "id": "PERF-04-MONITOR-TRANSITIONS",
+      "original_line": 5235,
+      "scope": "PERF-04-MONITOR-TRANSITIONS — complete for virtual X11/Wine outputs."
+    },
+    {
+      "id": "PERF-04-MINIMIZE-RESTORE",
+      "original_line": 5244,
+      "scope": "PERF-04-MINIMIZE-RESTORE — complete for native Linux X11/Wine Vulkan."
+    },
+    {
+      "id": "PERF-04-SKIPPED-UPLOADS",
+      "original_line": 5253,
+      "scope": "PERF-04-SKIPPED-UPLOADS — completed."
+    },
+    {
+      "id": "PERF-03-FRACTIONAL-UI-TEXELS",
+      "original_line": 5262,
+      "scope": "PERF-03-FRACTIONAL-UI-TEXELS — retained/completed."
+    },
+    {
+      "id": "PERF-05-SHARED-WORLD-UPLOADS",
+      "original_line": 5272,
+      "scope": "PERF-05-SHARED-WORLD-UPLOADS — retained/completed."
+    },
+    {
+      "id": "PERF-02-AUDIO-CALLBACK-DIAGNOSTICS",
+      "original_line": 5278,
+      "scope": "PERF-02-AUDIO-CALLBACK-DIAGNOSTICS — done for faithful/current scope."
+    },
+    {
+      "id": "PERF-05-NATIVE-UI-INPUT-CACHE",
+      "original_line": 5283,
+      "scope": "PERF-05-NATIVE-UI-INPUT-CACHE — retained; PERF-06 complete."
+    },
+    {
+      "id": "PERF-05-LUT-FPS",
+      "original_line": 5286,
+      "scope": "PERF-05-LUT-FPS / PERF-06-FIFO-PACING — done."
+    },
+    {
+      "id": "PERF-06-FIFO-PACING",
+      "original_line": 5286,
+      "scope": "PERF-05-LUT-FPS / PERF-06-FIFO-PACING — done."
+    },
+    {
+      "id": "PERF-02-GPU-EXECUTION-TIMESTAMPS",
+      "original_line": 5289,
+      "scope": "PERF-02-GPU-EXECUTION-TIMESTAMPS — done for implementation/current coverage."
+    },
+    {
+      "id": "PERF-02-GUI-CONTROLLED-OVERHEAD",
+      "original_line": 5292,
+      "scope": "PERF-02-GUI-CONTROLLED-OVERHEAD — done for unpaced workload."
+    },
+    {
+      "id": "PERF-02-COARSE-PROFILE",
+      "original_line": 5295,
+      "scope": "PERF-02-COARSE-PROFILE / PERF-02-PPU-STAGES — done for native Linux."
+    },
+    {
+      "id": "PERF-02-PPU-STAGES",
+      "original_line": 5295,
+      "scope": "PERF-02-COARSE-PROFILE / PERF-02-PPU-STAGES — done for native Linux."
+    },
+    {
+      "id": "PERF-01-REPLAY-TOOLS",
+      "original_line": 5298,
+      "scope": "PERF-01-REPLAY-TOOLS — done."
+    },
+    {
+      "id": "PERF-01-WORLDMAP",
+      "original_line": 5300,
+      "scope": "PERF-01-WORLDMAP — done."
+    },
+    {
+      "id": "PERF-01-ENEMY-REPLAY",
+      "original_line": 5302,
+      "scope": "PERF-01-ENEMY-REPLAY / PERF-01-ENEMY-BASELINE — done."
+    },
+    {
+      "id": "PERF-01-ENEMY-BASELINE",
+      "original_line": 5302,
+      "scope": "PERF-01-ENEMY-REPLAY / PERF-01-ENEMY-BASELINE — done."
+    },
+    {
+      "id": "PERF-08-UI-ROW-INVARIANTS",
+      "original_line": 5305,
+      "scope": "PERF-08-UI-ROW-INVARIANTS — retained (-2.176% at that boundary)."
+    },
+    {
+      "id": "PERF-08-UI-PREPARED-BG-ROWS",
+      "original_line": 5307,
+      "scope": "PERF-08-UI-PREPARED-BG-ROWS — retained (-4.144% at that boundary)."
+    },
+    {
+      "id": "PERF-08-UI-EMPTY-ROWS",
+      "original_line": 5309,
+      "scope": "PERF-08-UI-EMPTY-ROWS — retained (-21.503% at that boundary)."
+    },
+    {
+      "id": "PERF-03-RESTORE-VIEW-STRIDE",
+      "original_line": 5313,
+      "scope": "PERF-03-RESTORE-VIEW-STRIDE — fixed."
+    },
+    {
+      "id": "PERF-03-CURRENT-DESKTOP-BUILDS",
+      "original_line": 5316,
+      "scope": "PERF-03-CURRENT-DESKTOP-BUILDS — done for stated container/Wine scope."
+    },
+    {
+      "id": "PERF-04-XVFB-GL-INITIAL-SURFACE",
+      "original_line": 5321,
+      "scope": "PERF-04-XVFB-GL-INITIAL-SURFACE — fixed/current coverage done."
+    },
+    {
+      "id": "DOC-README-FEATURES",
+      "original_line": 5324,
+      "scope": "DOC-README-FEATURES — done."
+    },
+    {
+      "id": "WORKFLOW-RESUME",
+      "original_line": 5326,
+      "scope": "WORKFLOW-RESUME / WORKFLOW-RESUME-CHECKPOINT — done."
+    },
+    {
+      "id": "WORKFLOW-RESUME-CHECKPOINT",
+      "original_line": 5326,
+      "scope": "WORKFLOW-RESUME / WORKFLOW-RESUME-CHECKPOINT — done."
+    },
+    {
+      "id": "PERF-07-IMMUTABLE-ROM-SEEDS",
+      "original_line": 5332,
+      "scope": "PERF-07-IMMUTABLE-ROM-SEEDS — rejected."
+    },
+    {
+      "id": "PERF-08-COMPACT-UI-LAYER-ID",
+      "original_line": 5347,
+      "scope": "PERF-08-COMPACT-UI-LAYER-ID — rejected/restored."
+    },
+    {
+      "id": "PERF-05-NATIVE-UI-REVISIONS",
+      "original_line": 5351,
+      "scope": "PERF-05-NATIVE-UI-REVISIONS — rejected and restored."
+    },
+    {
+      "id": "PERF-06-ROW-BOUNDS",
+      "original_line": 5355,
+      "scope": "PERF-06-ROW-BOUNDS — rejected for production."
+    },
+    {
+      "id": "PERF-08-FRONT-TWO",
+      "original_line": 5358,
+      "scope": "PERF-08-FRONT-TWO — rejected, standard sorting restored."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-PROGRESSION-RANK-GATES-ROOTS",
+      "original_line": 5387,
+      "scope": "ROMDATA-01-GAMEPLAY-PROGRESSION-RANK-GATES-ROOTS — static contract complete (2026-10-23); structural name progression-selection-gates."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-PROGRESSION-SELECTION-GATES-SOURCE-ORACLE",
+      "original_line": 5389,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-SELECTION-GATES-SOURCE-ORACLE — complete for declared EUR/Wine source scope (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-PROGRESSION-SELECTION-GATES-DATA",
+      "original_line": 5391,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-SELECTION-GATES-DATA / ROMDATA-04-GAMEPLAY-PROGRESSION-SELECTION-GATES-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-PROGRESSION-SELECTION-GATES-CONSUMPTION",
+      "original_line": 5391,
+      "scope": "ROMDATA-02-GAMEPLAY-PROGRESSION-SELECTION-GATES-DATA / ROMDATA-04-GAMEPLAY-PROGRESSION-SELECTION-GATES-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-PROGRESSION-SELECTION-GATES-SCENE-CLI",
+      "original_line": 5393,
+      "scope": "ROMDATA-05-GAMEPLAY-PROGRESSION-SELECTION-GATES-SCENE-CLI — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-AGGREGATE-FLAG-KEYS-ROOTS",
+      "original_line": 5397,
+      "scope": "ROMDATA-01-GAMEPLAY-AGGREGATE-FLAG-KEYS-ROOTS — complete static contract (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-AGGREGATE-FLAG-KEYS-SOURCE-ORACLE",
+      "original_line": 5399,
+      "scope": "ROMDATA-02-GAMEPLAY-AGGREGATE-FLAG-KEYS-SOURCE-ORACLE — complete for declared EUR/Wine source scope (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-AGGREGATE-FLAG-KEYS-DATA",
+      "original_line": 5401,
+      "scope": "ROMDATA-02-GAMEPLAY-AGGREGATE-FLAG-KEYS-DATA / ROMDATA-04-GAMEPLAY-AGGREGATE-FLAG-KEYS-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-AGGREGATE-FLAG-KEYS-CONSUMPTION",
+      "original_line": 5401,
+      "scope": "ROMDATA-02-GAMEPLAY-AGGREGATE-FLAG-KEYS-DATA / ROMDATA-04-GAMEPLAY-AGGREGATE-FLAG-KEYS-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-AGGREGATE-FLAG-KEYS-SCENE-CLI",
+      "original_line": 5403,
+      "scope": "ROMDATA-05-GAMEPLAY-AGGREGATE-FLAG-KEYS-SCENE-CLI — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-ADJACENT-STRIDE96-ROOTS",
+      "original_line": 5407,
+      "scope": "ROMDATA-01-GAMEPLAY-ADJACENT-STRIDE96-ROOTS — complete declared static trade-parameters contract (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-TRADE-PARAMETERS-SOURCE-ORACLE",
+      "original_line": 5410,
+      "scope": "ROMDATA-02-GAMEPLAY-TRADE-PARAMETERS-SOURCE-ORACLE — complete for declared EUR/Wine source scope (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-TRADE-PARAMETERS-DATA",
+      "original_line": 5413,
+      "scope": "ROMDATA-02-GAMEPLAY-TRADE-PARAMETERS-DATA / ROMDATA-04-GAMEPLAY-TRADE-PARAMETERS-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-TRADE-PARAMETERS-CONSUMPTION",
+      "original_line": 5413,
+      "scope": "ROMDATA-02-GAMEPLAY-TRADE-PARAMETERS-DATA / ROMDATA-04-GAMEPLAY-TRADE-PARAMETERS-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-TRADE-PARAMETERS-SCENE-CLI",
+      "original_line": 5416,
+      "scope": "ROMDATA-05-GAMEPLAY-TRADE-PARAMETERS-SCENE-CLI — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-01-GAMEPLAY-ADJACENT-STRIDE7-ROOTS",
+      "original_line": 5419,
+      "scope": "ROMDATA-01-GAMEPLAY-ADJACENT-STRIDE7-ROOTS — complete declared static item-effect-parameters contract (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-ITEM-EFFECT-PARAMETERS-SOURCE-ORACLE",
+      "original_line": 5422,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-EFFECT-PARAMETERS-SOURCE-ORACLE — complete for declared EUR/Wine source scope (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-GAMEPLAY-ITEM-EFFECT-PARAMETERS-DATA",
+      "original_line": 5425,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-EFFECT-PARAMETERS-DATA / ROMDATA-04-GAMEPLAY-ITEM-EFFECT-PARAMETERS-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-04-GAMEPLAY-ITEM-EFFECT-PARAMETERS-CONSUMPTION",
+      "original_line": 5425,
+      "scope": "ROMDATA-02-GAMEPLAY-ITEM-EFFECT-PARAMETERS-DATA / ROMDATA-04-GAMEPLAY-ITEM-EFFECT-PARAMETERS-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-05-GAMEPLAY-ITEM-EFFECT-PARAMETERS-SCENE-CLI",
+      "original_line": 5428,
+      "scope": "ROMDATA-05-GAMEPLAY-ITEM-EFFECT-PARAMETERS-SCENE-CLI — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-01-AUDIO-TYPED-CATALOG-ROOTS",
+      "original_line": 5431,
+      "scope": "ROMDATA-01-AUDIO-TYPED-CATALOG-ROOTS — complete for initial EUR roots (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-DIRECTORY-SOURCE-ORACLE",
+      "original_line": 5448,
+      "scope": "ROMDATA-02-AUDIO-M4A-DIRECTORY-SOURCE-ORACLE — complete for EUR/Wine source scope (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-DIRECTORY-DATA",
+      "original_line": 5476,
+      "scope": "ROMDATA-02-AUDIO-M4A-DIRECTORY-DATA / ROMDATA-04-AUDIO-M4A-DIRECTORY-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-04-AUDIO-M4A-DIRECTORY-CONSUMPTION",
+      "original_line": 5476,
+      "scope": "ROMDATA-02-AUDIO-M4A-DIRECTORY-DATA / ROMDATA-04-AUDIO-M4A-DIRECTORY-CONSUMPTION — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-05-AUDIO-M4A-DIRECTORY-SCENE-CLI",
+      "original_line": 5499,
+      "scope": "ROMDATA-05-AUDIO-M4A-DIRECTORY-SCENE-CLI — complete for declared EUR/Wine (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-01-AUDIO-M4A-TONE-SEQUENCE-PRODUCERS",
+      "original_line": 5525,
+      "scope": "ROMDATA-01-AUDIO-M4A-TONE-SEQUENCE-PRODUCERS — complete for declared produced EUR source domains (2026-10-23)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-TONE-MODEL",
+      "original_line": 5561,
+      "scope": "ROMDATA-02-AUDIO-M4A-TONE-MODEL — complete for declared EUR/Wine decoder scope (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-TONE-DATA",
+      "original_line": 5587,
+      "scope": "ROMDATA-02-AUDIO-M4A-TONE-DATA / ROMDATA-04-AUDIO-M4A-TONE-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-AUDIO-M4A-TONE-CONSUMPTION",
+      "original_line": 5587,
+      "scope": "ROMDATA-02-AUDIO-M4A-TONE-DATA / ROMDATA-04-AUDIO-M4A-TONE-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-AUDIO-M4A-TONE-SCENE-CLI",
+      "original_line": 5625,
+      "scope": "ROMDATA-05-AUDIO-M4A-TONE-SCENE-CLI — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-SEQUENCE-MODEL",
+      "original_line": 5656,
+      "scope": "ROMDATA-02-AUDIO-M4A-SEQUENCE-MODEL — complete for declared EUR/Wine source/model scope (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-SEQUENCE-DATA",
+      "original_line": 5698,
+      "scope": "ROMDATA-02-AUDIO-M4A-SEQUENCE-DATA / ROMDATA-04-AUDIO-M4A-SEQUENCE-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-AUDIO-M4A-SEQUENCE-CONSUMPTION",
+      "original_line": 5698,
+      "scope": "ROMDATA-02-AUDIO-M4A-SEQUENCE-DATA / ROMDATA-04-AUDIO-M4A-SEQUENCE-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-AUDIO-M4A-SEQUENCE-SCENE-CLI",
+      "original_line": 5736,
+      "scope": "ROMDATA-05-AUDIO-M4A-SEQUENCE-SCENE-CLI — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-AUDIO-M4A-DRIVER-LUTS",
+      "original_line": 5768,
+      "scope": "ROMDATA-01-AUDIO-M4A-DRIVER-LUTS — complete for declared EUR static source scope (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-DRIVER-MODEL",
+      "original_line": 5785,
+      "scope": "ROMDATA-02-AUDIO-M4A-DRIVER-MODEL — complete for declared EUR/Wine source/model scope (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-AUDIO-M4A-DRIVER-VOLUME-PRODUCER",
+      "original_line": 5821,
+      "scope": "ROMDATA-01-AUDIO-M4A-DRIVER-VOLUME-PRODUCER — complete, conditional cap corrected (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-AUDIO-M4A-DRIVER-DATA",
+      "original_line": 5842,
+      "scope": "ROMDATA-02-AUDIO-M4A-DRIVER-DATA / ROMDATA-04-AUDIO-M4A-DRIVER-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-AUDIO-M4A-DRIVER-CONSUMPTION",
+      "original_line": 5842,
+      "scope": "ROMDATA-02-AUDIO-M4A-DRIVER-DATA / ROMDATA-04-AUDIO-M4A-DRIVER-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-AUDIO-M4A-DRIVER-SCENE-CLI",
+      "original_line": 5873,
+      "scope": "ROMDATA-05-AUDIO-M4A-DRIVER-SCENE-CLI — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-AUDIO-FFTA-WRAPPER-SOURCES",
+      "original_line": 5907,
+      "scope": "ROMDATA-01-AUDIO-FFTA-WRAPPER-SOURCES — complete, reclassified (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-PALETTE-EFFECT-DISPATCH-MODEL",
+      "original_line": 5925,
+      "scope": "ROMDATA-02-PALETTE-EFFECT-DISPATCH-MODEL — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-PALETTE-EFFECT-DISPATCH-DATA",
+      "original_line": 5948,
+      "scope": "ROMDATA-02-PALETTE-EFFECT-DISPATCH-DATA / ROMDATA-04-PALETTE-EFFECT-DISPATCH-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-PALETTE-EFFECT-DISPATCH-CONSUMPTION",
+      "original_line": 5948,
+      "scope": "ROMDATA-02-PALETTE-EFFECT-DISPATCH-DATA / ROMDATA-04-PALETTE-EFFECT-DISPATCH-CONSUMPTION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-PALETTE-EFFECT-DISPATCH-SCENE-CLI",
+      "original_line": 5979,
+      "scope": "ROMDATA-05-PALETTE-EFFECT-DISPATCH-SCENE-CLI — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-PALETTE-EFFECT-DISPATCH-SCENE-TRANSITION",
+      "original_line": 5990,
+      "scope": "ROMDATA-05-PALETTE-EFFECT-DISPATCH-SCENE-TRANSITION — complete for declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-PALETTE-EFFECT-INDEXED-PRODUCER-DOMAINS",
+      "original_line": 6065,
+      "scope": "ROMDATA-01-PALETTE-EFFECT-INDEXED-PRODUCER-DOMAINS — complete for20bounded projections (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-PALETTE-PROGRAM-SCENE",
+      "original_line": 6166,
+      "scope": "ROMDATA-05-PALETTE-PROGRAM-SCENE — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-TASK-DESCRIPTOR-SOURCE",
+      "original_line": 6275,
+      "scope": "ROMDATA-01-TASK-DESCRIPTOR-SOURCE — bounded EUR inventory complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-TASK-DESCRIPTOR-MODEL",
+      "original_line": 6290,
+      "scope": "ROMDATA-02-TASK-DESCRIPTOR-MODEL — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-EFFECT-EVENT-DIRECTORIES",
+      "original_line": 6359,
+      "scope": "ROMDATA-01-EFFECT-EVENT-DIRECTORIES — bounded EUR inventory complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-EFFECT-EVENT-DIRECTORY-MODEL",
+      "original_line": 6378,
+      "scope": "ROMDATA-02-EFFECT-EVENT-DIRECTORY-MODEL — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-EFFECT-EVENT-DIRECTORY-RUNTIME",
+      "original_line": 6406,
+      "scope": "ROMDATA-03-EFFECT-EVENT-DIRECTORY-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-EFFECT-EVENT-DIRECTORY-CLI",
+      "original_line": 6426,
+      "scope": "ROMDATA-04-EFFECT-EVENT-DIRECTORY-CLI — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-EFFECT-EVENT-DIRECTORY-MEMORY",
+      "original_line": 6447,
+      "scope": "ROMDATA-03-EFFECT-EVENT-DIRECTORY-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-COMMAND-DIRECTORY",
+      "original_line": 6456,
+      "scope": "ROMDATA-01-SCRIPT-COMMAND-DIRECTORY — bounded EUR inventory complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-COMMAND-DIRECTORY-MODEL",
+      "original_line": 6465,
+      "scope": "ROMDATA-02-SCRIPT-COMMAND-DIRECTORY-MODEL — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-COMMAND-DIRECTORY-RUNTIME",
+      "original_line": 6493,
+      "scope": "ROMDATA-03-SCRIPT-COMMAND-DIRECTORY-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-COMMAND-DIRECTORY-CLI",
+      "original_line": 6513,
+      "scope": "ROMDATA-04-SCRIPT-COMMAND-DIRECTORY-CLI — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-COMMAND-DIRECTORY-SCENE",
+      "original_line": 6521,
+      "scope": "ROMDATA-05-SCRIPT-COMMAND-DIRECTORY-SCENE — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-COMMAND-DIRECTORY-MEMORY",
+      "original_line": 6541,
+      "scope": "ROMDATA-03-SCRIPT-COMMAND-DIRECTORY-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-COMMAND-DIRECTORY-MEMORY",
+      "original_line": 6551,
+      "scope": "ROMDATA-05-SCRIPT-COMMAND-DIRECTORY-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-ARCHIVE",
+      "original_line": 6574,
+      "scope": "ROMDATA-01-SCRIPT-ARCHIVE — bounded EUR inventory complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-ARCHIVE-MEMORY",
+      "original_line": 6600,
+      "scope": "ROMDATA-01-SCRIPT-ARCHIVE-MEMORY — inventory scope complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-ARCHIVE-MODEL",
+      "original_line": 6627,
+      "scope": "ROMDATA-02-SCRIPT-ARCHIVE-MODEL — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-ARCHIVE-MEMORY",
+      "original_line": 6653,
+      "scope": "ROMDATA-02-SCRIPT-ARCHIVE-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-ARCHIVE-RUNTIME",
+      "original_line": 6664,
+      "scope": "ROMDATA-03-SCRIPT-ARCHIVE-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-ARCHIVE-CLI",
+      "original_line": 6685,
+      "scope": "ROMDATA-04-SCRIPT-ARCHIVE-CLI — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-ARCHIVE-SCENE",
+      "original_line": 6697,
+      "scope": "ROMDATA-05-SCRIPT-ARCHIVE-SCENE — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-ARCHIVE-MEMORY",
+      "original_line": 6717,
+      "scope": "ROMDATA-05-SCRIPT-ARCHIVE-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-LOCALIZED-TEXT",
+      "original_line": 6730,
+      "scope": "ROMDATA-01-SCRIPT-LOCALIZED-TEXT — static EUR inventory complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-LOCALIZED-TEXT-MEMORY",
+      "original_line": 6758,
+      "scope": "ROMDATA-01-SCRIPT-LOCALIZED-TEXT-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-LOCALIZED-TEXT-MODEL",
+      "original_line": 6772,
+      "scope": "ROMDATA-02-SCRIPT-LOCALIZED-TEXT-MODEL — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-LOCALIZED-TEXT-MEMORY",
+      "original_line": 6804,
+      "scope": "ROMDATA-02-SCRIPT-LOCALIZED-TEXT-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-LOCALIZED-TEXT-RUNTIME",
+      "original_line": 6817,
+      "scope": "ROMDATA-03-SCRIPT-LOCALIZED-TEXT-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-LOCALIZED-TEXT-CLI",
+      "original_line": 6853,
+      "scope": "ROMDATA-04-SCRIPT-LOCALIZED-TEXT-CLI — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-LOCALIZED-TEXT-LOCATOR",
+      "original_line": 6866,
+      "scope": "ROMDATA-05-SCRIPT-LOCALIZED-TEXT-LOCATOR — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-LOCALIZED-TEXT-PAIR",
+      "original_line": 6882,
+      "scope": "ROMDATA-05-SCRIPT-LOCALIZED-TEXT-PAIR — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-LOCALIZED-TEXT-MEMORY",
+      "original_line": 6898,
+      "scope": "ROMDATA-05-SCRIPT-LOCALIZED-TEXT-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-EFFECT-EVENT-ORDINARY-SELECTOR",
+      "original_line": 6913,
+      "scope": "ROMDATA-05-EFFECT-EVENT-ORDINARY-SELECTOR — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-EFFECT-EVENT-ORDINARY-MEMORY",
+      "original_line": 6941,
+      "scope": "ROMDATA-05-EFFECT-EVENT-ORDINARY-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-COORDINATE-INDEX-SOURCE",
+      "original_line": 6955,
+      "scope": "ROMDATA-01-SCRIPT-COORDINATE-INDEX-SOURCE / ROMDATA-02-SCRIPT-COORDINATE-PATHS-MODEL — complete declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-COORDINATE-PATHS-MODEL",
+      "original_line": 6955,
+      "scope": "ROMDATA-01-SCRIPT-COORDINATE-INDEX-SOURCE / ROMDATA-02-SCRIPT-COORDINATE-PATHS-MODEL — complete declared EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-COORDINATE-PATHS-MEMORY",
+      "original_line": 6980,
+      "scope": "ROMDATA-02-SCRIPT-COORDINATE-PATHS-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-COORDINATE-PATHS-RUNTIME",
+      "original_line": 6992,
+      "scope": "ROMDATA-03-SCRIPT-COORDINATE-PATHS-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-COORDINATE-PATHS-CLI",
+      "original_line": 7017,
+      "scope": "ROMDATA-04-SCRIPT-COORDINATE-PATHS-CLI / ROMDATA-05-SCRIPT-COORDINATE-PATHS-PAIR — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-COORDINATE-PATHS-PAIR",
+      "original_line": 7017,
+      "scope": "ROMDATA-04-SCRIPT-COORDINATE-PATHS-CLI / ROMDATA-05-SCRIPT-COORDINATE-PATHS-PAIR — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-COORDINATE-PATHS-MEMORY",
+      "original_line": 7034,
+      "scope": "ROMDATA-05-SCRIPT-COORDINATE-PATHS-MEMORY — complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-AUXILIARY-SCRIPT-ARCHIVE-SOURCE",
+      "original_line": 7046,
+      "scope": "ROMDATA-01-AUXILIARY-SCRIPT-ARCHIVE-SOURCE — declared EUR static source complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-AUXILIARY-SCRIPT-MODELS",
+      "original_line": 7074,
+      "scope": "ROMDATA-02-AUXILIARY-SCRIPT-MODELS — declared EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-AUXILIARY-SCRIPT-RUNTIME",
+      "original_line": 7112,
+      "scope": "ROMDATA-03-AUXILIARY-SCRIPT-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-AUXILIARY-SCRIPT-CLI",
+      "original_line": 7154,
+      "scope": "ROMDATA-04-AUXILIARY-SCRIPT-CLI — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-AUXILIARY-SCRIPT-PAIR",
+      "original_line": 7173,
+      "scope": "ROMDATA-05-AUXILIARY-SCRIPT-PAIR — complete EUR/Wine (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-TERRAIN-MAP-SOURCE",
+      "original_line": 7197,
+      "scope": "ROMDATA-01-TERRAIN-MAP-SOURCE — declared EUR static classification complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-MAP-RASTER-PALETTE-SOURCE",
+      "original_line": 7221,
+      "scope": "ROMDATA-01-MAP-RASTER-PALETTE-SOURCE — declared EUR source complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-MAP-RASTER-PALETTE-MODEL",
+      "original_line": 7248,
+      "scope": "ROMDATA-02-MAP-RASTER-PALETTE-MODEL — declared EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-MAP-RASTER-PALETTE-RUNTIME",
+      "original_line": 7281,
+      "scope": "ROMDATA-03-MAP-RASTER-PALETTE-RUNTIME — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-MAP-RASTER-PALETTE-CLI",
+      "original_line": 7322,
+      "scope": "ROMDATA-04-MAP-RASTER-PALETTE-CLI — actual EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-MAP-RASTER-PALETTE-PAIR",
+      "original_line": 7343,
+      "scope": "ROMDATA-05-MAP-RASTER-PALETTE-PAIR — ordinary EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-OBJ-EMPTY-CALLERS",
+      "original_line": 7392,
+      "scope": "ROMDATA-01-OBJ-EMPTY-CALLERS — bounded static classification complete; unproved hold extension rejected (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-UI-LIST-ENTRIES-SOURCE",
+      "original_line": 7417,
+      "scope": "ROMDATA-01-UI-LIST-ENTRIES-SOURCE — bounded EUR static contract complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-UI-CHOICE-LISTS-DATA",
+      "original_line": 7459,
+      "scope": "ROMDATA-02-UI-CHOICE-LISTS-DATA — EUR/Wine source-model criterion complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-UI-CHOICE-LISTS-RUNTIME",
+      "original_line": 7503,
+      "scope": "ROMDATA-03-UI-CHOICE-LISTS-RUNTIME — targeted EUR/Wine criterion complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-UI-CHOICE-LISTS-CLI",
+      "original_line": 7558,
+      "scope": "ROMDATA-04-UI-CHOICE-LISTS-CLI — actual EUR/Wine preparation/reuse complete; Pecorelle1000new-UI locator negative/closed (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-UI-CHOICE-LISTS-LOCATOR",
+      "original_line": 7593,
+      "scope": "ROMDATA-05-UI-CHOICE-LISTS-LOCATOR — Moogle menu600negative/closed."
+    },
+    {
+      "id": "ROMDATA-05-UI-CHOICE-LISTS-PARTY-LOCATOR",
+      "original_line": 7622,
+      "scope": "ROMDATA-05-UI-CHOICE-LISTS-PARTY-LOCATOR — positive/complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-UI-CHOICE-LISTS-PAIR",
+      "original_line": 7641,
+      "scope": "ROMDATA-05-UI-CHOICE-LISTS-PAIR — ordinary EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-INITIAL-POSE",
+      "original_line": 7689,
+      "scope": "ROMDATA-01-UNIT-OBJ-INITIAL-POSE — bounded static contract complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-INITIAL-POSE",
+      "original_line": 7714,
+      "scope": "ROMDATA-02-UNIT-OBJ-INITIAL-POSE — source model/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-INITIAL-POSE",
+      "original_line": 7771,
+      "scope": "ROMDATA-03-UNIT-OBJ-INITIAL-POSE — managed/runtime targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-INITIAL-POSE-CLI",
+      "original_line": 7832,
+      "scope": "ROMDATA-04-UNIT-OBJ-INITIAL-POSE-CLI — production build child complete."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-INITIAL-POSE-PAIR",
+      "original_line": 7864,
+      "scope": "ROMDATA-05-UNIT-OBJ-INITIAL-POSE-PAIR — ordinary EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-PALETTE-SOURCES",
+      "original_line": 7931,
+      "scope": "ROMDATA-01-UNIT-OBJ-PALETTE-SOURCES — static contract complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-02-COLOR-MODE-PALETTES",
+      "original_line": 7962,
+      "scope": "ROMDATA-02-COLOR-MODE-PALETTES — source model/original EUR Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-COLOR-MODE-PALETTES",
+      "original_line": 8029,
+      "scope": "ROMDATA-03-COLOR-MODE-PALETTES — targeted EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-04-COLOR-MODE-PALETTES-CLI",
+      "original_line": 8093,
+      "scope": "ROMDATA-04-COLOR-MODE-PALETTES-CLI — production build child complete."
+    },
+    {
+      "id": "ROMDATA-05-COLOR-MODE-PALETTES-LUTIA-LOCATOR",
+      "original_line": 8140,
+      "scope": "ROMDATA-05-COLOR-MODE-PALETTES-LUTIA-LOCATOR — positive/closed (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-05-COLOR-MODE-PALETTES-LUTIA-PAIR",
+      "original_line": 8160,
+      "scope": "ROMDATA-05-COLOR-MODE-PALETTES-LUTIA-PAIR — ordinary EUR/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-EQUIPMENT",
+      "original_line": 8248,
+      "scope": "ROMDATA-01-UNIT-OBJ-EQUIPMENT — declared static contract complete."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-EQUIPMENT",
+      "original_line": 8267,
+      "scope": "ROMDATA-02-UNIT-OBJ-EQUIPMENT — source model/Wine complete (2026-10-24)."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-EQUIPMENT",
+      "original_line": 8337,
+      "scope": "ROMDATA-03-UNIT-OBJ-EQUIPMENT — build child complete."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-EQUIPMENT-CLI",
+      "original_line": 8416,
+      "scope": "ROMDATA-04-UNIT-OBJ-EQUIPMENT-CLI — build child complete."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-BATTLE-POSES",
+      "original_line": 8540,
+      "scope": "ROMDATA-01-UNIT-OBJ-BATTLE-POSES — resume checkpoint / broad pairing rejected."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-NORMAL-BATTLE",
+      "original_line": 8576,
+      "scope": "ROMDATA-02-UNIT-OBJ-NORMAL-BATTLE — model/Windows build complete."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-NORMAL-BATTLE",
+      "original_line": 8629,
+      "scope": "ROMDATA-03-UNIT-OBJ-NORMAL-BATTLE — implementation/Windows build complete."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-NORMAL-BATTLE-CLI",
+      "original_line": 8703,
+      "scope": "ROMDATA-04-UNIT-OBJ-NORMAL-BATTLE-CLI — build child complete."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-NORMAL-BATTLE-PAIR",
+      "original_line": 8733,
+      "scope": "ROMDATA-05-UNIT-OBJ-NORMAL-BATTLE-PAIR — test-build child complete."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-ALTERNATE-TARGET-VIEWS",
+      "original_line": 8808,
+      "scope": "ROMDATA-01-UNIT-OBJ-ALTERNATE-TARGET-VIEWS — static source contract closed."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-ALTERNATE-BATTLE",
+      "original_line": 8870,
+      "scope": "ROMDATA-02-UNIT-OBJ-ALTERNATE-BATTLE — implementation/build child complete."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-ALTERNATE-BATTLE",
+      "original_line": 8946,
+      "scope": "ROMDATA-03-UNIT-OBJ-ALTERNATE-BATTLE — Windows build child closed."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-ALTERNATE-BATTLE-CLI",
+      "original_line": 9052,
+      "scope": "ROMDATA-04-UNIT-OBJ-ALTERNATE-BATTLE-CLI — actualCLI acceptance closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-OBJ-ACTOR-PAIRING",
+      "original_line": 9109,
+      "scope": "ROMDATA-01-SCRIPT-OBJ-ACTOR-PAIRING — selector classification closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-OBJ-RESOLVED-QUERIES",
+      "original_line": 9173,
+      "scope": "ROMDATA-01-SCRIPT-OBJ-RESOLVED-QUERIES — build child closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-OBJ-SPECIAL-NORMAL-PAIRS",
+      "original_line": 9273,
+      "scope": "ROMDATA-01-SCRIPT-OBJ-SPECIAL-NORMAL-PAIRS — source contract closed."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-OBJ-SPECIAL-NORMAL",
+      "original_line": 9387,
+      "scope": "ROMDATA-02-SCRIPT-OBJ-SPECIAL-NORMAL — source model/oracle closed."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-EQUIPMENT-FIGHT-NAVIGATION",
+      "original_line": 9497,
+      "scope": "ROMDATA-05-UNIT-OBJ-EQUIPMENT-FIGHT-NAVIGATION — declared navigation child closed."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-EQUIPMENT-SCENE",
+      "original_line": 9536,
+      "scope": "ROMDATA-05-UNIT-OBJ-EQUIPMENT-SCENE — declared positive fullpair closed."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-OBJ-SPECIAL-NORMAL",
+      "original_line": 9606,
+      "scope": "ROMDATA-03-SCRIPT-OBJ-SPECIAL-NORMAL — affectedbuild closed."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-OBJ-SPECIAL-NORMAL-CLI",
+      "original_line": 9674,
+      "scope": "ROMDATA-04-SCRIPT-OBJ-SPECIAL-NORMAL-CLI — productionbuild closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-SPECIAL-SNOW-LOCATOR",
+      "original_line": 9752,
+      "scope": "ROMDATA-05-SCRIPT-SPECIAL-SNOW-LOCATOR — declared locator closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-SPECIAL-RIVER-START-LOCATOR",
+      "original_line": 9810,
+      "scope": "ROMDATA-05-SCRIPT-SPECIAL-RIVER-START-LOCATOR — terminalnegative/closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-SPECIAL-ORDINARY-CLOSURE",
+      "original_line": 9848,
+      "scope": "ROMDATA-05-SCRIPT-SPECIAL-ORDINARY-CLOSURE — closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-OBJ-SPECIAL-ALTERNATE-PAIRS",
+      "original_line": 9875,
+      "scope": "ROMDATA-01-SCRIPT-OBJ-SPECIAL-ALTERNATE-PAIRS — source child closed."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-OBJ-SPECIAL-ALTERNATE",
+      "original_line": 9899,
+      "scope": "ROMDATA-02-SCRIPT-OBJ-SPECIAL-ALTERNATE — build child closed."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-OBJ-SPECIAL-ALTERNATE",
+      "original_line": 9977,
+      "scope": "ROMDATA-03-SCRIPT-OBJ-SPECIAL-ALTERNATE — build child closed."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-OBJ-SPECIAL-ALTERNATE-CLI",
+      "original_line": 10061,
+      "scope": "ROMDATA-04-SCRIPT-OBJ-SPECIAL-ALTERNATE-CLI — productionbuild closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-SPECIAL-ALTERNATE-TWO-SEQUENCE-LEAD",
+      "original_line": 10121,
+      "scope": "ROMDATA-05-SCRIPT-SPECIAL-ALTERNATE-TWO-SEQUENCE-LEAD — terminalnegative/closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-OBJ-OVERRIDE-PAIRS",
+      "original_line": 10176,
+      "scope": "ROMDATA-01-SCRIPT-OBJ-OVERRIDE-PAIRS — source child closed."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-OBJ-OVERRIDE",
+      "original_line": 10201,
+      "scope": "ROMDATA-02-SCRIPT-OBJ-OVERRIDE — build child closed."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-OBJ-OVERRIDE",
+      "original_line": 10267,
+      "scope": "ROMDATA-03-SCRIPT-OBJ-OVERRIDE — build child closed."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-OBJ-OVERRIDE-CLI",
+      "original_line": 10346,
+      "scope": "ROMDATA-04-SCRIPT-OBJ-OVERRIDE-CLI — productionbuild closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-OVERRIDE-SIX-SEQUENCE-LEAD",
+      "original_line": 10401,
+      "scope": "ROMDATA-05-SCRIPT-OVERRIDE-SIX-SEQUENCE-LEAD — terminalnegative/closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-REGISTRY-SPECIAL-PAIRS",
+      "original_line": 10460,
+      "scope": "ROMDATA-01-SCRIPT-REGISTRY-SPECIAL-PAIRS — producer-domain proof closed."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-REGISTRY-SPECIAL",
+      "original_line": 10553,
+      "scope": "ROMDATA-02-SCRIPT-REGISTRY-SPECIAL — corrected build child closed."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-REGISTRY-SPECIAL",
+      "original_line": 10627,
+      "scope": "ROMDATA-03-SCRIPT-REGISTRY-SPECIAL — build child closed."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-REGISTRY-SPECIAL-ACTUAL-CLI",
+      "original_line": 10698,
+      "scope": "ROMDATA-04-SCRIPT-REGISTRY-SPECIAL-ACTUAL-CLI — production build closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-REGISTRY-SPECIAL-21-SEQUENCE-LEAD",
+      "original_line": 10766,
+      "scope": "ROMDATA-05-SCRIPT-REGISTRY-SPECIAL-21-SEQUENCE-LEAD — terminalnegative/closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-REGISTRY-GENERIC-DIRECT",
+      "original_line": 10846,
+      "scope": "ROMDATA-01-SCRIPT-REGISTRY-GENERIC-DIRECT — producer-domain child closed."
+    },
+    {
+      "id": "ROMDATA-02-SCRIPT-REGISTRY-GENERIC",
+      "original_line": 10942,
+      "scope": "ROMDATA-02-SCRIPT-REGISTRY-GENERIC — build child closed."
+    },
+    {
+      "id": "ROMDATA-03-SCRIPT-REGISTRY-GENERIC",
+      "original_line": 11037,
+      "scope": "ROMDATA-03-SCRIPT-REGISTRY-GENERIC — build child closed."
+    },
+    {
+      "id": "ROMDATA-04-SCRIPT-REGISTRY-GENERIC-ACTUAL-CLI",
+      "original_line": 11100,
+      "scope": "ROMDATA-04-SCRIPT-REGISTRY-GENERIC-ACTUAL-CLI — production build child closed."
+    },
+    {
+      "id": "ROMDATA-05-SCRIPT-REGISTRY-GENERIC-126-SEQUENCE-LEAD",
+      "original_line": 11178,
+      "scope": "ROMDATA-05-SCRIPT-REGISTRY-GENERIC-126-SEQUENCE-LEAD — terminalnegative/closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-REGISTRY-REDIRECT-KNOWN-JOB",
+      "original_line": 11247,
+      "scope": "ROMDATA-01-SCRIPT-REGISTRY-REDIRECT-KNOWN-JOB — terminalPASS/source alias closed."
+    },
+    {
+      "id": "ROMDATA-01-SCRIPT-REGISTRY-FFFF-READ",
+      "original_line": 11313,
+      "scope": "ROMDATA-01-SCRIPT-REGISTRY-FFFF-READ — terminalPASS/reader classification closed."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-PROPERTY-WORDS",
+      "original_line": 11383,
+      "scope": "ROMDATA-01-UNIT-OBJ-PROPERTY-WORDS — terminalPASS/source plan closed."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-PROPERTY-WORDS",
+      "original_line": 11446,
+      "scope": "ROMDATA-02-UNIT-OBJ-PROPERTY-WORDS — build terminalPASS/closed."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-PROPERTY-WORDS",
+      "original_line": 11532,
+      "scope": "ROMDATA-03-UNIT-OBJ-PROPERTY-WORDS — wiring/prebuild review closed."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-PROPERTY-WORDS-ACTUAL-CLI",
+      "original_line": 11644,
+      "scope": "ROMDATA-04-UNIT-OBJ-PROPERTY-WORDS-ACTUAL-CLI — build terminalPASS/closed."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-PROPERTY-WORDS-ORDINARY",
+      "original_line": 11725,
+      "scope": "ROMDATA-05-UNIT-OBJ-PROPERTY-WORDS-ORDINARY — CLI locator positive/closed."
+    },
+    {
+      "id": "ROMDATA-01-UNIT-OBJ-PROPERTY-GETTER-CALLERS",
+      "original_line": 11888,
+      "scope": "ROMDATA-01-UNIT-OBJ-PROPERTY-GETTER-CALLERS — terminalPASS/source contract closed."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-BYTE-PROPERTY-WORDS",
+      "original_line": 11943,
+      "scope": "ROMDATA-02-UNIT-OBJ-BYTE-PROPERTY-WORDS — build terminalPASS/closed."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-BYTE-PROPERTY-WORDS",
+      "original_line": 12041,
+      "scope": "ROMDATA-03-UNIT-OBJ-BYTE-PROPERTY-WORDS — build terminalPASS/closed."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-BYTE-PROPERTY-WORDS-ACTUAL-CLI",
+      "original_line": 12141,
+      "scope": "ROMDATA-04-UNIT-OBJ-BYTE-PROPERTY-WORDS-ACTUAL-CLI — productionbuild terminalPASS/closed."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-BYTE-PROPERTY-WORDS-ORDINARY",
+      "original_line": 12216,
+      "scope": "ROMDATA-05-UNIT-OBJ-BYTE-PROPERTY-WORDS-ORDINARY — scene build terminalPASS/closed."
+    },
+    {
+      "id": "ROMDATA-01-UI-PROPERTY-OBJ-LIST-SOURCES",
+      "original_line": 12308,
+      "scope": "ROMDATA-01-UI-PROPERTY-OBJ-LIST-SOURCES — terminalPASS/source contract closed."
+    },
+    {
+      "id": "ROMDATA-05-UI-PROPERTY-OBJ-LIST-HUMAN-ANIMATION",
+      "original_line": 12382,
+      "scope": "ROMDATA-05-UI-PROPERTY-OBJ-LIST-HUMAN-ANIMATION closed/PASS."
+    },
+    {
+      "id": "ROMDATA-02-UNIT-OBJ-FFFF-READER-FIELDS",
+      "original_line": 12418,
+      "scope": "ROMDATA-02-UNIT-OBJ-FFFF-READER-FIELDS closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-03-UNIT-OBJ-FFFF-READER-FIELDS",
+      "original_line": 12454,
+      "scope": "ROMDATA-03-UNIT-OBJ-FFFF-READER-FIELDS closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-04-UNIT-OBJ-FFFF-READER-FIELDS-ACTUAL-CLI",
+      "original_line": 12486,
+      "scope": "ROMDATA-04-UNIT-OBJ-FFFF-READER-FIELDS-ACTUAL-CLI closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-05-UNIT-OBJ-FFFF-READER-FIELDS-EXISTING-CONTEXT-LEAD",
+      "original_line": 12508,
+      "scope": "ROMDATA-05-UNIT-OBJ-FFFF-READER-FIELDS-EXISTING-CONTEXT-LEAD closed (2026-10-26); positiveordinary stillpending."
+    },
+    {
+      "id": "ROMDATA-01-UI-JOB-LOOKUP-SOURCE",
+      "original_line": 12529,
+      "scope": "ROMDATA-01-UI-JOB-LOOKUP-SOURCE closed/PASS fordeclared20slot projection (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-02-SLOT-JOB-LOOKUP-MODEL",
+      "original_line": 12558,
+      "scope": "ROMDATA-02-SLOT-JOB-LOOKUP-MODEL closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-03-SLOT-JOB-LOOKUP-RUNTIME",
+      "original_line": 12589,
+      "scope": "ROMDATA-03-SLOT-JOB-LOOKUP-RUNTIME closed/PASS after externalENOSPC recovery (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-04-SLOT-JOB-LOOKUP-ACTUAL-CLI",
+      "original_line": 12633,
+      "scope": "ROMDATA-04-SLOT-JOB-LOOKUP-ACTUAL-CLI closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-05-SLOT-JOB-LOOKUP-BANK-ORDINARY",
+      "original_line": 12657,
+      "scope": "ROMDATA-05-SLOT-JOB-LOOKUP-BANK-ORDINARY closed/PASS fordeclaredEURscene (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-POST-SLOT-LOOKUP-READERS",
+      "original_line": 12694,
+      "scope": "ROMDATA-01-POST-SLOT-LOOKUP-READERS closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-NATIVE-ROM-DATA-RESIDUE",
+      "original_line": 12717,
+      "scope": "ROMDATA-01-NATIVE-ROM-DATA-RESIDUE closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-NATIVE-RESIDUE-HIGH-WORD-READERS",
+      "original_line": 12751,
+      "scope": "ROMDATA-01-NATIVE-RESIDUE-HIGH-WORD-READERS closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-NATIVE-RESIDUE-LOWER-READERS",
+      "original_line": 12775,
+      "scope": "ROMDATA-01-NATIVE-RESIDUE-LOWER-READERS closed/PASS scopedstatic (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-NATIVE-ROM-DATA-RESIDUE-F09",
+      "original_line": 12798,
+      "scope": "ROMDATA-01-NATIVE-ROM-DATA-RESIDUE-F09 closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-HOST-ROM-READ-RESIDUE",
+      "original_line": 12824,
+      "scope": "ROMDATA-01-HOST-ROM-READ-RESIDUE closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-01-BUS-HOST-HIGH-RESIDUE",
+      "original_line": 12864,
+      "scope": "ROMDATA-01-BUS-HOST-HIGH-RESIDUE closed/PASS scopedsource (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-02-OBSERVED-OBJ-LISTS-MODEL",
+      "original_line": 12907,
+      "scope": "ROMDATA-02-OBSERVED-OBJ-LISTS-MODEL closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-03-OBSERVED-OBJ-LISTS-RUNTIME",
+      "original_line": 12938,
+      "scope": "ROMDATA-03-OBSERVED-OBJ-LISTS-RUNTIME closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-04-OBSERVED-OBJ-LISTS-ACTUAL-CLI",
+      "original_line": 12970,
+      "scope": "ROMDATA-04-OBSERVED-OBJ-LISTS-ACTUAL-CLI closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-05-OBSERVED-OBJ-LISTS-ORDINARY",
+      "original_line": 12998,
+      "scope": "ROMDATA-05-OBSERVED-OBJ-LISTS-ORDINARY closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-02-OBSERVED-TASK-PARAMETERS-MODEL",
+      "original_line": 13023,
+      "scope": "ROMDATA-02-OBSERVED-TASK-PARAMETERS-MODEL closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-03-OBSERVED-TASK-PARAMETERS-RUNTIME",
+      "original_line": 13054,
+      "scope": "ROMDATA-03-OBSERVED-TASK-PARAMETERS-RUNTIME closed/PASS (2026-10-26)."
+    },
+    {
+      "id": "ROMDATA-04-OBSERVED-TASK-PARAMETERS-ACTUAL-CLI",
+      "original_line": 13090,
+      "scope": "ROMDATA-04-OBSERVED-TASK-PARAMETERS-ACTUAL-CLI closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-OBSERVED-TASK-PARAMETERS-ORDINARY",
+      "original_line": 13127,
+      "scope": "ROMDATA-05-OBSERVED-TASK-PARAMETERS-ORDINARY closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-01-BUS-HOST-LOWER-RESIDUE",
+      "original_line": 13154,
+      "scope": "ROMDATA-01-BUS-HOST-LOWER-RESIDUE closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-01-ADDITIONAL-CONSTRUCTOR-OBJ",
+      "original_line": 13184,
+      "scope": "ROMDATA-01-ADDITIONAL-CONSTRUCTOR-OBJ source/model closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-03-CONSTRUCTOR-ANIMATION-RUNTIME",
+      "original_line": 13216,
+      "scope": "ROMDATA-03-CONSTRUCTOR-ANIMATION-RUNTIME closed/PASS bounded stages (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-04-CONSTRUCTOR-ANIMATION-CLI",
+      "original_line": 13261,
+      "scope": "ROMDATA-04-CONSTRUCTOR-ANIMATION-CLI closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-TASK-CYCLE-CLI",
+      "original_line": 13432,
+      "scope": "ROMDATA-05-TASK-CYCLE-CLI closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-TASK-CYCLE-ORDINARY-REACHABILITY",
+      "original_line": 13457,
+      "scope": "ROMDATA-05-TASK-CYCLE-ORDINARY-REACHABILITY closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-TASK-CYCLE-ORDINARY",
+      "original_line": 13480,
+      "scope": "ROMDATA-05-TASK-CYCLE-ORDINARY closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-01-BANK-BUS-HOST-RESIDUE",
+      "original_line": 13520,
+      "scope": "ROMDATA-01-BANK-BUS-HOST-RESIDUE closed/PASS (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-U16-TASK-OBJ-CLI",
+      "original_line": 13721,
+      "scope": "ROMDATA-05-U16-TASK-OBJ-CLI closed/PASS EUR/Wine (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-U16-TASK-OBJ-ORDINARY",
+      "original_line": 13753,
+      "scope": "ROMDATA-05-U16-TASK-OBJ-ORDINARY closed/PASS EUR/Wine (2026-10-27)."
+    },
+    {
+      "id": "ROMDATA-05-CONSTRUCTOR-ELIGIBLE-MAP-INVENTORY",
+      "original_line": 13879,
+      "scope": "ROMDATA-05-CONSTRUCTOR-ELIGIBLE-MAP-INVENTORY closed/NEGATIVE bound (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-CELL-FLAG-WRITERS",
+      "original_line": 13906,
+      "scope": "ROMDATA-01-CELL-FLAG-WRITERS closed/PASS newcell02seed leads (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-CONSTRUCTOR-ELIGIBLE-MAP-SELECTION",
+      "original_line": 13942,
+      "scope": "ROMDATA-01-CONSTRUCTOR-ELIGIBLE-MAP-SELECTION conditionalsource child closed/PASS; normalreachablebattle remainsPARTIAL (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-ELIGIBLE-QUEST-LOCATOR",
+      "original_line": 14012,
+      "scope": "ROMDATA-05-ELIGIBLE-QUEST-LOCATOR closed/PASS normal eligible quest identified (2026-10-28); battle/animation stillPARTIAL."
+    },
+    {
+      "id": "ROMDATA-01-WORLD-LOCATION-SELECTOR",
+      "original_line": 14078,
+      "scope": "ROMDATA-01-WORLD-LOCATION-SELECTOR closed/PASS (2026-10-28), battle stillopen."
+    },
+    {
+      "id": "ROMDATA-05-GIZA-BATTLE-ENTRY",
+      "original_line": 14148,
+      "scope": "ROMDATA-05-GIZA-BATTLE-ENTRY closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-CONSTRUCTOR-ANIMATION-ORDINARY-POSITIVE",
+      "original_line": 14184,
+      "scope": "ROMDATA-05-CONSTRUCTOR-ANIMATION-ORDINARY-POSITIVE closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-WORLD-NODE-RECORDS",
+      "original_line": 14216,
+      "scope": "ROMDATA-01-WORLD-NODE-RECORDS source projection closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-WORLD-NODE-MODEL",
+      "original_line": 14270,
+      "scope": "ROMDATA-02-WORLD-NODE-MODEL closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-WORLD-NODE-RUNTIME",
+      "original_line": 14339,
+      "scope": "ROMDATA-03-04-WORLD-NODE-RUNTIME closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-WORLD-NODE-TRAVEL-ORDINARY",
+      "original_line": 14479,
+      "scope": "ROMDATA-05-WORLD-NODE-TRAVEL-ORDINARY closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-WORLD-ROAD-PATHS",
+      "original_line": 14522,
+      "scope": "ROMDATA-01-WORLD-ROAD-PATHS source projection closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-WORLD-ROAD-MODEL",
+      "original_line": 14571,
+      "scope": "ROMDATA-02-WORLD-ROAD-MODEL closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-WORLD-ROAD-RUNTIME",
+      "original_line": 14628,
+      "scope": "ROMDATA-03-04-WORLD-ROAD-RUNTIME closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-04-WORLD-ROAD-CLI",
+      "original_line": 14687,
+      "scope": "ROMDATA-04-WORLD-ROAD-CLI closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-WORLD-ROAD-TRAVEL-ORDINARY",
+      "original_line": 14727,
+      "scope": "ROMDATA-05-WORLD-ROAD-TRAVEL-ORDINARY closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-ENCOUNTER-CATALOG-READERS",
+      "original_line": 14770,
+      "scope": "ROMDATA-01-ENCOUNTER-CATALOG-READERS closed/PASS-source (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-ENCOUNTER-HEADERS-MODEL",
+      "original_line": 14836,
+      "scope": "ROMDATA-02-ENCOUNTER-HEADERS-MODEL closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-ENCOUNTER-HEADERS-RUNTIME",
+      "original_line": 14899,
+      "scope": "ROMDATA-03-04-ENCOUNTER-HEADERS-RUNTIME closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-04-ENCOUNTER-HEADERS-CLI",
+      "original_line": 14961,
+      "scope": "ROMDATA-04-ENCOUNTER-HEADERS-CLI closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-ENCOUNTER-HEADERS-BATTLE-ORDINARY",
+      "original_line": 15001,
+      "scope": "ROMDATA-05-ENCOUNTER-HEADERS-BATTLE-ORDINARY closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-ENCOUNTER-UNIT-TEMPLATES",
+      "original_line": 15056,
+      "scope": "ROMDATA-01-ENCOUNTER-UNIT-TEMPLATES closed/PASS-source (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-ENCOUNTER-UNIT-TEMPLATE-MODEL",
+      "original_line": 15118,
+      "scope": "ROMDATA-02-ENCOUNTER-UNIT-TEMPLATE-MODEL closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-ENCOUNTER-UNIT-TEMPLATE-RUNTIME",
+      "original_line": 15194,
+      "scope": "ROMDATA-03-04-ENCOUNTER-UNIT-TEMPLATE-RUNTIME closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-04-ENCOUNTER-UNIT-TEMPLATE-CLI",
+      "original_line": 15266,
+      "scope": "ROMDATA-04-ENCOUNTER-UNIT-TEMPLATE-CLI closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-ENCOUNTER-UNIT-TEMPLATE-BATTLE-ORDINARY",
+      "original_line": 15315,
+      "scope": "ROMDATA-05-ENCOUNTER-UNIT-TEMPLATE-BATTLE-ORDINARY closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-ENCOUNTER-COORDINATES",
+      "original_line": 15365,
+      "scope": "ROMDATA-01-ENCOUNTER-COORDINATES closed/PASS-source (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-ENCOUNTER-COORDINATE-MODEL",
+      "original_line": 15423,
+      "scope": "ROMDATA-02-ENCOUNTER-COORDINATE-MODEL closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-ENCOUNTER-COORDINATE-RUNTIME",
+      "original_line": 15550,
+      "scope": "ROMDATA-03-04-ENCOUNTER-COORDINATE-RUNTIME closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-04-ENCOUNTER-COORDINATE-CLI",
+      "original_line": 15643,
+      "scope": "ROMDATA-04-ENCOUNTER-COORDINATE-CLI closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-05-ENCOUNTER-COORDINATE-BATTLE-ORDINARY",
+      "original_line": 15684,
+      "scope": "ROMDATA-05-ENCOUNTER-COORDINATE-BATTLE-ORDINARY closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-LINKED-METADATA28",
+      "original_line": 15725,
+      "scope": "ROMDATA-01-LINKED-METADATA28 closed/PASS-source (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-LINKED-METADATA28",
+      "original_line": 15784,
+      "scope": "ROMDATA-02-LINKED-METADATA28 closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-LINKED-METADATA28-RUNTIME",
+      "original_line": 15869,
+      "scope": "ROMDATA-03-04-LINKED-METADATA28-RUNTIME closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-04-05-LINKED-METADATA28-COMBAT",
+      "original_line": 16084,
+      "scope": "ROMDATA-04-05-LINKED-METADATA28-COMBAT closed/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-01-LINKED-RECORDS4",
+      "original_line": 16146,
+      "scope": "ROMDATA-01-LINKED-RECORDS4 CLOSED/PASS-source (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-02-LINKED-RECORDS4",
+      "original_line": 16196,
+      "scope": "ROMDATA-02-LINKED-RECORDS4 CLOSED/PASS (2026-10-28)."
+    },
+    {
+      "id": "ROMDATA-03-04-LINKED-RECORDS4-RUNTIME",
+      "original_line": 16290,
+      "scope": "ROMDATA-03-04-LINKED-RECORDS4-RUNTIME CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-04-05-LINKED-RECORDS4-COMBAT",
+      "original_line": 16516,
+      "scope": "ROMDATA-04-05-LINKED-RECORDS4-COMBAT CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-01-CONDITIONAL-RECORDS8",
+      "original_line": 16581,
+      "scope": "ROMDATA-01-CONDITIONAL-RECORDS8 CLOSED/PASS source contract (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-02-CONDITIONAL-RECORDS8",
+      "original_line": 16636,
+      "scope": "ROMDATA-02-CONDITIONAL-RECORDS8 CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-03-04-CONDITIONAL-RECORDS8-RUNTIME",
+      "original_line": 16770,
+      "scope": "ROMDATA-03-04-CONDITIONAL-RECORDS8-RUNTIME CLOSED/PASS combined scopes (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-04-CONDITIONAL-RECORDS8-CLI",
+      "original_line": 16862,
+      "scope": "ROMDATA-04-CONDITIONAL-RECORDS8-CLI CLOSED/PASS registration/startup (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-04-05-CONDITIONAL-RECORDS8-PUB",
+      "original_line": 16954,
+      "scope": "ROMDATA-04-05-CONDITIONAL-RECORDS8-PUB CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-01-MISSION-RECORDS70",
+      "original_line": 17045,
+      "scope": "ROMDATA-01-MISSION-RECORDS70 CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-02-MISSION-RECORDS70",
+      "original_line": 17106,
+      "scope": "ROMDATA-02-MISSION-RECORDS70 CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-03-04-MISSION-RECORDS70-RUNTIME",
+      "original_line": 17231,
+      "scope": "ROMDATA-03-04-MISSION-RECORDS70-RUNTIME functional CLOSED/PASS combined (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-04-MISSION-RECORDS70-CLI",
+      "original_line": 17310,
+      "scope": "ROMDATA-04-MISSION-RECORDS70-CLI functional CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-04-05-MISSION-RECORDS70-MISSIONS",
+      "original_line": 17399,
+      "scope": "ROMDATA-04-05-MISSION-RECORDS70-MISSIONS functional CLOSED/PASS (2026-10-29)."
+    },
+    {
+      "id": "ROMDATA-01-SELECTION-BYTE-TABLES",
+      "original_line": 17476,
+      "scope": "ROMDATA-01-SELECTION-BYTE-TABLES CLOSED/PASS (2026-10-29)."
+    }
+  ],
+  "carried_open_ids": [
+    "WORKFLOW-HANDOFF-COMPACTION",
+    "ROMDATA-01-E104-ROOT-6C5FB0",
+    "ROM-DATA-FULL-EUR",
+    "DBG2-13",
+    "DBG2-14",
+    "DBG2-15",
+    "DBG2-16",
+    "DBG2-17",
+    "DBG2-18",
+    "DBG2-19",
+    "DBG2-20",
+    "DBG2-21",
+    "DBG2-22",
+    "DBG2-23",
+    "DBG2-24-28",
+    "PERFORMANCE-TODO",
+    "DEBUG-SAVES-EXPANSION",
+    "LOCAL-ARTIFACT-HYGIENE"
+  ],
+  "process_observation": {
+    "collaboration": "Only /root visible in this thread tree",
+    "processes": "Sandbox namespace only; host and other threads unknown",
+    "actions": "No build/runtime/ROM/replay/benchmark/termination started"
+  }
+}

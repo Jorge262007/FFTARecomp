@@ -113,7 +113,9 @@ line, placeholder, unsupported opcode, encryption control, master, incomplete
 continuation, nested condition or conditional slide rejects the entire block
 without a partial plan. This intentionally does not cover every device or
 CodeBreaker opcode; even a syntactically successful block may be encrypted.
-GameShark/Action Replay and all guest application remain unsupported.
+GameShark/Action Replay remain unsupported. This assumed-plaintext inspection
+never applies guest writes; the separate source-bound manual one-shot below
+has its own interpreter-only preflight and limitations.
 
 These interpretations are based on the public mGBA
 [CodeBreaker opcode definitions](https://github.com/mgba-emu/mgba/blob/master/include/mgba/internal/gba/cheats.h)

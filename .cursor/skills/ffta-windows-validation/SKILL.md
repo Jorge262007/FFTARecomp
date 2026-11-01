@@ -5,7 +5,9 @@ description: Build, test, benchmark and package FFTARecomp for Windows, distingu
 
 # Windows validation
 
-Read `docs/development/PROJECT_STATE.md` and the feature's own documentation.
+Read the short TASK_HANDOFF including its final PASSAGGIO DI TESTIMONE, Git
+status, and only relevant PROJECT_STATE/feature sections. Never preload the
+archive, full CHANGELOG/PROJECT_STATE or unrelated large TODOs.
 Use release builds for performance. Inspect installed targets, compiler and
 libraries before assuming a toolchain exists; `target/` paths are local
 artifacts, not repository prerequisites.
@@ -29,6 +31,12 @@ selected ID's existing outcome; completed/rejected work requires a recorded
 reopening reason. Validate an already implemented request instead of doing it
 again. Check linked terminal results before trusting an old next-action line;
 close a completed/rejected selection before choosing another unit.
+Archive accepted/closed outcomes with evidence and limits; partial tasks keep
+their original IDs and missing gates in the 10–20 KiB operational handoff.
+Keep the final handover last and use MEMORY_WORKFLOW's shared-lock/preimage
+publication protocol. Pause/interruption does not select new validation or ROM
+work. Inspect job handles, output and ownership before restarting; never stop
+another agent's jobs. Sandbox ps alone does not prove host inactivity.
 
 - Native build: `cargo build --locked --release -p recomp -p ffta-play`.
 - Cross build: select `--target x86_64-pc-windows-gnu` and a compatible linker.

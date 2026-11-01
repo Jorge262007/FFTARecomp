@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "compact-operational-handoff-and-preserve-history",
+  "title": "Separate the operational handoff from preserved task history",
+  "kind": "changed",
+  "platforms": [
+    "Project workflow / documentation tooling"
+  ],
+  "changes": [
+    "Separate a bounded five-section operational queue from the exact 1729308-byte historical handoff, with a SHA256 and contiguous section manifest; preserve pending-task provenance without treating it as closure.",
+    "Keep stable IDs, accepted substeps, missing acceptance criteria and explicit execution states; make PASSAGGIO DI TESTIMONE the final section and stop after this reorganization without selecting runtime work.",
+    "Update AGENTS, all four local development skills, MEMORY_WORKFLOW and the durable project entry point to read only the short handoff and task-relevant sections, with explicit pause, async ownership and repeat rules.",
+    "Add cooperative exclusive-lock and dual-preimage publication, append-only history, evidence requirements for removed tasks and bounded structure/preservation checks in CI. A held lock or stale hash refuses instead of overwriting newer memory.",
+    "Audit DBG2-13 through DBG2-23 against current parser, editor, handlers, cheat decoder/catalog, recording/replay and existing records/results; retain all eleven unchecked parents, distinguish accepted substeps and remove stale profile/clipboard/cancel/retry next actions. Correct the outdated blanket guest-application statement in the plaintext-inspection guide.",
+    "Record the unresolved catalog integration mismatch: summary/menu_entries still hardcode unsupported decoder and no handler despite source-bound inspection and guarded one-shot code with recorded tests; keep DBG2-17/18 open without changing runtime code."
+  ],
+  "validation": [
+    "Original handoff matches Git HEAD at selection and SHA256 85562ac0e8b146c2e51b819c8ba58054104274f37facc1aca425aea7a5edc57e; the archive payload and every contiguous original section hash pass preservation checks.",
+    "Eight focused Python handoff tests pass: size/order/final handover/open states, historical loss and coverage, both stale preimages, held-lock preservation, refusal to drop partial tasks, append-only closure, interrupted second publication and explicit reopening reason. Five existing project-memory tests pass.",
+    "Read eight existing local JSON results for e104 CLI, heuristic census, profile selection, pending terminal status, clipboard, replay panel, cheat import and CH-0334 RAM/seed restoration; matched their actual scope with tracked records and current source without repeating runtime validation.",
+    "Current thread collaboration inventory shows only the primary agent; process visibility is sandbox-local. No builds, ROM extraction, runtime/gameplay/replay/benchmark, process termination, artifact cleanup, package, commit or push performed.",
+    "Final operational handoff 19594 bytes versus 1729308 original bytes; archive 1732679 bytes, preserving the exact original payload. Queue has 0 active, 12 partial/integrated-unverified and 9 not-started entries; 632 historical terminal IDs plus two administrative outcomes are indexed. Final handover is last; 284 local file links and every terminal ID locator pass. Project-memory and whitespace checks pass."
+  ],
+  "limitations": [
+    "Host processes and other threads are not observable from sandbox ps; absence of visible jobs is not a claim of global inactivity. Existing async jobs and payloads were left intact.",
+    "The cooperative publication lock cannot protect editors that ignore it. Archive-first publication can leave duplicate context after interruption; recovery must re-read both files and merge.",
+    "The terminal-ID migration index records explicitly terminal scoped legacy titles, not a new certification of whole features or a complete taxonomy of unstructured historical prose. The exact snapshot preserves all other history and open-task provenance.",
+    "DBG2-13..23 remain open: seven partial, DBG2-14 integrated with missing real IME/input validation, and three not begun in their required contracts (16/22/23). No new Debug Tools implementation or platform validation was performed."
+  ],
+  "files": [
+    "AGENTS.md",
+    ".cursor/skills/ffta-development/SKILL.md",
+    ".cursor/skills/ffta-windows-validation/SKILL.md",
+    ".cursor/skills/ffta-project-memory/SKILL.md",
+    ".cursor/skills/ffta-debugging/SKILL.md",
+    ".github/workflows/project-memory.yml",
+    "scripts/task_handoff.py",
+    "scripts/tests/test_task_handoff.py",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/TASK_COMPLETED_ARCHIVE.md",
+    "docs/development/TASK_HANDOFF_MIGRATION.json",
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/PROJECT_STATE.md",
+    "docs/development/DEBUG_TOOLS_V2_TODO.md",
+    "docs/cheats.md"
+  ],
+  "references": [
+    "docs/development/MEMORY_WORKFLOW.md",
+    "docs/development/TASK_HANDOFF.md",
+    "docs/development/TASK_COMPLETED_ARCHIVE.md",
+    "docs/development/TASK_HANDOFF_MIGRATION.json",
+    "docs/development/DEBUG_TOOLS_V2_TODO.md",
+    "docs/cheats.md"
+  ]
+}
