@@ -19,6 +19,7 @@ p.add_argument('--adb', default='adb')
 p.add_argument('--serial')
 p.add_argument('--frames', type=int, default=13100)
 p.add_argument('--zoom', type=int, choices=range(7), default=6)
+p.add_argument('--device-aspect', action='store_true', help='Use the connected display landscape aspect instead of the square reference')
 p.add_argument('--slow-cpu', action='store_true', help='Reference: leave affinity to Android')
 p.add_argument('--reference-frame', action='store_true', help='Reference: disable frame-work elimination')
 p.add_argument('--reference-ui', action='store_true', help='Reference: old UI pixel extractor')
@@ -52,11 +53,17 @@ shell('run-as', pkg, 'rm', '-f', 'cache/benchmark.csv', 'cache/benchmark-camera.
       'cache/benchmark-hashes.txt', 'cache/benchmark-characters.csv')
 side = 256 * 2 ** (a.zoom / 6)
 ex, ey = math.ceil((side - 240) / 2), math.ceil((side - 160) / 2)
-print('Square viewport zoom', a.zoom, 'render', 240 + 2 * ex, 160 + 2 * ey, flush=True)
+if a.device_aspect:
+    import re
+    width,height=map(int,re.findall(r'(\d+)x(\d+)',shell('wm','size'))[-1])
+    ratio=max(width,height)/min(width,height)
+    factor=2**(a.zoom/6)
+    ex=math.ceil((160*ratio*factor-240)/2);ey=math.ceil((160*factor-160)/2)
+print('Device' if a.device_aspect else 'Square', 'viewport zoom', a.zoom, 'render', 240 + 2 * ex, 160 + 2 * ey, flush=True)
 extras = ['--ei', 'ffta_benchmark_frames', str(a.frames),
           '--ei', 'ffta_benchmark_extra_x', str(ex), '--ei', 'ffta_benchmark_extra_y', str(ey)]
 for name, value in [('ffta_benchmark', True), ('ffta_benchmark_clock', False),
-                    ('ffta_benchmark_metrics', False), ('ffta_benchmark_profile_ui', True),
+                    ('ffta_benchmark_metrics', False), ('ffta_benchmark_fill',a.device_aspect), ('ffta_benchmark_profile_ui', True),
                     ('ffta_benchmark_fast_cpu', not a.slow_cpu),
                     ('ffta_benchmark_reference_frame', a.reference_frame),
                     ('ffta_benchmark_reference_dialogue', a.reference_dialogue),
@@ -71,6 +78,8 @@ while time.monotonic() - started < 1800:
     if frame // 600 != last // 600:
         print('frame', frame, 'elapsed', round(time.monotonic() - started, 1), flush=True)
     last = frame
+    if frame==0 and time.monotonic()-started>15 and not shell('pidof',pkg).strip():
+        raise RuntimeError('Benchmark process exited before its first frame; inspect app crash log')
     hashes = call('shell', 'run-as', pkg, 'cat', 'cache/benchmark-hashes.txt', check=False).decode(errors='replace')
     if frame == a.frames and hashes.rstrip().endswith('COMPLETE'):
         break
@@ -84,7 +93,10 @@ assert save == call('exec-out', 'run-as', pkg, 'cat', 'files/ffta.sav'), 'Normal
 rows = list(csv.DictReader((out / 'benchmark-camera.csv').open()))
 parts = [('panel active', [r for r in rows if r['ui_active'] == '1'])]
 if a.frames == 13100:
-    parts.append(('final camera segment', rows[-1201:]))
+    parts.append(('final replay segment (not necessarily moving camera)', rows[-1201:]))
+moving=[row for previous,row in zip(rows,rows[1:])
+        if (row['hofs'],row['vofs'])!=(previous['hofs'],previous['vofs']) and row['hofs']!='-1']
+if moving:parts.append(('camera actually moving',moving))
 for label, part in parts:
     if not part:
         continue

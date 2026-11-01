@@ -39,3 +39,5 @@ pub use profile::{DisplayTarget, ScreenKind};
 
 #[cfg(feature = "gpu")]
 pub mod ui_layer;
+
+pub mod ui_scrollbar;

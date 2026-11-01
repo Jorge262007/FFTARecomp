@@ -20,11 +20,15 @@ fn candidates(rom: &Path) -> Result<Vec<PathBuf>, String> {
     for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
-        if path.is_file() && path.extension().is_some_and(|s| s.eq_ignore_ascii_case("sav")) {
-            saves.push(path);
+        if path.is_file() {
+            if path.extension().is_some_and(|s|s.eq_ignore_ascii_case("sav")){saves.push(path);}
+            else if path.file_name().and_then(|s|s.to_str()).is_some_and(|s|s.to_ascii_lowercase().ends_with(".sav.legacy-backup")){
+                saves.push(path.with_file_name(path.file_name().unwrap().to_string_lossy().trim_end_matches(".legacy-backup")));
+            }
         }
     }
     saves.sort();
+    saves.dedup();
     Ok(saves)
 }
 
@@ -34,10 +38,10 @@ pub fn resolve(rom: &Path) -> Result<PathBuf, String> {
     }
     if let Some(saved) = preference().and_then(|p| std::fs::read_to_string(p).ok()) {
         let saved = PathBuf::from(saved);
-        if saved.is_file() { return Ok(saved); }
+        if saved.is_file() || PathBuf::from(format!("{}.legacy-backup",saved.display())).is_file() { return Ok(saved); }
     }
     let expected = rom.with_extension("sav");
-    if expected.is_file() { return Ok(expected); }
+    if expected.is_file() || PathBuf::from(format!("{}.legacy-backup",expected.display())).is_file() { return Ok(expected); }
     let saves = candidates(rom)?;
     match saves.as_slice() {
         [] => Ok(expected),
@@ -59,6 +63,16 @@ pub fn resolve(rom: &Path) -> Result<PathBuf, String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn archived_original_still_resolves_to_same_logical_save_path(){
+        let dir=std::env::temp_dir().join(format!("ffta-archive-path-{}",std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let rom=dir.join("Europe.gba");let old=dir.join("my-progress.sav");
+        std::fs::write(dir.join("my-progress.sav.legacy-backup"),b"preserved").unwrap();
+        assert_eq!(super::candidates(&rom).unwrap(),vec![old]);
+        std::fs::remove_file(dir.join("my-progress.sav.legacy-backup")).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
     #[test]
     fn arbitrary_names_and_multiple_saves_are_preserved() {
         let dir = std::env::temp_dir().join(format!("ffta-save-resolve-{}",std::process::id()));

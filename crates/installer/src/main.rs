@@ -504,11 +504,11 @@ impl App {
         ui.add_space(8.0);
         card(ui, |ui| {
             rich(ui,&[("This installer compiles your ROM locally on your device. ",false),
-                ("We do not provide or distribute any ROMs. You must supply your own USA or European (EUR) ROM of Final Fantasy Tactics Advance.\n",true)]);
+                ("We do not provide or distribute any ROMs. You must supply your own European (EUR) ROM of Final Fantasy Tactics Advance.\n",true)]);
             rich(ui,&[("How to install: ",true),
-                ("First choose your installation folder with Change, then select your USA or European (EUR) ROM with Browse and press Install game.\n",false)]);
+                ("First choose your installation folder with Change, then select your European (EUR) ROM with Browse and press Install game.\n",false)]);
             rich(ui,&[("Save compatibility: ",true),
-                ("Save files are compatible between the USA and European (EUR) versions, so you can keep your progress when switching regions.\n",false)]);
+                ("Existing save files are preserved when updating your installation.\n",false)]);
             rich(ui,&[("Final Fantasy Tactics Advance is the property of Square Enix. This is an independent fan project and is not affiliated with or endorsed by Square Enix.",false)]);
         });
         ui.add_space(12.0);

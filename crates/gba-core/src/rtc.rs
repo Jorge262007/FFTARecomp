@@ -550,3 +550,7 @@ mod tests {
         assert_eq!(rtc.now().hour, 8);
     }
 }
+
+crate::state::fields!(Rtc,data,direction,read_enable,sck,cs,sio_out,phase,cmd_acc,nbits,byte_idx,buflen,buffer,reg,lsb_first,control,offset,fixed,trace);
+
+impl crate::state::Codec for Phase {fn put(&self,w:&mut Vec<u8>){let tag:u8=match self{Self::Idle=>0,Self::Command=>1,Self::Read=>2,Self::Write=>3};crate::state::Codec::put(&tag,w)}fn get(r:&mut crate::state::Reader<'_>)->Result<Self,String>{Ok(match <u8 as crate::state::Codec>::get(r)?{0=>Self::Idle,1=>Self::Command,2=>Self::Read,3=>Self::Write,_=>return Err("invalid Phase".into())})}}

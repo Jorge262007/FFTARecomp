@@ -431,3 +431,9 @@ mod tests {
         assert_eq!(got, want);
     }
 }
+
+crate::state::fields!(Envelope,volume,increase,period,timer);
+
+crate::state::fields!(Square,on,duty,phase,acc,freq,env,length,use_length,sweep_shift,sweep_decrease,sweep_period,sweep_timer);
+
+crate::state::fields!(Apu,sq,wave_on,wave_pos,wave_acc,wave_freq,wave_shift,wave_dim64,noise_on,noise_lfsr,noise_acc,noise_env,noise_div,noise_width7,frame_acc);

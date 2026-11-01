@@ -59,6 +59,37 @@ impl SpriteState {
             ..Self::default()
         }
     }
+    /// CpuSet/direct writes can replace OAM without going through DMA publication.
+    /// Check once at frame start before reusing host coordinates or OBJ tile IDs.
+    pub(crate) fn validate_oam(&mut self, oam: &[u8]) {
+        let before = self.segments.len();
+        self.segments.retain(|offset, (_, sprites)| {
+            sprites.iter().filter(|s| s.replaces).all(|sprite| {
+                let start = offset + sprite.slot * 8;
+                oam.get(start..start + 6).is_some_and(|actual| {
+                    sprite.attrs.iter().enumerate().all(|(i, a)|
+                        actual[i * 2..i * 2 + 2] == a.to_le_bytes())
+                })
+            })
+        });
+        if self.segments.len() == before { return; }
+        self.rebuild_active();
+    }
+    fn rebuild_active(&mut self) {
+        if self.segments.is_empty() {
+            self.active = None;
+        } else {
+            let active = self.active.get_or_insert_with(Vec::new);
+            active.clear();
+            for (start, (_, sprites)) in &self.segments {
+                active.extend(sprites.iter().cloned().map(|mut sprite| {
+                    sprite.slot += start / 8;
+                    sprite
+                }));
+            }
+            active.sort_by_key(|s| s.slot);
+        }
+    }
     pub fn publish(&mut self, src: u32, dst: u32, bytes: usize, wide: bool, oam: &[u8]) {
         if crate::ffta_log::enabled() && (0x07000000..0x07000400).contains(&dst) && dst & 7 == 0 {
             let offset = (dst - 0x07000000) as usize;
@@ -142,19 +173,7 @@ impl SpriteState {
         if let Some(sprites) = incoming {
             self.segments.insert(offset, (bytes, sprites));
         }
-        if self.segments.is_empty() {
-            self.active = None;
-        } else {
-            let active = self.active.get_or_insert_with(Vec::new);
-            active.clear();
-            for (start, (_, sprites)) in &self.segments {
-                active.extend(sprites.iter().cloned().map(|mut sprite| {
-                    sprite.slot += start / 8;
-                    sprite
-                }));
-            }
-            active.sort_by_key(|s| s.slot);
-        }
+        self.rebuild_active();
         if self.active.is_some() {
             self.publications += 1;
         }
@@ -1452,5 +1471,46 @@ mod tests {
         state.publish(0x02000000, 0x07000008, 8, true, &oam);
         assert!(state.active.is_none());
         assert_eq!(state.mismatches, 1);
+    }
+}
+
+#[cfg(test)]
+mod oam_lifetime_tests {
+    use super::*;
+    fn object(slot:usize)->HostSprite {
+        HostSprite {attrs:[10,20,1],x:20,y:10,slot,replaces:true,..Default::default()}
+    }
+    fn put(oam:&mut[u8],offset:usize,s:&HostSprite){
+        for(i,a)in s.attrs.iter().enumerate(){oam[offset+i*2..offset+i*2+2].copy_from_slice(&a.to_le_bytes());}
+    }
+    #[test]
+    fn direct_oam_clear_removes_previous_scene_objects_before_tile_reuse(){
+        let mut state=SpriteState{enabled:true,..Default::default()};
+        let mut oam=vec![0;1024];let s=object(0);put(&mut oam,0,&s);
+        state.pending.insert(0x03000030,(1,vec![s]));
+        state.publish(0x03000030,0x07000000,1024,true,&oam);
+        assert_eq!(state.active.as_ref().unwrap().len(),1);
+        for p in oam.chunks_exact_mut(8){p[..6].copy_from_slice(&[0xa8,0,0xf8,0,0,0]);}
+        state.validate_oam(&oam);assert!(state.active.is_none());
+    }
+    #[test]
+    fn identical_oam_and_live_affine_words_keep_all_offscreen_characters(){
+        let mut state=SpriteState{enabled:true,..Default::default()};
+        let mut oam=vec![0;1024];let s=object(0);put(&mut oam,0,&s);
+        let mut sprites=vec![s];
+        sprites.extend((1..8).map(|slot|HostSprite{x:400+slot as i32,slot,replaces:false,..object(slot)}));
+        state.pending.insert(0x03000030,(1,sprites));
+        state.publish(0x03000030,0x07000000,1024,true,&oam);
+        for _ in 0..300{ oam[6]=oam[6].wrapping_add(1);state.validate_oam(&oam);assert_eq!(state.active.as_ref().unwrap().len(),8); }
+    }
+    #[test]
+    fn direct_change_invalidates_only_its_segment(){
+        let mut state=SpriteState{enabled:true,..Default::default()};let mut oam=vec![0;1024];
+        for (src,offset) in [(0x03000030,0),(0x03002c58,32)]{
+            let s=object(0);put(&mut oam,offset,&s);state.pending.insert(src,(1,vec![s]));
+            state.publish(src,0x07000000+offset as u32,8,true,&oam);
+        }
+        oam[32]=0xa8;state.validate_oam(&oam);
+        assert_eq!(state.active.as_ref().unwrap().len(),1);assert_eq!(state.active.as_ref().unwrap()[0].slot,0);
     }
 }

@@ -2987,7 +2987,7 @@ dependencies = [
 
 [[package]]
 name = "installer"
-version = "3.0.0"
+version = "3.1.0"
 dependencies = [
  "dirs 5.0.1",
  "eframe 0.29.1",

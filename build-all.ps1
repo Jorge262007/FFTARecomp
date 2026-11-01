@@ -18,7 +18,7 @@ if (-not $SkipAndroid) {
 Write-Host '==> [1/5] Building Windows workspace...' -ForegroundColor Cyan
 $oldErrorAction = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-& cargo build --release
+& cargo build --release -p installer -p recomp -p ffta-play
 $cargoExit = $LASTEXITCODE
 $ErrorActionPreference = $oldErrorAction
 if ($cargoExit -ne 0) { throw 'Windows workspace build failed' }
@@ -30,13 +30,11 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\installer.exe') 
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\recomp.exe') -Destination (Join-Path $PSScriptRoot 'Installer\payload\recomp.exe') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\ffta-play.exe') -Destination (Join-Path $PSScriptRoot 'Installer\payload\FFTARecomp.exe') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gamedb.sqlite') -Destination (Join-Path $PSScriptRoot 'Installer\payload\gamedb.sqlite') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Licenses') -Destination (Join-Path $PSScriptRoot 'Installer') -Recurse -Force
 
 Write-Host '==> [3/5] Building compact TinyCC compiler...' -ForegroundColor Cyan
 & python (Join-Path $PSScriptRoot 'TinyCC\build.py')
 if ($LASTEXITCODE -ne 0) { throw 'TinyCC Windows build failed' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'target\release\tcc') -Destination (Join-Path $PSScriptRoot 'Installer\payload') -Recurse -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'TinyCC') -Destination (Join-Path $PSScriptRoot 'Installer\payload') -Recurse -Force
 if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Installer\payload\toolchain')) {
     Write-Warning 'Legacy payload/toolchain is no longer needed. Remove it before packaging the Windows release.'
 }
@@ -68,4 +66,8 @@ if (-not $SkipAndroid) {
 } else {
     Write-Host '==> [5/5] Android skipped (-SkipAndroid).'
 }
+$packageArguments = @((Join-Path $PSScriptRoot 'scripts\package_release_outputs.py'))
+if ($SkipAndroid) { $packageArguments += '--skip-android' }
+& python @packageArguments
+if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed' }
 Write-Host "Done: $PSScriptRoot\Installer (Windows), Installer\Linux (Linux/Steam Deck), Installer\Android (APK when enabled)." -ForegroundColor Green

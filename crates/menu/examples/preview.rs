@@ -47,7 +47,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "exit" => 7,
         _ => 0,
     };
-    if page != "main" {
+    if page == "debug" || page=="debug-missions" {
+        menu.open_debug();
+
+        if page=="debug-missions" {
+            for _ in 0..3 {menu.handle(MenuInput::Down,&mut av);}
+            menu.handle(MenuInput::Confirm,&mut av);
+            for _ in 0..40 {menu.scroll(false,&mut av);}
+        }
+    } else if page != "main" {
         for _ in 0..index {
             menu.handle(MenuInput::Down, &mut av);
         }

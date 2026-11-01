@@ -16,20 +16,19 @@ install -m 755 target/release/ffta-play "$package/payload/FFTARecomp"
 install -m 644 gamedb.sqlite "$package/payload/gamedb.sqlite"
 mkdir -p "$package/payload/tcc"
 install -m 755 target/release/tcc/libtcc.so "$package/payload/tcc/libtcc.so"
-cp -R TinyCC "$package/payload/"
-mkdir -p "$package/payload/Licenses"
-cp -R Licenses/. "$package/payload/Licenses/"
-printf '%s\n' 'Run ./FFTAInstaller and select your own FFTA USA or Europe ROM.' \
-    'Requires libasound.so.2 and libudev.so.1. TinyCC is bundled; no system compiler is needed.' \
-    'No ROM, save, compiled ROM library or assets folder is included.' > "$package/README.txt"
 tar -C "$package" --exclude=payload/toolchain -czf "$package/FFTAInstaller-linux-x86_64.tar.gz" \
-    FFTAInstaller payload README.txt
+    FFTAInstaller payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
 printf 'Created %s/FFTAInstaller-linux-x86_64.tar.gz\n' "$package"
 
-printf '%s\n' 'FFTARecomp v3.0 - Steam Deck installer' \
-    'Run ./FFTAInstaller-SteamDeck. Fullscreen setup, designed for 1280x720.' \
-    'Select your own FFTA USA or Europe ROM. Keep payload beside the installer.' \
-    'After setup, add the installed FFTARecomp game executable to Steam.' > "$package/README-SteamDeck.txt"
-tar -C "$package" --exclude=payload/toolchain -czf "$package/FFTAInstaller-SteamDeck-linux-x86_64.tar.gz" \
-    FFTAInstaller-SteamDeck payload README-SteamDeck.txt
+# Keep the ordinary Linux payload unchanged; only this build adds the Y shortcut.
+cargo build --release -p recomp --features steamdeck --target-dir target/steamdeck-build
+deck_stage=target/steamdeck-release-package
+mkdir -p "$deck_stage"
+cp -R "$package/payload" "$deck_stage/"
+install -m 755 target/steamdeck-build/release/recomp "$deck_stage/payload/recomp"
+install -m 755 "$package/FFTAInstaller-SteamDeck" "$deck_stage/FFTAInstaller-SteamDeck"
+mkdir -p Installer/SteamDeck
+tar -C "$deck_stage" --exclude=payload/toolchain -czf "$package/FFTAInstaller-SteamDeck-linux-x86_64.tar.gz" \
+    FFTAInstaller-SteamDeck payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
+cp "$package/FFTAInstaller-SteamDeck-linux-x86_64.tar.gz" Installer/SteamDeck/
 printf 'Created %s/FFTAInstaller-SteamDeck-linux-x86_64.tar.gz\n' "$package"

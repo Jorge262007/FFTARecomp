@@ -66,7 +66,7 @@ pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaPrepare(_: *mut 
 #[no_mangle]
 pub unsafe extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaFrame(
     env: *mut JNIEnv, _: jobject, keys: jint, extra_x: jint, extra_y: jint,
-    frames: jint, sound: jboolean, audio_mode:jint, pixels: jobject, audio: jshortArray,
+    speed: jfloat, sound: jboolean, audio_mode:jint, pixels: jobject, audio: jshortArray,
     touch:jboolean, base_width:jfloat, ui_size:jfloat, ui_length:jfloat,
     screen_width:jint,screen_height:jint,fill:jboolean,ui:jobject,ui_params:jfloatArray,ui_background:jobject,
 ) -> jint {
@@ -74,7 +74,7 @@ pub unsafe extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaFrame(
         if pixels.is_null() || audio.is_null() { return Err("Missing frame buffers".into()); }
         if !(0..=gba_core::mem::MAX_EXTRA as i32).contains(&extra_x)
             || !(0..=gba_core::mem::MAX_EXTRA_Y as i32).contains(&extra_y)
-            || !(1..=8).contains(&frames) { return Err("Invalid render configuration".into()); }
+            || ![1.,1.5,2.,3.,4.].contains(&speed) { return Err("Invalid render configuration".into()); }
         KEYS.store(keys as u32 & 0x3ff,Ordering::Relaxed);
         let api = &**env;
         let size = (240+2*extra_x)*(160+2*extra_y);
@@ -94,22 +94,22 @@ pub unsafe extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaFrame(
         let width=((240+extra_x*2) as f32*scale) as i32;
         let height=((160+extra_y*2) as f32*scale) as i32;
         engine.world_rect=[((screen_width-width)/2) as f32,((screen_height-height)/2) as f32,width as f32,height as f32];
-        engine.frame_audio(frames as usize, extra_x as usize, extra_y as usize,
+        engine.frame_speed(speed, extra_x as usize, extra_y as usize,
             if sound==0{0}else if audio_mode==2{2}else{1})?;
         std::ptr::copy_nonoverlapping(engine.pixels.as_ptr(),target,size as usize);
         if ui.is_null() || ui_background.is_null() || ui_params.is_null()
-            || api.GetDirectBufferCapacity.unwrap()(env,ui)<(480*160*4*2) as i64
+            || api.GetDirectBufferCapacity.unwrap()(env,ui)<(480*160*4*11) as i64
             || api.GetDirectBufferCapacity.unwrap()(env,ui_background)<size as i64*4
-            || api.GetArrayLength.unwrap()(env,ui_params)<18 {return Err("Invalid UI buffers".into());}
+            || api.GetArrayLength.unwrap()(env,ui_params)<99 {return Err("Invalid UI buffers".into());}
         let ui_ptr=api.GetDirectBufferAddress.unwrap()(env,ui) as *mut u8;
         let bg_ptr=api.GetDirectBufferAddress.unwrap()(env,ui_background) as *mut i32;
         if ui_ptr.is_null()||bg_ptr.is_null(){return Err("Expected direct UI buffers".into());}
-        let mut params=[0f32;18];
+        let mut params=[0f32;99];
         let ui_start=engine.machine.bus.ffta_dialogue.profile.enabled.then(std::time::Instant::now);
-        engine.export_ui(std::slice::from_raw_parts_mut(ui_ptr,480*160*4*2),&mut params,
+        engine.export_ui(std::slice::from_raw_parts_mut(ui_ptr,480*160*4*11),&mut params,
             std::slice::from_raw_parts_mut(bg_ptr,size as usize));
         if let Some(start)=ui_start {engine.ui_export_ns=start.elapsed().as_nanos() as u64;}
-        api.SetFloatArrayRegion.unwrap()(env,ui_params,0,18,params.as_ptr());
+        api.SetFloatArrayRegion.unwrap()(env,ui_params,0,99,params.as_ptr());
         let count = engine.audio.len().min(4096) as i32;
         if count > 0 { api.SetShortArrayRegion.unwrap()(env,audio,0,count,engine.audio.as_ptr()); }
         if api.ExceptionCheck.unwrap()(env) != 0 { return Err("Cannot copy frame data".into()); }
@@ -164,7 +164,7 @@ pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaTap(_: *mut JNIE
 #[no_mangle]
 pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaSave(_: *mut JNIEnv, _: jobject) -> jint {
     guarded(|| {
-        if let Some(engine) = ENGINE.lock().map_err(|_|"Engine mutex poisoned")?.as_ref() { engine.save()?; }
+        if let Some(engine) = ENGINE.lock().map_err(|_|"Engine mutex poisoned")?.as_mut() { engine.save()?; }
         Ok(1)
     })
 }
@@ -224,4 +224,51 @@ pub unsafe extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaCharacter
     let lock=ENGINE.lock().unwrap_or_else(|e|e.into_inner());
     let text=lock.as_ref().map(|e|gba_core::ffta_sprites::tutorial_metric(&e.machine.bus)).unwrap_or_default();
     java_string(env,&text)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaSaveScreen(_: *mut JNIEnv,_:jobject)->jboolean {
+    ENGINE.lock().ok().and_then(|e|e.as_ref().map(|e|e.saves.as_ref().is_some_and(|s|s.screen_active(&e.machine.bus)))).unwrap_or(false)as jboolean
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaMenuBackground(_: *mut JNIEnv,_:jobject)->jboolean {
+    ENGINE.lock().ok().and_then(|e|e.as_ref().map(|e|
+        e.machine.bus.ffta_dialogue.menu_pattern || e.saves.as_ref().is_some_and(|s|s.screen_active(&e.machine.bus)))).unwrap_or(false)as jboolean
+}
+
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaVideoPalette(env:*mut JNIEnv,_:jobject,out:jobject,screen:jint,darken:jfloat,brightness:jfloat)->jint {
+    guarded(||{
+        let api=&**env;
+        if api.GetDirectBufferCapacity.unwrap()(env,out)<32768*4{return Err("Invalid palette buffer".into());}
+        let ptr=api.GetDirectBufferAddress.unwrap()(env,out)as *mut u8;
+        if ptr.is_null(){return Err("Expected direct palette buffer".into());}
+        let kind=crate::video::profile::ScreenKind::ALL.get(screen.max(0)as usize).copied().unwrap_or(crate::video::profile::ScreenKind::Raw);
+        let settings=crate::video::lut::ColorSettings{screen:kind,darken:if darken<0.{f64::NAN}else{darken as f64},target:crate::video::color::SRGB};
+        let lut=crate::video::lut::ColorLut::build_with_brightness(&settings,brightness.clamp(0.15,1.5)as f64);
+        std::ptr::copy_nonoverlapping(lut.table.as_ptr()as *const u8,ptr,32768*4);
+        Ok(1)
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaBenchmarkSnapshot(_: *mut JNIEnv,_:jobject,load:jboolean)->jint {
+    guarded(||{
+        let mut lock=ENGINE.lock().map_err(|_|"Engine mutex poisoned")?;
+        let e=lock.as_mut().ok_or("No engine")?;
+        let path=e.save_path.as_ref().filter(|p|p.file_name().is_some_and(|n|n=="benchmark.sav")).ok_or("Snapshots are restricted to isolated benchmark sessions")?;
+        let path=path.with_file_name("benchmark.state");
+        if load!=0 {e.machine.load_state(&std::fs::read(path).map_err(|e|e.to_string())?)?;}else{std::fs::write(path,e.machine.save_state()).map_err(|e|e.to_string())?;}
+        Ok(1)
+    })
+}
+#[no_mangle]
+pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaNameEntry(_: *mut JNIEnv,_:jobject)->jboolean {
+    ENGINE.lock().ok().and_then(|e|e.as_ref().map(|e|gba_core::ffta_mouse::name_entry_active(&e.machine.bus))).unwrap_or(false)as jboolean
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_fftarecomp_port_NativeBridge_gbaZoomWorkers(_: *mut JNIEnv,_:jobject,limit:jint){
+    gba_core::ppu::set_zoom_worker_limit(limit.max(0)as usize);
 }

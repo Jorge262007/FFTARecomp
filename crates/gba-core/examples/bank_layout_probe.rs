@@ -1,0 +1,1 @@
+fn main(){use std::mem::{offset_of,size_of};use gba_core::{MemMap,ffta_stage::StageState};println!("MEM ewram={} stage={} STAGE size={} bases={} origins={} valid={} enabled={}",offset_of!(MemMap,ewram),offset_of!(MemMap,ffta_stage),size_of::<StageState>(),offset_of!(StageState,bases),offset_of!(StageState,origins),offset_of!(StageState,valid),offset_of!(StageState,enabled));}

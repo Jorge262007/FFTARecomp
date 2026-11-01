@@ -5,9 +5,12 @@ edition.workspace = true
 license.workspace = true
 description = "Static recompiler CLI"
 
+[features]
+steamdeck = []
+
 [dependencies]
 armv4t = { path = "../armv4t" }
-gba-core = { path = "../gba-core" }
+gba-core = { path = "../gba-core", features = ["parallel-ppu"] }
 recomp-core = { path = "../recomp-core" }
 gamedb = { path = "../gamedb" }
 winit = "0.30"

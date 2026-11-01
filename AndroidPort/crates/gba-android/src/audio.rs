@@ -9,10 +9,14 @@ pub struct Audio {
 }
 impl Audio {
     pub fn begin(&mut self,speed:usize,mode:u32,directory:&Path)->Result<(),String>{
-        let key=(speed,mode);
+        self.begin_half(speed*2,mode,directory)
+    }
+    /// Twice the requested rate, so 1.5x has a stable audio key and phase.
+    pub fn begin_half(&mut self,speed_half:usize,mode:u32,directory:&Path)->Result<(),String>{
+        let key=(speed_half,mode);
         if key!=self.key {
             self.queue=None;crate::normal_audio::publish(None);self.phase=0;self.cadence=0;self.previous=[0;2];self.key=key;
-            if speed>1 && mode==2 {
+            if speed_half>2 && mode==2 {
                 std::fs::create_dir_all(directory).map_err(|e|e.to_string())?;
                 self.queue=Some(Arc::new(Mutex::new(NormalAudio::new_in(directory).map_err(|e|e.to_string())?)));
                 crate::normal_audio::publish(self.queue.clone());
@@ -24,7 +28,7 @@ impl Audio {
     pub fn feed(&mut self,pcm:&[i16]){
         let (speed,mode)=self.key;
         if mode==0{return;}
-        let denominator=65536*if mode==1{speed as u32}else{1};
+        let denominator=if mode==1{32768*speed as u32}else{65536};
         for pair in pcm.chunks_exact(2){
             self.phase+=48000;
             if self.phase>=denominator {
@@ -72,6 +76,19 @@ mod tests {
             }
             assert!((total as i32-96416).abs()<10);
         }
+    }
+    #[test]fn one_and_half_speed_preserves_resampler_phase_between_one_and_two_frame_batches(){
+        let mut a=Audio::default();let mut out=Vec::new();let mut total=0;
+        for n in 0..60 {
+            a.begin_half(3,1,&std::env::temp_dir()).unwrap();
+            a.feed(&vec![1000;1097*2*if n%2==0{1}else{2}]);
+            a.finish(&mut out).unwrap();total+=out.len();
+        }
+        assert!((total as i32-96416).abs()<10);
+        a.begin_half(3,2,&std::env::temp_dir()).unwrap();
+        let q=a.queue.as_ref().unwrap().clone();
+        for _ in 0..3 {a.begin_half(3,2,&std::env::temp_dir()).unwrap();assert!(Arc::ptr_eq(&q,a.queue.as_ref().unwrap()));}
+        a.begin_half(2,2,&std::env::temp_dir()).unwrap();assert!(a.queue.is_none());
     }
     #[test]
     fn normal_audio_keeps_pitch_and_resets_backlog_on_return_to_normal(){

@@ -107,6 +107,8 @@ pub struct Frame<'a> {
     pub lut: &'a [[u8; 4]],
     pub layout: Layout,
     pub world_view: [f32; 4],
+    /// Physical viewport of the world, independent of widget clipping.
+    pub world_rect: [f32; 4],
 }
 impl Frame<'_> {
     pub fn sample(&self, x: f32, y: f32) -> Option<[u8; 4]> {
@@ -114,7 +116,7 @@ impl Frame<'_> {
         if data[2] == 0 && data[3] == 16 {
             return None;
         }
-        let c = self.layout.clip;
+        let c = self.world_rect;
         let wx = (self.world_view[0] + (x - c[0]) / c[2] * self.world_view[2])
             .floor()
             .clamp(0., self.world_dims.0 as f32 - 1.) as usize;
@@ -145,6 +147,12 @@ pub(super) struct Gpu {
     lut: wgpu::Texture,
     params: wgpu::Buffer,
     dims: (u32, u32),
+    last_ui: Vec<[u8;4]>,
+    last_world: Vec<u16>,
+    last_lut: Vec<[u8;4]>,
+    occupied: [u32;4],
+    translucent: bool,
+    layout: Layout,
     pub active: bool,
 }
 impl Gpu {
@@ -188,7 +196,7 @@ impl Gpu {
         let lut = tex(device, "ui-lut", 256, 128, wgpu::TextureFormat::Rgba8Unorm);
         let params = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ui-layout"),
-            size: 64,
+            size: 80,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -253,7 +261,7 @@ impl Gpu {
             bind_group_layouts: &[&layout],
             push_constant_ranges: &[],
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let make_pipeline = |blend| device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("native-ui"),
             layout: Some(&pl),
             vertex: wgpu::VertexState {
@@ -268,7 +276,7 @@ impl Gpu {
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    blend: None,
+                    blend,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -278,6 +286,7 @@ impl Gpu {
             multiview: None,
             cache: None,
         });
+        let pipeline=make_pipeline(None);
         Self {
             pipeline,
             bind,
@@ -286,11 +295,31 @@ impl Gpu {
             lut,
             params,
             dims,
+            last_ui:Vec::new(),last_world:Vec::new(),last_lut:Vec::new(),occupied:[0;4],translucent:false,
+            layout:Layout {rect:[0.;4],clip:[0.;4]},
             active: false,
         }
     }
     pub fn dimensions(&self) -> (u32, u32) {
         self.dims
+    }
+    pub fn resize_world(&mut self,device:&wgpu::Device,dims:(u32,u32)) {
+        if self.dims==dims {return;}
+        self.world=device.create_texture(&wgpu::TextureDescriptor {
+            label:Some("ui-world-raw"),size:wgpu::Extent3d {width:dims.0,height:dims.1,depth_or_array_layers:1},
+            mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,
+            format:wgpu::TextureFormat::R16Uint,
+            usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST,view_formats:&[],
+        });
+        let views=[self.ui.create_view(&Default::default()),self.world.create_view(&Default::default()),self.lut.create_view(&Default::default())];
+        let mut entries:Vec<_>=views.iter().enumerate().map(|(i,v)|wgpu::BindGroupEntry {
+            binding:i as u32,resource:wgpu::BindingResource::TextureView(v)
+        }).collect();
+        entries.push(wgpu::BindGroupEntry {binding:3,resource:self.params.as_entire_binding()});
+        self.bind=device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label:Some("ui-bind"),layout:&self.pipeline.get_bind_group_layout(0),entries:&entries,
+        });
+        self.dims=dims;self.last_world.clear();
     }
     pub fn update(&mut self, queue: &wgpu::Queue, frame: &Frame<'_>, srgb: bool) {
         fn write(queue: &wgpu::Queue, tex: &wgpu::Texture, data: &[u8], w: u32, h: u32, bpp: u32) {
@@ -326,20 +355,49 @@ impl Gpu {
         };
         let lut =
             unsafe { std::slice::from_raw_parts(frame.lut.as_ptr().cast(), frame.lut.len() * 4) };
-        write(queue, &self.ui, ui, 480, 160, 4);
-        write(queue, &self.world, raw, self.dims.0, self.dims.1, 2);
-        write(queue, &self.lut, lut, 256, 128, 4);
-        let mut values = [0f32; 16];
+        if self.last_ui!=frame.pixels {
+            write(queue, &self.ui, ui, 480, 160, 4);
+            self.last_ui.clear();self.last_ui.extend_from_slice(frame.pixels);
+            let mut bounds=[480,160,0,0];
+            for (i,p) in frame.pixels.iter().enumerate() {
+                if p[2]==0 && p[3]==16 {continue;}
+                let (x,y)=((i%480) as u32,(i/480) as u32);
+                bounds=[bounds[0].min(x),bounds[1].min(y),bounds[2].max(x+1),bounds[3].max(y+1)];
+            }
+            self.occupied=bounds;
+            self.translucent=frame.pixels.iter().any(|p|p[3]>0 && !(p[2]==0 && p[3]==16));
+        }
+        if self.translucent && self.last_world!=frame.raw_world {
+            write(queue, &self.world, raw, self.dims.0, self.dims.1, 2);
+            self.last_world.clear();self.last_world.extend_from_slice(frame.raw_world);
+        }
+        if self.last_lut!=frame.lut {
+            write(queue, &self.lut, lut, 256, 128, 4);
+            self.last_lut.clear();self.last_lut.extend_from_slice(frame.lut);
+        }
+        self.layout=frame.layout;
+        let mut values = [0f32; 20];
         values[..4].copy_from_slice(&frame.layout.rect);
         values[4..8].copy_from_slice(&frame.layout.clip);
         values[8..12].copy_from_slice(&frame.world_view);
         values[12] = if srgb { 1. } else { 0. };
-        let bytes = unsafe { std::slice::from_raw_parts(values.as_ptr().cast(), 64) };
+        values[13] = 0.;
+        values[16..20].copy_from_slice(&frame.world_rect);
+        let bytes = unsafe { std::slice::from_raw_parts(values.as_ptr().cast(), 80) };
         queue.write_buffer(&self.params, 0, bytes);
         self.active = true;
     }
-    pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
+    pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>,window:(u32,u32)) {
         if self.active {
+            let [l,t,r,b]=self.occupied;
+            if r<=l || b<=t {return;}
+            let Layout{rect,clip}=self.layout;
+            let left=(rect[0]+l as f32/480.*rect[2]).max(clip[0]).floor().max(0.) as u32;
+            let top=(rect[1]+t as f32/160.*rect[3]).max(clip[1]).floor().max(0.) as u32;
+            let right=((rect[0]+r as f32/480.*rect[2]).min(clip[0]+clip[2]).ceil().max(0.) as u32).min(window.0);
+            let bottom=((rect[1]+b as f32/160.*rect[3]).min(clip[1]+clip[3]).ceil().max(0.) as u32).min(window.1);
+            if right<=left || bottom<=top {return;}
+            pass.set_scissor_rect(left,top,right-left,bottom-top);
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.bind, &[]);
             pass.draw(0..3, 0..1);
@@ -375,6 +433,21 @@ mod tests {
                 assert_eq!(((index%480)as i32-120,(index/480)as i32),(x as i32,y as i32));
             }
         }
+    }
+    #[test]
+    fn widget_clip_never_rescales_the_transparent_world(){
+        let pixels=vec![[0,0,0,16];480*160];
+        let world:Vec<u16>=(0..320*160).map(|i|(i%32768)as u16).collect();
+        let lut:Vec<[u8;4]>=(0..32768u16).map(|c|[c as u8,(c>>8)as u8,0,255]).collect();
+        let mut pixels=pixels;
+        for y in 0..160 {for x in 0..480 {pixels[y*480+x]=[0,0,0,8];}}
+        let frame=Frame{pixels:&pixels,raw_world:&world,world_dims:(320,160),lut:&lut,
+            layout:Layout{rect:[-80.,0.,480.,160.],clip:[0.,0.,320.,160.]},
+            world_view:[0.,0.,320.,160.],world_rect:[0.,0.,320.,160.]};
+        let mut clipped=frame;clipped.layout.clip=[240.,48.,80.,96.];
+        for y in 48..144 {for x in 240..320 {
+            assert_eq!(clipped.sample(x as f32+0.5,y as f32+0.5),frame.sample(x as f32+0.5,y as f32+0.5));
+        }}
     }
     #[test]
     fn shader_validates() {
@@ -420,6 +493,7 @@ mod tests {
                 ];
             }
         }
+        let mut gpu = Gpu::new(&device, wgpu::TextureFormat::Rgba8Unorm,(320,160));
         for zoom in [1, 2] {
             let dims = (320 * zoom, 160 * zoom);
             let world: Vec<u16> = (0..dims.0 * dims.1).map(|i| (i % 32768) as u16).collect();
@@ -428,11 +502,14 @@ mod tests {
                 raw_world: &world,
                 world_dims: dims,
                 lut: &lut,
-                layout: Layout::new((320, 160), 320., true, 1., [0., 0.]),
+                layout: Layout{clip:[176.,8.,144.,56.],..Layout::new((320, 160), 320., true, 1., [0., 0.])},
                 world_view: [0., 0., dims.0 as f32, dims.1 as f32],
+                world_rect: [0.,0.,320.,160.],
             };
-            let mut gpu = Gpu::new(&device, wgpu::TextureFormat::Rgba8Unorm, dims);
+            gpu.resize_world(&device,dims);
             gpu.update(&queue, &frame, false);
+            gpu.update(&queue, &frame, false);
+
             let target = device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("ui-test-target"),
                 size: wgpu::Extent3d {
@@ -471,7 +548,7 @@ mod tests {
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
-                gpu.draw(&mut pass);
+                gpu.draw(&mut pass,(320,160));
             }
             encoder.copy_texture_to_buffer(
                 wgpu::TexelCopyTextureInfo {
@@ -508,11 +585,9 @@ mod tests {
                     let expected = frame
                         .sample(x as f32 + 0.5, y as f32 + 0.5)
                         .unwrap_or([0, 0, 0, 255]);
-                    assert_eq!(
-                        &mapped[(y * 320 + x) * 4..(y * 320 + x + 1) * 4],
-                        &expected,
-                        "zoom={zoom} x={x} y={y}"
-                    );
+                    let actual=&mapped[(y*320+x)*4..(y*320+x+1)*4];
+                    for channel in 0..4 {assert!(actual[channel].abs_diff(expected[channel])==0,
+                        "zoom={zoom} x={x} y={y} actual={actual:?} expected={expected:?}");}
                 }
             }
             drop(mapped);

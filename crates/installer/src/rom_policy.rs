@@ -16,7 +16,7 @@ pub fn plan(data: &[u8]) -> Result<InstallPlan, String> {
     if crate::KNOWN_SHA1.contains(&hash.as_str()) && crate::ffta_rom::eligible(data) {
         return Ok(InstallPlan::Verified);
     }
-    let warning = format!("WARNING: ROM is not an exact verified USA or Europe image (SHA1 {hash}). Installing WITHOUT FFTA patches.");
+    let warning = format!("WARNING: ROM is not an exact verified European (EUR) image (SHA1 {hash}). Installing WITHOUT FFTA patches.");
     if REFUSE_UNVERIFIED_ROM { Err(warning) } else { Ok(InstallPlan::Unpatched(warning)) }
 }
 

@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -75,7 +76,17 @@ class GameSettings(context: Context) {
     var controlSize by mutableFloatStateOf(prefs.getFloat("size",1f).coerceIn(0.75f,1.25f))
     var bubbleSize by mutableFloatStateOf(prefs.getFloat("bubble_size",1f).coerceIn(.5f,2f))
     var bubbleLength by mutableFloatStateOf(prefs.getFloat("bubble_length",1f).coerceIn(1f,2f))
-    var multiplier by mutableIntStateOf(prefs.getInt("speed",2).coerceIn(2,8))
+    var video by mutableStateOf(VideoOptions(
+        screen=prefs.getInt("video_screen",0).coerceIn(0,4),
+        brightness=prefs.getFloat("video_brightness",1f).coerceIn(.15f,1.5f),
+        darken=prefs.getFloat("video_darken",-1f).coerceIn(-1f,1f),
+        response=prefs.getInt("video_response",0).coerceIn(0,3),
+        grid=prefs.getInt("video_grid",0).coerceIn(0,3),
+        scaling=prefs.getInt("video_scaling",1).coerceIn(0,3),
+        vsync=prefs.getBoolean("video_vsync",true),fullscreen=prefs.getBoolean("video_fullscreen",true)))
+    fun videoChange(value:VideoOptions){video=value;save()}
+    var multiplier by mutableFloatStateOf(prefs.getFloat("speed_rate",
+        prefs.getInt("speed",2).coerceIn(1,4).toFloat()).let{saved->FAST_SPEEDS.minBy{kotlin.math.abs(it-saved)}})
     var audioMode by mutableStateOf(FastAudio.entries.getOrElse(prefs.getInt("ff_audio",0)){FastAudio.NORMAL})
     var touchVisible by mutableStateOf(true)
     var controllerConnected by mutableStateOf(false)
@@ -115,7 +126,11 @@ class GameSettings(context: Context) {
     fun zoomBy(delta: Int) { zoom=(zoom+delta).coerceIn(0,ViewConfig.maxZoom(aspect));save() }
     fun save() { prefs.edit().putInt("aspect",aspect.ordinal).putInt("zoom",zoom)
         .putBoolean("sound",sound).putFloat("volume",volume).putBoolean("controls",controls)
-        .putFloat("opacity",opacity).putFloat("size",controlSize).putInt("speed",multiplier).putInt("ff_audio",audioMode.ordinal)
+        .putFloat("opacity",opacity).putFloat("size",controlSize).putFloat("speed_rate",multiplier).putInt("ff_audio",audioMode.ordinal)
+        .putInt("video_screen",video.screen).putFloat("video_brightness",video.brightness)
+        .putFloat("video_darken",video.darken).putInt("video_response",video.response)
+        .putInt("video_grid",video.grid).putInt("video_scaling",video.scaling)
+        .putBoolean("video_vsync",video.vsync).putBoolean("video_fullscreen",video.fullscreen)
         .putFloat("bubble_size",bubbleSize).putFloat("bubble_length",bubbleLength).apply() }
 }
 
@@ -238,9 +253,9 @@ private fun MainScreen(settings: GameSettings, input: GameInput, setInGame: (Boo
     var playing by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(NativeBridge.loadError) }
-    var status by remember { mutableStateOf("Select your unmodified FFTA USA or Europe ROM to begin.") }
+    var status by remember { mutableStateOf("Select your unmodified FFTA European (EUR) ROM to begin.") }
     val rom=remember { File(context.filesDir,"ffta.gba") }
-    val save=remember { File(context.filesDir,if(GameBenchmark.enabled(context))"benchmark.sav" else "ffta.sav") }
+    val save=remember { File(context.filesDir,if(GameBenchmark.isolatedSaves(context))"benchmark.sav" else "ffta.sav") }
     val startup=remember{StartupState(context)}
     val initialRoute=remember {
         val start=System.nanoTime()
@@ -330,7 +345,7 @@ private fun MainScreen(settings: GameSettings, input: GameInput, setInGame: (Boo
             } else {
                 startup.setReady(false)
                 mustSelectRom=true
-                status="Select an unmodified FFTA USA or Europe ROM to continue."
+                status="Select an unmodified FFTA European (EUR) ROM to continue."
                 switchingRom=true
                 true
             }
@@ -344,7 +359,7 @@ private fun MainScreen(settings: GameSettings, input: GameInput, setInGame: (Boo
                 Text("ANDROID PREVIEW",color=Gold,letterSpacing=3.sp,fontSize=11.sp)
                 HorizontalDivider(color=Gold)
                 Text("Your adventure, a wider view.",fontFamily=FontFamily.Serif,fontSize=20.sp)
-                Text("Select your own unmodified FFTA USA or Europe ROM. The game is compiled locally; your ROM stays on this device.")
+                Text("Select your own unmodified FFTA European (EUR) ROM. The game is compiled locally; your ROM stays on this device.")
                 Button(onClick={picker.launch(arrayOf("*/*"))},enabled=!busy&&NativeBridge.loadError==null,
                     modifier=Modifier.fillMaxWidth()) { Text(if(available)"Change ROM" else "Select ROM") }
                 Button(enabled=available&&!mustSelectRom&&!busy&&NativeBridge.loadError==null,onClick={
@@ -408,11 +423,12 @@ private fun GameScreen(settings:GameSettings,input:GameInput,onExit:()->Unit,onS
     var page by remember {mutableStateOf("main")}
     // Snapshot reads must happen during composition, not only inside SideEffect.
     val request=ViewRequest(settings.aspect,settings.zoom)
-    val speed=if(settings.fastForward!=settings.holdFast)settings.multiplier else 1
+    val speed=if(settings.fastForward!=settings.holdFast)settings.multiplier else 1f
     val audioMode=settings.audioMode
     val sound=settings.sound
     val volume=settings.volume
     val touchClicks=settings.touch.experimentalClicks
+    val video=settings.video
     val bubbleSize=settings.bubbleSize
     val bubbleLength=settings.bubbleLength
     LaunchedEffect(settings.pauseRequest){
@@ -452,10 +468,24 @@ private fun GameScreen(settings:GameSettings,input:GameInput,onExit:()->Unit,onS
         lifecycle.addObserver(observer)
         onDispose{lifecycle.removeObserver(observer)}
     }
+    // Dialog dismissal can restore navigation bars after the composition's
+    // immediate hide (notably on custom ROMs). Reapply once after dismissal;
+    // no polling, and windowed mode keeps its system bars.
+    LaunchedEffect(paused,editingTouch,video.fullscreen) {
+        if(!paused && !editingTouch && video.fullscreen) {
+            delay(250)
+            val bars=WindowInsetsControllerCompat(activity.window,activity.window.decorView)
+            bars.systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            bars.hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
     SideEffect {
         settings.inputActive = !paused && !editingTouch && failure==null
         if(!settings.inputActive){settings.pad.clear();settings.holdFast=false}
         surface?.gamePaused=paused||editingTouch||failure!=null
+        surface?.videoOptions=video
+        val bars=WindowInsetsControllerCompat(activity.window,activity.window.decorView)
+        if(video.fullscreen)bars.hide(WindowInsetsCompat.Type.systemBars())else bars.show(WindowInsetsCompat.Type.systemBars())
         surface?.viewRequest=request
         surface?.speed=speed
         surface?.audioMode=audioMode
@@ -499,11 +529,20 @@ private fun GameScreen(settings:GameSettings,input:GameInput,onExit:()->Unit,onS
                             MenuButton("Exit Game"){onExit()}
                         }
                         "video"->{
-                            Text("Aspect ratio")
-                            FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                                AspectMode.entries.forEach{aspect->FilterChip(selected=settings.aspect==aspect,onClick={
-                                    settings.aspect=aspect;settings.zoom=settings.zoom.coerceAtMost(ViewConfig.maxZoom(aspect));settings.save()
-                                },label={Text(aspect.label)})}
+                            Row(verticalAlignment=Alignment.CenterVertically){Switch(settings.video.fullscreen,{settings.videoChange(settings.video.copy(fullscreen=it))});Text("Fullscreen")}
+                            Text("Window mode on Android shows the system bars.",fontSize=12.sp)
+                            VideoChoices("Screen model",listOf("Raw","Unlit","Frontlit","Backlit","Classic"),settings.video.screen){settings.videoChange(settings.video.copy(screen=it))}
+                            Text("Brightness: ${(settings.video.brightness*100).toInt()}%")
+                            Slider(settings.video.brightness,{settings.videoChange(settings.video.copy(brightness=it))},valueRange=.15f..1.5f)
+                            Row(verticalAlignment=Alignment.CenterVertically){Switch(settings.video.darken<0f,{settings.videoChange(settings.video.copy(darken=if(it)-1f else 0f))});Text("Automatic panel darkness")}
+                            if(settings.video.darken>=0f)Slider(settings.video.darken,{settings.videoChange(settings.video.copy(darken=it))})
+                            VideoChoices("LCD response",listOf("Off","Simple","Smart","Persistence"),settings.video.response){settings.videoChange(settings.video.copy(response=it))}
+                            VideoChoices("Pixel grid",listOf("Off","Auto","Light","Strong"),settings.video.grid){settings.videoChange(settings.video.copy(grid=it))}
+                            VideoChoices("Scaling",listOf("Off","Nearest","Sharp","EPX"),settings.video.scaling){settings.videoChange(settings.video.copy(scaling=it))}
+                            Row(verticalAlignment=Alignment.CenterVertically){Switch(settings.video.vsync,{settings.videoChange(settings.video.copy(vsync=it))});Text("VSync")}
+                            SettingsDropdown("Aspect ratio",AspectMode.entries.map{it.label},settings.aspect.ordinal){index->
+                                val aspect=AspectMode.entries[index]
+                                settings.aspect=aspect;settings.zoom=settings.zoom.coerceAtMost(ViewConfig.maxZoom(aspect));settings.save()
                             }
                             Text("Zoom out: ${settings.zoom} / ${ViewConfig.maxZoom(settings.aspect)}")
                             Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -515,13 +554,11 @@ private fun GameScreen(settings:GameSettings,input:GameInput,onExit:()->Unit,onS
                         }
                         "fast forward"->{
                             Row(verticalAlignment=Alignment.CenterVertically){Switch(settings.fastForward,{settings.fastForward=it});Text("Always on")}
-                            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf(2,4,8).forEach{speed->
-                                FilterChip(settings.multiplier==speed,{settings.multiplier=speed;settings.save()},label={Text("${speed}x")})}}
-                            Text("Audio mode")
-                            FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                                FastAudio.entries.forEach{mode->
-                                    FilterChip(settings.audioMode==mode,{settings.audioMode=mode;settings.save()},label={Text(mode.label)})
-                                }
+                            SettingsDropdown("Speed",FAST_SPEEDS.map{speedLabel(it)},FAST_SPEEDS.indexOf(settings.multiplier)){index->
+                                settings.multiplier=FAST_SPEEDS[index];settings.save()
+                            }
+                            SettingsDropdown("Audio mode",FastAudio.entries.map{it.label},settings.audioMode.ordinal){index->
+                                settings.audioMode=FastAudio.entries[index];settings.save()
                             }
                             Text(when(settings.audioMode){
                                 FastAudio.NORMAL->"Audio plays at its normal speed while the game advances faster."
@@ -568,3 +605,35 @@ private fun MenuButton(label:String,enabled:Boolean=true,click:()->Unit) {
     }
 }
 
+
+@Composable
+private fun VideoChoices(title:String,options:List<String>,selected:Int,onSelect:(Int)->Unit){
+    SettingsDropdown(title,options,selected,onSelect)
+}
+
+/** One compact value; popup owns outside taps and vertical finger scrolling. */
+@Composable
+private fun SettingsDropdown(title:String,options:List<String>,selected:Int,onSelect:(Int)->Unit){
+    var expanded by remember { mutableStateOf(false) }
+    val maxHeight=(LocalConfiguration.current.screenHeightDp*0.5f).dp.coerceAtMost(280.dp)
+    val menuScroll=rememberScrollState((selected.coerceAtLeast(0)*48*LocalDensity.current.density).toInt())
+    Text(title,color=Ink,fontFamily=FontFamily.Serif)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val menuWidth=maxWidth
+        OutlinedButton(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth(),
+            shape=RoundedCornerShape(8.dp),colors=ButtonDefaults.outlinedButtonColors(contentColor=Ink)) {
+            Text(options.getOrElse(selected){options.firstOrNull().orEmpty()},Modifier.weight(1f),fontSize=16.sp)
+            Text(if(expanded)"\u25B4" else "\u25BE",color=Gold,fontSize=18.sp)
+        }
+        DropdownMenu(expanded=expanded,onDismissRequest={expanded=false},scrollState=menuScroll,
+            modifier=Modifier.width(menuWidth).heightIn(max=maxHeight).background(Paper)) {
+            options.forEachIndexed { index,label ->
+                DropdownMenuItem(text={Text(label,color=Ink,fontFamily=FontFamily.Serif,
+                    fontWeight=if(index==selected)FontWeight.Bold else FontWeight.Normal)},
+                    trailingIcon={if(index==selected)Text("\u2713",color=Gold)},
+                    modifier=Modifier.background(if(index==selected)Gold.copy(alpha=.18f) else Color.Transparent),
+                    onClick={expanded=false;onSelect(index)})
+            }
+        }
+    }
+}

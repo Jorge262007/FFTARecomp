@@ -10,19 +10,27 @@
 //! recompiler's output is what has to be fast.
 
 pub mod apu;
+pub mod asset_cache;
 pub mod backup;
 pub mod bus;
 pub mod capi;
 pub mod cpu;
+pub mod state;
 pub mod engine;
 pub mod exec;
 pub mod ffta_battle_mouse;
+pub mod ffta_battle_hud;
+pub mod ffta_debug;
 pub mod ffta_dialogue;
+pub mod ffta_ui;
+pub mod ffta_ui_window;
+pub mod ffta_effects;
 pub mod ffta_log;
 pub mod ffta_mouse;
 pub mod ffta_movement;
 pub mod ffta_rom;
 pub mod ffta_shop_mouse;
+pub mod ffta_roster_mouse;
 pub mod ffta_sprites;
 pub mod ffta_stage;
 pub mod gax;
@@ -41,3 +49,5 @@ pub use bus::Bus;
 pub use cpu::{Cpu, Mode};
 pub use machine::{instr_cost as machine_instr_cost, is_self_loop, Machine, StepEvent};
 pub use mem::MemMap;
+
+pub mod ffta_surface;

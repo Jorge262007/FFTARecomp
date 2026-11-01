@@ -45,11 +45,11 @@ can run, the installer opens its built-in browser. Cancelling closes the dialog.
 The manual workflow `installer-linux.yml` builds and packages on Ubuntu; it does
 not publish a release. Linux execution has not been tested on the Windows host.
 
-## v3.0 presentation and Steam Deck variant
+## v3.1 presentation and Steam Deck variant
 
 The desktop installer uses the game's parchment, brass and dark-green visual
 style, with embedded Inter and Cinzel fonts and scalable native egui controls.
-USA and European ROM checks are unchanged. The bundled TinyCC compiler needs
+The installer instructions advertise the European (EUR) ROM. The bundled TinyCC compiler needs
 no developer-toolchain installation; preparation time and cache size depend on
 the device. No fixed speed or disk-size promise is made.
 
@@ -79,7 +79,7 @@ This preview feature is not enabled in distributed binaries.
 Windows always starts windowed, including when passed --steamdeck or renamed.
 Only Linux Steam Deck mode enables fullscreen. Setup targets 1280x720 and keeps
 its Back/Install footer outside the scroll area for high display scaling.
-The Important notice explains local ROM compilation, a user-supplied USA/EUR
+The Important notice explains local ROM compilation, a user-supplied European (EUR)
 ROM, and Square Enix ownership. Version remains in the header, not under credits.
 
 Windows and standard Linux use a fixed 900x740 logical-point window, with resize

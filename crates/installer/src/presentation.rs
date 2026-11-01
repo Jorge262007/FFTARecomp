@@ -1,6 +1,6 @@
 use eframe::egui::{self,Color32,FontFamily,FontId,Stroke};
 
-pub const VERSION:&str="v3.0";
+pub const VERSION:&str="v3.1";
 pub const BG:Color32=Color32::from_rgb(18,32,26);
 pub const PAPER:Color32=Color32::from_rgb(245,235,209);
 pub const CARD:Color32=Color32::from_rgb(255,249,232);

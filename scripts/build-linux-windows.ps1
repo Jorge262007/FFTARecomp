@@ -134,35 +134,10 @@ Copy-Item -LiteralPath (Join-Path $release 'recomp') -Destination (Join-Path $pa
 Copy-Item -LiteralPath (Join-Path $release 'ffta-play') -Destination (Join-Path $payload 'FFTARecomp') -Force
 Copy-Item -LiteralPath (Join-Path $repo 'gamedb.sqlite') -Destination (Join-Path $payload 'gamedb.sqlite') -Force
 Copy-Item -LiteralPath (Join-Path $release 'tcc') -Destination $payload -Recurse -Force
-Copy-Item -LiteralPath (Join-Path $repo 'TinyCC') -Destination $payload -Recurse -Force
 }
-$licensePayload = Join-Path $payload 'Licenses'
-New-Item -ItemType Directory -Force $licensePayload | Out-Null
-Get-ChildItem -LiteralPath (Join-Path $repo 'Licenses') -Force | Copy-Item -Destination $licensePayload -Recurse -Force
-foreach ($required in @('recomp', 'FFTARecomp', 'gamedb.sqlite', 'tcc/libtcc.so', 'Licenses/TinyCC/COPYING')) {
+foreach ($required in @('recomp', 'FFTARecomp', 'gamedb.sqlite', 'tcc/libtcc.so')) {
     if (-not (Test-Path -LiteralPath (Join-Path $payload $required))) { throw "Missing payload file: $required. Build once without -InstallerOnly." }
 }
-$readme = @(
-    'FFTARecomp v3.0 - Linux x86_64',
-    'Extract this archive and run ./FFTAInstaller.',
-    'Select your own FFTA USA or Europe ROM. No ROM or save file is included.',
-    'Requires glibc 2.17 or newer; the game also requires libasound.so.2 and libudev.so.1.',
-    'TinyCC is bundled. No system compiler is needed to install or play.',
-    'This glibc build does not support musl-only distributions such as Alpine.'
-)
-Set-Content -LiteralPath (Join-Path $OutputDir 'README.txt') -Value $readme -Encoding Ascii
-
-Set-Content -LiteralPath (Join-Path $OutputDir 'README-SteamDeck.txt') -Encoding Ascii -Value @(
-    'FFTARecomp v3.0 - Steam Deck installer (Linux x86_64)',
-    'Extract the entire archive and run ./FFTAInstaller-SteamDeck.',
-    'The installer opens fullscreen with a layout designed for 1280x720.',
-    'Keep payload beside the installer. Select your own FFTA USA or Europe ROM.',
-    'In Desktop Mode, add FFTAInstaller-SteamDeck to Steam as a non-Steam game to open setup in Gaming Mode.',
-    'After installation, add the installed FFTARecomp executable to Steam to play.',
-    'This is the fullscreen setup variant, not a replacement for the installed game.',
-    'No ROM or save is included. TinyCC is bundled; no system compiler is needed.'
-)
-
 $gnuTar = Join-Path (Split-Path (Split-Path (Split-Path $pkgConfig -Parent) -Parent) -Parent) 'usr\bin\tar.exe'
 if (-not (Test-Path -LiteralPath $gnuTar)) { throw 'MSYS2 GNU tar is required to retain Linux executable permissions.' }
 function ConvertTo-MsysPath([string]$Path) {
@@ -170,11 +145,35 @@ function ConvertTo-MsysPath([string]$Path) {
     return '/' + $full.Substring(0, 1).ToLowerInvariant() + $full.Substring(2).Replace('\', '/')
 }
 $archive = Join-Path $OutputDir 'FFTAInstaller-linux-x86_64.tar.gz'
-& $gnuTar -C (ConvertTo-MsysPath $OutputDir) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $archive) FFTAInstaller payload README.txt
+& $gnuTar -C (ConvertTo-MsysPath $OutputDir) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $archive) FFTAInstaller payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
 if ($LASTEXITCODE -ne 0) { throw 'Could not package Linux installer' }
 Write-Host "Linux installer: $archive" -ForegroundColor Green
 
+# Build a separate play binary for the Steam Deck package. The ordinary Linux
+# payload above stays on the default feature set and keeps its existing menu
+# shortcuts. Only the Steam Deck archive gets the North/Y menu shortcut.
+$oldErrorAction = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+& cargo build --manifest-path (Join-Path $repo 'Cargo.toml') --release --target x86_64-unknown-linux-gnu -p recomp --features steamdeck
+$deckCargoExit = $LASTEXITCODE
+$ErrorActionPreference = $oldErrorAction
+if ($deckCargoExit -ne 0) { throw 'Steam Deck game build failed' }
+
+$deckStage = Join-Path $target ('steamdeck-package-' + [Guid]::NewGuid().ToString('N'))
+$deckStagePayload = Join-Path $deckStage 'payload'
+New-Item -ItemType Directory -Force -Path $deckStagePayload | Out-Null
+Copy-Item -LiteralPath (Join-Path $OutputDir 'FFTAInstaller-SteamDeck') -Destination (Join-Path $deckStage 'FFTAInstaller-SteamDeck') -Force
+Get-ChildItem -LiteralPath $payload -Force | Copy-Item -Destination $deckStagePayload -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR 'x86_64-unknown-linux-gnu\release\recomp') -Destination (Join-Path $deckStagePayload 'recomp') -Force
+
 $deckArchive = Join-Path $OutputDir 'FFTAInstaller-SteamDeck-linux-x86_64.tar.gz'
-& $gnuTar -C (ConvertTo-MsysPath $OutputDir) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $deckArchive) FFTAInstaller-SteamDeck payload README-SteamDeck.txt
+& $gnuTar -C (ConvertTo-MsysPath $deckStage) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $deckArchive) FFTAInstaller-SteamDeck payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
 if ($LASTEXITCODE -ne 0) { throw 'Could not package Steam Deck installer' }
 Write-Host "Steam Deck installer: $deckArchive" -ForegroundColor Green
+
+$targetFull = [IO.Path]::GetFullPath($target).TrimEnd('\') + '\'
+$stageFull = [IO.Path]::GetFullPath($deckStage)
+if (-not $stageFull.StartsWith($targetFull, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to remove staging outside target: $stageFull"
+}
+Remove-Item -LiteralPath $stageFull -Recurse -Force

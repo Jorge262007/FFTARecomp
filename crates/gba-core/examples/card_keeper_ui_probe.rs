@@ -1,0 +1,15 @@
+use gba_core::{Machine,ffta_battle_mouse as mouse};
+fn load(rom:&[u8],f:u32)->Machine{let mut m=Machine::new(rom.to_vec());for(n,d)in[("ewram",&mut m.bus.ewram),("iwram",&mut m.bus.iwram),("vram",&mut m.bus.vram),("io",&mut m.bus.io),("oam",&mut m.bus.oam),("palette",&mut m.bus.palette)]{d.copy_from_slice(&std::fs::read(format!("target/card-keeper-{f}-{n}.bin")).unwrap());}m.bus.ffta_movement.enabled=true;m.bus.ffta_movement.europe_profile=true;m.bus.ffta_dialogue.separate=true;assert!(m.bus.ffta_battle_mouse.enable_replay());m}
+fn render(m:&mut Machine){for y in 0..160{gba_core::ppu::render_scanline(&mut m.bus,y);}}
+fn update(m:&mut Machine){m.cpu.cpsr=0xbf;m.cpu.regs[13]=0x03007b00;m.cpu.regs[14]=0x08000001;m.cpu.regs[15]=0x08053e1c;m.cpu.regs[1]=0x02023c50;m.cpu.branch=None;for _ in 0..2000000{if m.cpu.regs[15]==0x08000000{return;}if m.cpu.regs[15]==0x080546d0 {let before=m.bus.ffta_dialogue.pixels.clone();render(m);assert_eq!(m.bus.ffta_dialogue.pixels,before,"partially cleared page must remain invisible");}m.step();}panic!("updater did not return pc={:x}",m.cpu.regs[15]);}
+fn main(){let rom=std::fs::read(std::env::args().nth(1).unwrap()).unwrap();gba_core::mem::set_extra(22);
+let mut m=load(&rom,4000);render(&mut m);println!("ROOT {:?}",mouse::MenuScene::read(&m.bus));
+for (current,target) in [(1u16,8u16),(8,8),(8,0),(1,0)]{m.bus.ewram[0x23c74..0x23c76].copy_from_slice(&current.to_le_bytes());m.bus.ewram[0x23c78..0x23c7a].copy_from_slice(&target.to_le_bytes());render(&mut m);let w=gba_core::ffta_ui_window::pub_windows(&m.bus,[None;3])[0].unwrap();assert_eq!(w.bounds,[0,72,72,144]);assert!(m.bus.ffta_dialogue.service_speech.active());}
+let mut m=load(&rom,4000);render(&mut m);for t in [2,0,1]{assert!(mouse::menu_select(&mut m.bus,t,false));assert_eq!(mouse::MenuScene::read(&m.bus).unwrap().selected,t);assert_eq!(mouse::keys(&mut m.bus,0x3ff),0x3ff);m.bus.ffta_battle_mouse.cancel();}println!("CARD root animation and direct selection passed");
+let mut m=load(&rom,4300);render(&mut m);println!("LIST {:?} MENU {:?}",mouse::pub_list(&m.bus),mouse::MenuScene::read(&m.bus));
+assert_eq!(gba_core::ffta_ui::Scene::capture(&m.bus.ffta_dialogue).nodes[0].unwrap().bounds,[0,0,240,160]);
+let list=mouse::pub_list(&m.bus).unwrap();assert_eq!((list.total,list.visible),(16,7));
+for t in [5,1,6,0]{assert!(mouse::menu_select(&mut m.bus,t,false));m.bus.iwram[4..6].copy_from_slice(&0x80u16.to_le_bytes());update(&mut m);render(&mut m);println!("CARD hover requested={t} actual={}",mouse::MenuScene::read(&m.bus).unwrap().selected);assert_eq!(mouse::MenuScene::read(&m.bus).unwrap().selected,t);m.bus.ffta_battle_mouse.cancel();}
+for first in [5,9,1,0]{assert!(mouse::pub_scroll_to(&mut m.bus,first));update(&mut m);render(&mut m);assert_eq!(mouse::pub_list(&m.bus).unwrap().first,first);println!("CARD scroll first={first}");
+for t in [4,0]{assert!(mouse::menu_select(&mut m.bus,t,false));m.bus.iwram[4..6].copy_from_slice(&0x80u16.to_le_bytes());update(&mut m);render(&mut m);assert_eq!(mouse::MenuScene::read(&m.bus).unwrap().selected,t);assert_eq!(m.bus.ewram[0x22f64+0x1d46]as u16,first+t as u16);m.bus.ffta_battle_mouse.cancel();}}
+}

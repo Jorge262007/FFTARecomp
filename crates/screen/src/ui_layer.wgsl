@@ -1,4 +1,4 @@
-struct Params { rect:vec4f, clip:vec4f, world_view:vec4f, flags:vec4f }
+struct Params { rect:vec4f, clip:vec4f, world_view:vec4f, flags:vec4f, world_rect:vec4f }
 @group(0) @binding(0) var ui:texture_2d<u32>;
 @group(0) @binding(1) var world:texture_2d<u32>;
 @group(0) @binding(2) var colors:texture_2d<f32>;
@@ -13,10 +13,14 @@ struct Params { rect:vec4f, clip:vec4f, world_view:vec4f, flags:vec4f }
     if(any(q<vec2f(0.)) || any(q>=vec2f(1.)) || any(c<vec2f(0.)) || any(c>=vec2f(1.))) {discard;}
     let data=textureLoad(ui,vec2i(floor(q*vec2f(textureDimensions(ui)))),0);
     if(data.z==0u && data.w==16u) {discard;}
-    let wp=vec2i(floor(P.world_view.xy+c*P.world_view.zw));
-    let dims=vec2i(textureDimensions(world));
-    let raw=textureLoad(world,clamp(wp,vec2i(0),dims-vec2i(1)),0).r;
     let front=data.x|(data.y<<8u);
+
+    var raw=0u;
+    if(data.w>0u) {
+        let wp=vec2i(floor(P.world_view.xy+(pos.xy-P.world_rect.xy)/P.world_rect.zw*P.world_view.zw));
+        let dims=vec2i(textureDimensions(world));
+        raw=textureLoad(world,clamp(wp,vec2i(0),dims-vec2i(1)),0).r;
+    }
     var mixed=0u;
     for(var shift=0u;shift<=10u;shift+=5u) {
         let lane=select(1u,2u,shift==5u);

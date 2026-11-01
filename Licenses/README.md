@@ -22,11 +22,11 @@ The latest comparison found 133 marked entries among 726 locked dependencies.
 - ../TinyCC/: exact upstream source.zip, adapter, build script and replacement
   instructions. The original upstream license files remain inside source.zip.
 
-Desktop builds put the notice folder at payload/Licenses/TinyCC and the source
-bundle at payload/TinyCC. Notices are grouped here rather than shown as installer
-screens or left as loose files beside the compiler source. They accompany the
-library distribution; this organization does not remove its license terms.
-The installer copies payload/Licenses into the installed game directory.
+Desktop runtime archives contain only the installer and required runtime files.
+The notices in this folder and the exact corresponding source in ../TinyCC/
+are maintained separately. When distributing them separately, provide those
+materials alongside the binary release; the packaging layout does not remove
+the applicable license obligations.
 Android already groups its notices and corresponding TinyCC source inside
 assets/licenses/tinycc in the APK; they are not installation dialogs.
 

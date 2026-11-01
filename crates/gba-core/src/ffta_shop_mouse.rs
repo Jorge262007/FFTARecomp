@@ -5,7 +5,7 @@ struct Profile { start:u32,commit:u32,end:u32,inventory:u32,handlers:[u32;2] }
 #[derive(Clone,Copy)]
 struct Request { base:usize,slot:u8,source:u8,ids:[u8;6],count:u8,deadline:u64,committed:Option<u64> }
 #[derive(Default)]
-pub(crate) struct State { profile:Option<Profile>,request:Option<Request>,deferred:Option<(f32,f32,bool)> }
+pub(crate) struct State { profile:Option<Profile>,request:Option<Request>,deferred:Option<(f32,f32,bool)>,scroll:Option<(usize,u16,u8,u64)>,resume:Option<([u32;16],u32)>,hover_refresh:bool,neutral:bool }
 impl State {
     pub(crate) fn new(rom:&[u8],version:Version)->Self {
         let start=match version {Version::Europe=>0x71490,Version::Usa=>0x6efa8};
@@ -15,19 +15,20 @@ impl State {
             || rom.get(inventory..inventory+12)!=Some(&[0xf0,0xb5,0x87,0xb0,6,0x1c,0x11,0x4f,0x39,0x68,0x11,0x4a]) {return Self::default();}
         Self {profile:Some(Profile{start:0x08000000+start as u32,commit:0x08000030+start as u32,
             end:0x0800003c+start as u32,inventory:0x08000001+inventory as u32,
-            handlers:match version {Version::Usa=>[0x08069659,0x0806b6d1],Version::Europe=>[0x0806bb0d,0x0806db7d]}}),request:None,deferred:None}
+            handlers:match version {Version::Usa=>[0x08069659,0x0806b6d1],Version::Europe=>[0x0806bb0d,0x0806db7d]}}),request:None,deferred:None,scroll:None,resume:None,hover_refresh:false,neutral:false}
     }
-    pub(crate) fn cancel(&mut self) {self.request=None;self.deferred=None;}
+    pub(crate) fn cancel(&mut self) {self.request=None;self.deferred=None;self.scroll=None;self.neutral=false;}
     pub(crate) fn pending(&self)->bool {self.request.is_some()}
     pub(crate) fn interprets(&self,pc:u32)->bool {
-        self.request.is_some() && self.profile.is_some_and(|p|(p.start..p.end).contains(&pc))
+        (self.request.is_some() && self.profile.is_some_and(|p|(p.start..p.end).contains(&pc)))
+            || ((self.scroll.is_some() || self.resume.is_some()) && ((0x08070624..0x080710e0).contains(&pc)))
     }
 }
 fn half(b:&[u8],o:usize)->Option<u16>{Some(u16::from_le_bytes(b.get(o..o+2)?.try_into().ok()?))}
 fn word(b:&[u8],o:usize)->Option<u32>{Some(u32::from_le_bytes(b.get(o..o+4)?.try_into().ok()?))}
 #[derive(Clone,Copy)]
 struct Context {base:usize,count:u8,current:u8,ids:[u8;6],x:i32,y:i32,overlay:bool,cursor:usize}
-fn context(mem:&MemMap)->Option<Context> {
+fn inventory_owner(mem:&MemMap)->Option<(usize,usize)> {
     let p=mem.ffta_battle_mouse.shop.profile?;
     if half(&mem.io,0)?&0x0f07!=0x0f00 || [8,10,12,14].map(|o|half(&mem.io,o))
         !=[Some(0x4c03),Some(0x4e02),Some(0x0b08),Some(0x0a08)] {return None;}
@@ -35,6 +36,12 @@ fn context(mem:&MemMap)->Option<Context> {
     let cursor=manager.checked_add(0x14e0)?;
     if !p.handlers.contains(&word(&mem.ewram,cursor.checked_sub(0x54)?)?) || word(&mem.ewram,cursor)?!=p.inventory
         || word(&mem.ewram,cursor+4)?!=0x02000000+cursor as u32-0x20 {return None;}
+    Some((manager,cursor))
+}
+/// Rendering owns the inventory before its item cursor/count is published.
+pub(crate) fn visible(mem:&MemMap)->bool {inventory_owner(mem).is_some()}
+fn context(mem:&MemMap)->Option<Context> {
+    let (manager,cursor)=inventory_owner(mem)?;
     let base=manager.checked_add(0x4470)?;
     let count=*mem.ewram.get(base+7)?;let current=*mem.ewram.get(base)?;
     if count==0 || count>6 || current>=count {return None;}
@@ -86,7 +93,9 @@ pub(crate) fn aim(mem:&mut MemMap,x:f32,y:f32,confirm:bool)->bool {
         // Measured BG3 tile rows: Sell packs its live IDs contiguously,
         // e.g. IDs [1,2,3,5] are drawn at X=16,32,48,64, not 32,48,64,96.
         let slot=((x-c.x as f32)/16.)as u8;
-        if slot<c.count {select_category(mem,slot);}else{mem.ffta_battle_mouse.cancel();}
+        if confirm {
+            if slot<c.count {select_category(mem,slot);}else{mem.ffta_battle_mouse.cancel();}
+        }
         return true;
     }
     if mem.ffta_battle_mouse.shop.pending() {
@@ -103,7 +112,41 @@ pub(crate) fn aim(mem:&mut MemMap,x:f32,y:f32,confirm:bool)->bool {
     }
     false
 }
+/// Live item count and first row from the original inventory, including Sell.
+pub fn list(mem:&MemMap)->Option<crate::ffta_battle_mouse::PubList>{
+    if !mem.ffta_battle_mouse.enabled{return None;}
+    let c=context(mem)?;if mem.ffta_battle_mouse.shop.profile?.inventory!=0x08071031{return None;}
+    if c.overlay || mem.ewram.get(c.cursor+16)?&3!=3{return None;}
+    let b=c.cursor-32;let total=half(&mem.ewram,b+24)?;let first=half(&mem.ewram,b+26)?;
+    let visible=(*mem.ewram.get(b+22)? as u16).min(4);
+    if total==0 || total>255 || visible==0 || first>=total{return None;}
+    Some(crate::ffta_battle_mouse::PubList{cursor:c.cursor,total,first,visible:visible.min(total)})
+}
+pub fn scroll_to(mem:&mut MemMap,first:u16)->bool{
+    let Some(l)=list(mem)else{return false;};let first=first.min(l.total.saturating_sub(l.visible));
+    mem.ffta_battle_mouse.cancel();
+    if first!=l.first {
+        mem.ffta_battle_mouse.shop.scroll=Some((l.cursor,first,0,mem.frames+120));
+    }
+    mem.ffta_battle_mouse.shop.hover_refresh=false;
+    mem.ffta_battle_mouse.shop.neutral=true;true
+}
+pub(crate) fn redrawing(mem:&MemMap)->bool{
+    mem.ffta_battle_mouse.shop.resume.is_some() && !mem.ffta_battle_mouse.shop.hover_refresh
+}
+pub(crate) fn unselected(mem:&MemMap)->bool{mem.ffta_battle_mouse.shop.neutral && list(mem).is_some()}
+pub(crate) fn select_item(mem:&mut MemMap,target:u8)->bool{
+    let Some(l)=list(mem)else{return false;};if target as u16>=l.visible{return false;}
+    mem.ffta_battle_mouse.shop.neutral=false;
+    if mem.ewram[l.cursor+17]==target{return true;}
+    mem.ffta_battle_mouse.shop.hover_refresh=true;
+    mem.ffta_battle_mouse.shop.scroll=Some((l.cursor,l.first,target,mem.frames+120));true
+}
 pub(crate) fn keys(mem:&mut MemMap)->Option<u16> {
+    if let Some((cursor,_,_,deadline))=mem.ffta_battle_mouse.shop.scroll {
+        if mem.frames<=deadline && list(mem).is_some_and(|l|l.cursor==cursor){return Some(0x3ff);}
+        mem.ffta_battle_mouse.shop.scroll=None;
+    }
     let r=mem.ffta_battle_mouse.shop.request?;
     let valid=context(mem).is_some_and(|c|!c.overlay&&c.base==r.base&&c.count==r.count&&c.ids==r.ids);
     if !valid || mem.frames>r.deadline {mem.ffta_battle_mouse.shop.cancel();return None;}
@@ -118,6 +161,35 @@ pub(crate) fn keys(mem:&mut MemMap)->Option<u16> {
     Some(0x3ef) // wake the original Right branch once; its store receives the target
 }
 pub(crate) fn entry(m:&mut Machine) {
+    if m.cpu.regs[15]==0x08070676 && m.bus.ffta_battle_mouse.shop.hover_refresh
+        && m.bus.ffta_battle_mouse.shop.resume.is_some()
+        && m.bus.rom.get(0x70676..0x7067c)==Some(&[0x1f,0x1c,0x03,0xa9,0x00,0x20]) {
+        // Same page: preserve glyph tiles. Continue at the original cursor,
+        // palette and detail refresh instead of clearing/rebuilding all rows.
+        m.cpu.regs[15]=0x080706dc;
+    }
+    // Borrow the existing cursor callback call frame to redraw a complete
+    // page with the original routine, then resume with all registers restored.
+    if m.cpu.regs[15]==0x08071030 {
+        if let Some((regs,cpsr))=m.bus.ffta_battle_mouse.shop.resume.take(){
+            m.cpu.regs=regs;m.cpu.cpsr=cpsr;
+            m.bus.ffta_battle_mouse.shop.hover_refresh=false;
+        }else if let Some((cursor,first,selected,deadline))=m.bus.ffta_battle_mouse.shop.scroll {
+            if m.bus.frames<=deadline && list(&m.bus).is_some_and(|l|l.cursor==cursor)
+                && m.cpu.regs[0]==0x02000000+cursor as u32
+                && m.bus.rom.get(0x70624..0x7062e)==Some(&[0xf0,0xb5,0x4f,0x46,0x46,0x46,0xc0,0xb4,0x84,0xb0]) {
+                m.bus.ffta_battle_mouse.shop.resume=Some((m.cpu.regs,m.cpu.cpsr));
+                if !m.bus.ffta_battle_mouse.shop.hover_refresh {
+                    m.bus.ffta_dialogue.shop_page_dirty=true;
+                }
+                m.bus.ewram[cursor+17]=selected;
+                m.bus.ewram[cursor+14..cursor+16].copy_from_slice(&(selected as u16*16).to_le_bytes());
+                m.cpu.regs[0]=first as u32;m.cpu.regs[1]=selected as u32;m.cpu.regs[2]=1;
+                m.cpu.regs[14]=0x08071031;m.cpu.regs[15]=0x08070624;
+                m.bus.ffta_battle_mouse.shop.scroll=None;return;
+            }
+        }
+    }
     let s=&m.bus.ffta_battle_mouse;
     let Some(p)=s.shop.profile.filter(|_|s.enabled)else{return;};
     if m.cpu.regs[15]!=p.commit {return;}
@@ -129,6 +201,10 @@ pub(crate) fn entry(m:&mut Machine) {
     m.bus.ffta_battle_mouse.shop.request.as_mut().unwrap().committed=Some(m.bus.frames);
 }
 pub fn scroll(mem:&mut MemMap,up:bool)->bool {
+    if let Some(l)=list(mem){
+        let first=mem.ffta_battle_mouse.shop.scroll.filter(|r|r.0==l.cursor).map_or(l.first,|r|r.1);
+        return scroll_to(mem,if up{first.saturating_sub(1)}else{first.saturating_add(1)});
+    }
     if !mem.ffta_battle_mouse.enabled || context(mem).is_none()
         || half(&mem.io,0).is_some_and(|v|v&0x6000==0x6000){return false;}
     mem.ffta_battle_mouse.queue_shop_key(if up {0x3bf}else{0x37f});true
@@ -158,11 +234,25 @@ mod tests {
         m.bus.ewram[base+0x78]=2;m
     }
     #[test]
+    fn inventory_render_owner_survives_unpublished_and_empty_categories() {
+        for version in [Version::Usa,Version::Europe] {for sell in [false,true] {
+            let mut m=fixture(version,sell);
+            assert!(visible(&m.bus));assert!(active(&m.bus));
+            m.bus.ewram[0x5477]=0;
+            assert!(visible(&m.bus));assert!(!active(&m.bus));
+            assert!(!aim(&mut m.bus,32.,8.,true));
+            m.bus.ewram[0x24e0..0x24e4].fill(0);
+            assert!(!visible(&m.bus));
+        }}
+    }
+    #[test]
     fn categories_use_available_ids_and_original_store_for_both_regions() {
         for version in [Version::Usa,Version::Europe] {for sell in [false,true] {
             let mut m=fixture(version,sell);let c=context(&m.bus).unwrap();
             for slot in 0..6 {
                 assert!(aim(&mut m.bus,(c.x+slot as i32*16+8)as f32,8.,false));
+                assert!(!m.bus.ffta_battle_mouse.shop.pending(),"hover never switches category");
+                assert!(aim(&mut m.bus,(c.x+slot as i32*16+8)as f32,8.,true));
                 if slot>=c.count {assert!(!m.bus.ffta_battle_mouse.shop.pending());continue;}
                 if slot==context(&m.bus).unwrap().current {continue;}
                 assert!(m.bus.ffta_battle_mouse.shop.pending());

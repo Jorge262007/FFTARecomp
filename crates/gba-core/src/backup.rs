@@ -348,3 +348,16 @@ mod tests {
         assert_eq!(byte, 0xA5);
     }
 }
+
+crate::state::fields!(Flash,data,state,id_mode,bank,two_banks);
+
+crate::state::fields!(Eeprom,data,in_bits,mode,wide);
+
+impl crate::state::Codec for BackupKind {fn put(&self,w:&mut Vec<u8>){let tag:u8=match self{Self::None=>0,Self::Sram=>1,Self::Flash64=>2,Self::Flash128=>3,Self::Eeprom=>4};crate::state::Codec::put(&tag,w)}fn get(r:&mut crate::state::Reader<'_>)->Result<Self,String>{Ok(match <u8 as crate::state::Codec>::get(r)?{0=>Self::None,1=>Self::Sram,2=>Self::Flash64,3=>Self::Flash128,4=>Self::Eeprom,_=>return Err("invalid BackupKind".into())})}}
+
+impl crate::state::Codec for FlashState {fn put(&self,w:&mut Vec<u8>){let tag:u8=match self{Self::Ready=>0,Self::Cmd1=>1,Self::Cmd2=>2,Self::Erase=>3,Self::EraseCmd1=>4,Self::EraseCmd2=>5,Self::Write=>6,Self::Bank=>7};crate::state::Codec::put(&tag,w)}fn get(r:&mut crate::state::Reader<'_>)->Result<Self,String>{Ok(match <u8 as crate::state::Codec>::get(r)?{0=>Self::Ready,1=>Self::Cmd1,2=>Self::Cmd2,3=>Self::Erase,4=>Self::EraseCmd1,5=>Self::EraseCmd2,6=>Self::Write,7=>Self::Bank,_=>return Err("invalid FlashState".into())})}}
+
+impl crate::state::Codec for EepromMode {
+ fn put(&self,w:&mut Vec<u8>){match self {Self::Idle=>0u8.put(w),Self::Reading{addr,bit}=>{1u8.put(w);addr.put(w);bit.put(w);}}}
+ fn get(r:&mut crate::state::Reader<'_>)->Result<Self,String>{match u8::get(r)?{0=>Ok(Self::Idle),1=>Ok(Self::Reading{addr:usize::get(r)?,bit:u32::get(r)?}),_=>Err("invalid EEPROM mode".into())}}
+}

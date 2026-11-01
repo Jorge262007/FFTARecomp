@@ -37,6 +37,12 @@ const REG_IF: u32 = 0x0400_0202;
 const REG_IME: u32 = 0x0400_0208;
 const HALTCNT: u32 = 0x0400_0301;
 
+// Sound-DMA diagnostics are a process-start option, not an audio-sample task.
+fn trace_sound_dma()->bool {
+    static ENABLED:std::sync::OnceLock<bool>=std::sync::OnceLock::new();
+    *ENABLED.get_or_init(||std::env::var_os("RECOMP_TRACE_SDMA").is_some())
+}
+
 /// Interrupt source bits in IE/IF.
 pub mod irq {
     pub const VBLANK: u16 = 1 << 0;
@@ -182,6 +188,7 @@ pub struct MemMap {
     pub ffta_sprites: crate::ffta_sprites::SpriteState,
     pub ffta_movement: crate::ffta_movement::MovementState,
     pub ffta_stage: crate::ffta_stage::StageState,
+    pub ffta_surface: crate::ffta_surface::State,
     pub ffta_battle_mouse: crate::ffta_battle_mouse::State,
     pub sram: Vec<u8>,
 
@@ -216,6 +223,8 @@ pub struct MemMap {
     vphase: VPhase,
     /// Set when a frame completes (start of VBlank); cleared by the runner.
     pub frame_ready: bool,
+    /// Host-only scene skip: retain video timing/DMA/IRQs, omit pixel generation.
+    pub skip_render: bool,
     pub frames: u64,
 
     /// 240×160 RGB555 output, written per scanline by the PPU.
@@ -226,6 +235,7 @@ pub struct MemMap {
     pub wide_framebuffer: Vec<u16>,
     pub(crate) zoom_scratch: Vec<u16>,
     pub ffta_dialogue: crate::ffta_dialogue::DialogueState,
+    pub ffta_debug: crate::ffta_debug::State,
     /// Affine BG reference-point accumulators (bg2x, bg2y, bg3x, bg3y),
     /// 19.8 fixed point. Latched from BG2X.. at frame start and whenever
     /// the game writes them; stepped by PB/PD each scanline.
@@ -325,6 +335,7 @@ impl MemMap {
             ffta_sprites: crate::ffta_sprites::SpriteState::new(&rom),
             ffta_movement: crate::ffta_movement::MovementState::new(&rom),
             ffta_stage: crate::ffta_stage::StageState::new(&rom),
+            ffta_surface: crate::ffta_surface::State::new(),
             ffta_battle_mouse: crate::ffta_battle_mouse::State::new(&rom),
             ffta_diagnostics: crate::ffta_log::enabled()
                 .then(|| Box::new(crate::ffta_log::Diagnostics::default())),
@@ -351,11 +362,13 @@ impl MemMap {
             vline_start: 0,
             vphase: VPhase::Hblank,
             frame_ready: false,
+            skip_render: false,
             frames: 0,
             framebuffer: vec![0; VISIBLE_WIDTH * VISIBLE_SCANLINES as usize],
             wide_framebuffer: vec![0; MAX_RENDER_WIDTH * MAX_RENDER_HEIGHT],
             zoom_scratch: Vec::new(),
             ffta_dialogue: Default::default(),
+            ffta_debug: Default::default(),
             aff_ref: [0; 4],
             aff_dirty: [true; 2],
             unhandled_swis: 0,
@@ -681,7 +694,7 @@ impl MemMap {
             VPhase::Hblank => {
                 let line = self.scanline();
                 if line < VISIBLE_SCANLINES {
-                    crate::ppu::render_scanline(self, line as usize);
+                    if !self.skip_render {crate::ppu::render_scanline(self, line as usize);}
                     self.trigger_dma(2); // HBlank timing (visible lines only)
                 }
                 if self.io[(DISPSTAT & 0x3FF) as usize] & 0x10 != 0 {
@@ -700,7 +713,7 @@ impl MemMap {
                     self.raise_irq(irq::VCOUNT);
                 }
                 if line == VISIBLE_SCANLINES {
-                    crate::ppu::render_ffta_zoom_rows(self);
+                    if !self.skip_render {crate::ppu::render_ffta_zoom_rows(self);}
                     self.frame_ready = true;
                     self.frames += 1;
                     if self.frames % 30 == 0 {
@@ -902,7 +915,7 @@ impl MemMap {
                 Some(s) => self.fifo_sample[f] = s,
                 None => {
                     self.fifo_underruns[f] += 1;
-                    if std::env::var_os("RECOMP_TRACE_SDMA").is_some()
+                    if trace_sound_dma()
                         && f == 0
                         && self.fifo_underruns[0] % 200 == 1
                     {
@@ -936,7 +949,7 @@ impl MemMap {
                         && self.dma[ch].cur_dst & !3 == fifo_addr
                     {
                         self.fifo_refills[f] += 1;
-                        if std::env::var_os("RECOMP_TRACE_SDMA").is_some()
+                        if trace_sound_dma()
                             && self.fifo_refills[f] % 64 == 1
                         {
                             eprintln!(
@@ -2062,4 +2075,172 @@ mod tests {
         assert_eq!(mem.read32(0x0000_8000), 0xCAFE_F00D);
         assert_eq!(mem.read8(0x0100_0000), 0x0D);
     }
+}
+
+#[cfg(test)]
+mod scene_skip_render_tests {
+    use crate::bus::Bus;
+    #[test]
+    fn omitting_pixels_preserves_cpu_video_timing_irqs_dma_and_audio() {
+        fn machine(skip:bool)->crate::Machine {
+            let mut m=crate::Machine::new(vec![0xfe,0xff,0xff,0xea]);
+            m.cpu.regs[15]=0x08000000;m.cpu.cpsr=0x1f;
+            m.bus.skip_render=skip;
+            // HBlank IRQs still execute when pixel generation is disabled.
+            m.bus.write16(0x04000004,0x18);m
+        }
+        let mut visible=machine(false);let mut skipped=machine(true);
+        for _ in 0..3 {visible.run_frame(5_000_000);skipped.run_frame(5_000_000);}
+        assert_eq!(visible.cpu.regs,skipped.cpu.regs);
+        assert_eq!(visible.bus.frames,skipped.bus.frames);
+        assert_eq!(visible.bus.io,skipped.bus.io);
+        assert_eq!(visible.bus.ewram,skipped.bus.ewram);
+        assert_eq!(visible.bus.iwram,skipped.bus.iwram);
+        assert_eq!(visible.bus.audio_buf,skipped.bus.audio_buf);
+        assert_eq!(visible.bus.clock,skipped.bus.clock);
+    }
+}
+
+crate::state::fields!(Timer,reload,control,count,last_sync);
+
+crate::state::fields!(Dma,src,dst,count,control,cur_src,cur_dst);
+
+impl crate::state::Codec for VPhase {fn put(&self,w:&mut Vec<u8>){let tag:u8=match self{Self::Hblank=>0,Self::LineEnd=>1};crate::state::Codec::put(&tag,w)}fn get(r:&mut crate::state::Reader<'_>)->Result<Self,String>{Ok(match <u8 as crate::state::Codec>::get(r)?{0=>Self::Hblank,1=>Self::LineEnd,_=>return Err("invalid VPhase".into())})}}
+
+pub(crate) struct HardwareState {
+ pub(crate) ewram:Vec<u8>,
+ iwram:Vec<u8>,
+ io:Vec<u8>,
+ palette:Vec<u8>,
+ vram:Vec<u8>,
+ oam:Vec<u8>,
+ sram:Vec<u8>,
+ clock:u64,
+ reg_ie:u16,
+ reg_if:u16,
+ ime:bool,
+ halted:bool,
+ intr_wait_armed:bool,
+ keys:u16,
+ keypad_prev:bool,
+ wave_shadow:[u8; 16],
+ timers:[Timer; 4],
+ dma:[Dma; 4],
+ vline_start:u64,
+ vphase:VPhase,
+ frame_ready:bool,
+ frames:u64,
+ pub(crate) framebuffer:Vec<u16>,
+ aff_ref:[i32; 4],
+ aff_dirty:[bool; 2],
+ unhandled_swis:u64,
+ bios_open:u32,
+ real_bios:bool,
+ pc_in_bios:bool,
+ backup:BackupKind,
+ flash:Option<Flash>,
+ eeprom:Option<Eeprom>,
+ rtc:Option<crate::rtc::Rtc>,
+ fifo:[std::collections::VecDeque<i8>; 2],
+ fifo_sample:[i8; 2],
+ audio_cursor:u64,
+ apu:crate::apu::Apu,
+ next_event:u64,
+}
+crate::state::fields!(HardwareState,ewram,iwram,io,palette,vram,oam,sram,clock,reg_ie,reg_if,ime,halted,intr_wait_armed,keys,keypad_prev,wave_shadow,timers,dma,vline_start,vphase,frame_ready,frames,framebuffer,aff_ref,aff_dirty,unhandled_swis,bios_open,real_bios,pc_in_bios,backup,flash,eeprom,rtc,fifo,fifo_sample,audio_cursor,apu,next_event);
+impl HardwareState {pub(crate) fn validate(&self)->Result<(),String>{
+ for (actual,expected) in [(self.ewram.len(),262144),(self.iwram.len(),32768),(self.io.len(),1024),(self.palette.len(),1024),(self.vram.len(),98304),(self.oam.len(),1024),(self.framebuffer.len(),240*160)]{if actual!=expected{return Err("invalid state memory size".into());}}
+ if self.vline_start>self.clock || self.fifo.iter().any(|q|q.len()>32){return Err("invalid hardware clock/FIFO".into());}Ok(())}}
+impl MemMap {
+ pub(crate) fn put_hardware(&self,w:&mut Vec<u8>){
+crate::state::Codec::put(&self.ewram,w);
+crate::state::Codec::put(&self.iwram,w);
+crate::state::Codec::put(&self.io,w);
+crate::state::Codec::put(&self.palette,w);
+crate::state::Codec::put(&self.vram,w);
+crate::state::Codec::put(&self.oam,w);
+crate::state::Codec::put(&self.sram,w);
+crate::state::Codec::put(&self.clock,w);
+crate::state::Codec::put(&self.reg_ie,w);
+crate::state::Codec::put(&self.reg_if,w);
+crate::state::Codec::put(&self.ime,w);
+crate::state::Codec::put(&self.halted,w);
+crate::state::Codec::put(&self.intr_wait_armed,w);
+crate::state::Codec::put(&self.keys,w);
+crate::state::Codec::put(&self.keypad_prev,w);
+crate::state::Codec::put(&self.wave_shadow,w);
+crate::state::Codec::put(&self.timers,w);
+crate::state::Codec::put(&self.dma,w);
+crate::state::Codec::put(&self.vline_start,w);
+crate::state::Codec::put(&self.vphase,w);
+crate::state::Codec::put(&self.frame_ready,w);
+crate::state::Codec::put(&self.frames,w);
+crate::state::Codec::put(&self.framebuffer,w);
+crate::state::Codec::put(&self.aff_ref,w);
+crate::state::Codec::put(&self.aff_dirty,w);
+crate::state::Codec::put(&self.unhandled_swis,w);
+crate::state::Codec::put(&self.bios_open,w);
+crate::state::Codec::put(&self.real_bios,w);
+crate::state::Codec::put(&self.pc_in_bios,w);
+crate::state::Codec::put(&self.backup,w);
+crate::state::Codec::put(&self.flash,w);
+crate::state::Codec::put(&self.eeprom,w);
+crate::state::Codec::put(&self.rtc,w);
+crate::state::Codec::put(&self.fifo,w);
+crate::state::Codec::put(&self.fifo_sample,w);
+crate::state::Codec::put(&self.audio_cursor,w);
+crate::state::Codec::put(&self.apu,w);
+crate::state::Codec::put(&self.next_event,w);
+}
+ pub(crate) fn apply_hardware(&mut self,s:HardwareState){
+self.ewram=s.ewram;
+self.iwram=s.iwram;
+self.io=s.io;
+self.palette=s.palette;
+self.vram=s.vram;
+self.oam=s.oam;
+self.sram=s.sram;
+self.clock=s.clock;
+self.reg_ie=s.reg_ie;
+self.reg_if=s.reg_if;
+self.ime=s.ime;
+self.halted=s.halted;
+self.intr_wait_armed=s.intr_wait_armed;
+self.keys=s.keys;
+self.keypad_prev=s.keypad_prev;
+self.wave_shadow=s.wave_shadow;
+self.timers=s.timers;
+self.dma=s.dma;
+self.vline_start=s.vline_start;
+self.vphase=s.vphase;
+self.frame_ready=s.frame_ready;
+self.frames=s.frames;
+self.framebuffer=s.framebuffer;
+self.aff_ref=s.aff_ref;
+self.aff_dirty=s.aff_dirty;
+self.unhandled_swis=s.unhandled_swis;
+self.bios_open=s.bios_open;
+self.real_bios=s.real_bios;
+self.pc_in_bios=s.pc_in_bios;
+self.backup=s.backup;
+self.flash=s.flash;
+self.eeprom=s.eeprom;
+self.rtc=s.rtc;
+self.fifo=s.fifo;
+self.fifo_sample=s.fifo_sample;
+self.audio_cursor=s.audio_cursor;
+self.apu=s.apu;
+self.next_event=s.next_event;
+
+ self.skip_render=false;self.audio_buf.clear();self.psg_tap.clear();self.hle_tap.clear();for t in &mut self.fifo_tap{t.clear();}
+ self.ffta_sprites=crate::ffta_sprites::SpriteState::new(&self.rom);
+ let separate=self.ffta_dialogue.separate;let style=self.ffta_dialogue.style;
+ self.ffta_dialogue=Default::default();self.ffta_dialogue.separate=separate;self.ffta_dialogue.style=style;
+ let movement=self.ffta_movement.enabled;let stage=self.ffta_stage.enabled;
+ self.ffta_movement=crate::ffta_movement::MovementState::new(&self.rom);self.ffta_movement.enabled=movement;
+ self.ffta_stage=crate::ffta_stage::StageState::new(&self.rom);self.ffta_stage.enabled=stage;
+ self.ffta_surface=crate::ffta_surface::State::new();
+
+ self.ffta_battle_mouse.cancel();self.ffta_debug=Default::default();
+ }
 }

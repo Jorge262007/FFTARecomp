@@ -9,8 +9,10 @@ use std::process::ExitCode;
 
 use recomp_core::{analyze, build_library, labels, Compiler, FileLabels, LabelSource};
 
+mod ui_inspect;
 mod ff_audio;
 mod packfile;
+mod autosave;
 mod play;
 mod rom_switch;
 mod save_path;
@@ -1048,7 +1050,7 @@ fn apply_av_change(
             // on the next launch. Live rebuild would tear down the GPU
             // presenter mid-session.
         }
-        menu::Changed::Vsync => {
+        menu::Changed::Vsync | menu::Changed::WindowMode => {
             // Applied directly to the presenter by the caller (the
             // presenter isn't threaded through here); persisted to av.cfg
             // like everything else.
@@ -2425,6 +2427,9 @@ fn run_frame_native(
     // of the previous fallback instruction; MAX = last step wasn't a
     // straight-line fallback continuation.
     let mut fb_prev_end = u32::MAX;
+    // Resolve diagnostics once per frame, never through Windows' environment
+    // API for every translated block (tens of thousands of calls per frame).
+    let trace_iwram=std::env::var_os("RECOMP_TRACE_IWRAM").is_some();
     while !m.bus.frame_ready && steps < max_steps {
         steps += 1;
         // Interrupt machinery and sleep states go through Machine::step.
@@ -2474,7 +2479,7 @@ fn run_frame_native(
         match table.get(key) {
             Some(f) => {
                 // Diagnostic: census of executed IWRAM natives.
-                if std::env::var_os("RECOMP_TRACE_IWRAM").is_some() && key >> 24 == 3 {
+                if trace_iwram && key >> 24 == 3 {
                     IWRAM_HITS.with(|h| *h.borrow_mut().entry(key).or_insert(0u64) += 1);
                 }
                 f(&RT_API, mptr);
@@ -2915,7 +2920,43 @@ fn cmd_runc(args: &[String]) -> Result<(), String> {
         .ok()
         .and_then(|v| v.parse().ok());
     let mut cost: std::collections::HashMap<u32, u64> = std::collections::HashMap::new();
+    let debug_win_frame=std::env::var("FFTA_DEBUG_WIN_FRAME").ok().and_then(|s|s.parse::<u64>().ok());
+    let state_roundtrip=std::env::var("FFTA_STATE_ROUNDTRIP").ok().and_then(|s|s.parse::<u64>().ok());
+    let manual_load=std::env::var("FFTA_MANUAL_LOAD_FRAME").ok().and_then(|s|s.parse::<u64>().ok());
+    let manual_slot=std::env::var("FFTA_MANUAL_LOAD_SLOT").ok().and_then(|s|s.parse::<usize>().ok()).unwrap_or(0);
+    let mut route_save=std::env::var_os("FFTA_ROUTE_SAVE_MENU").map(|_|autosave::AutoSave::new("target/route-load-probe.sav","0123456789abcdef"));
+    let state_slot_save=std::env::var("FFTA_STATE_SLOT_SAVE_FRAME").ok().and_then(|v|v.parse::<u64>().ok());
+    let state_slot_load=std::env::var("FFTA_STATE_SLOT_LOAD_FRAME").ok().and_then(|v|v.parse::<u64>().ok());
+    let mut state_slots=std::env::var_os("FFTA_STATE_SLOTS_DIR").map(|dir|autosave::AutoSave::new_at(
+        "target/state-slot-legacy.sav",&rom_sha256(&m.bus.rom),std::path::PathBuf::from(dir)));
+    let mut state_verified=false;
     while m.bus.frames < frames {
+        if let Some(route)=&mut route_save{route.route_entry(&mut m);}
+        if let Some(store)=&mut state_slots {
+            let keys=input.as_ref().map_or(0x3ff,|s|s.keys_at(m.bus.frames));
+            store.capture_before_menu(&m,keys);
+            if state_slot_save==Some(m.bus.frames){
+                store.save_manual(0)?;eprintln!("FFTA_STATE_SLOT_TEST saved_frame={}",m.bus.frames);
+            }
+            if state_slot_load==Some(m.bus.frames){
+                store.pending_slot=1;store.load(&mut m)?;
+                eprintln!("FFTA_STATE_SLOT_TEST restored_frame={} callback={:08x}",m.bus.frames,u32::from_le_bytes(m.bus.iwram[0x2804..0x2808].try_into().unwrap()));
+                // Restoring an earlier frame must not retrigger diagnostic actions.
+                state_slots=None;
+            }
+        }
+
+        if manual_load==Some(m.bus.frames) {autosave::activate_manual(&mut m,manual_slot)?;}
+        if !state_verified && state_roundtrip==Some(m.bus.frames) {
+            let bytes=m.save_state();m.load_state(&bytes)?;state_verified=true;
+            eprintln!("FFTA_STATE_ROUNDTRIP frame={} bytes={}",m.bus.frames,bytes.len());
+        }
+
+        if debug_win_frame==Some(m.bus.frames) {
+            let result=gba_core::ffta_debug::request_victory(&mut m.bus);
+            eprintln!("FFTA_DEBUG_WIN frame={} result={result:?}",m.bus.frames);
+        }
+        gba_core::ffta_debug::tick(&mut m.bus);
         let before = m.bus.frames;
         if character_csv.is_some(){gba_core::ffta_sprites::set_character_metrics(before+1>=character_from&&before+1<=character_to);}
         if let Some(zoom) = &zoom_schedule {
@@ -3306,6 +3347,10 @@ fn dump_frame(m: &Machine, path: Option<String>) -> Result<(), String> {
 }
 
 fn configure_headless_widescreen() {
+    #[cfg(any(windows, target_os = "linux"))]
+    gba_core::ppu::set_parallel_zoom(
+        std::env::var("FFTA_PARALLEL_ZOOM").as_deref() != Ok("0"),
+    );
     let value = std::env::var("FFTA_WIDESCREEN").unwrap_or_default();
     let ex = match value.trim() {
         "16:10" => 8,
@@ -3395,8 +3440,16 @@ impl HeadlessZoom {
 
 /// Read-only diagnostic snapshots. Raw tile counts are not logical cell counts.
 fn movement_replay_observation(m: &Machine) -> Result<(), String> {
-    if !gba_core::ffta_log::enabled() {
+    // Targeted RAM snapshots need not enable the very expensive per-object log.
+    static SNAPSHOT_ONLY:std::sync::OnceLock<bool>=std::sync::OnceLock::new();
+    let snapshot_only=*SNAPSHOT_ONLY.get_or_init(||std::env::var("FFTA_STAGE_DUMP").as_deref()==Ok("1"));
+    if !gba_core::ffta_log::enabled() && !snapshot_only {
         return Ok(());
+    }
+    if snapshot_only {
+        static FRAMES:std::sync::OnceLock<Vec<u64>>=std::sync::OnceLock::new();
+        let frames=FRAMES.get_or_init(||std::env::var("FFTA_MOVEMENT_DUMP_FRAMES").unwrap_or_default().split(',').filter_map(|s|s.trim().parse().ok()).collect());
+        if !frames.contains(&m.bus.frames){return Ok(());}
     }
     let Ok(prefix) = std::env::var("FFTA_MOVEMENT_DUMP_PREFIX") else {
         return Ok(());

@@ -318,9 +318,10 @@ impl Presenter {
             let Some(frame)=frame else {if let Some(ui)=slot {ui.active=false;} continue;};
             assert_eq!(frame.pixels.len(),480*160);assert_eq!(frame.lut.len(),32768);
             assert!(frame.raw_world.len()>=frame.world_dims.0 as usize*frame.world_dims.1 as usize);
-            if slot.as_ref().is_none_or(|ui|ui.dimensions()!=frame.world_dims) {
+            if slot.is_none() {
                 *slot=Some(crate::ui_layer::Gpu::new(&self.device,self.config.format,frame.world_dims));
             }
+            slot.as_mut().unwrap().resize_world(&self.device,frame.world_dims);
             slot.as_mut().unwrap().update(&self.queue,frame,self.srgb_surface);
         }
     }
@@ -516,7 +517,7 @@ impl Presenter {
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
             pass.draw(0..3, 0..1);
-            for ui in self.ui_layer.iter().flatten() {ui.draw(&mut pass);}
+            for ui in self.ui_layer.iter().flatten() {ui.draw(&mut pass,(self.config.width,self.config.height));}
         }
         self.queue.submit([encoder.finish()]);
         frame.present();

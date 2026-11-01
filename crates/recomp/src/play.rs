@@ -14,6 +14,10 @@
 //! gated on `RedrawRequested`/vsync, which would couple game speed to the
 //! panel.
 
+#[path = "ui_motion.rs"]
+mod ui_motion;
+#[path = "visual_trace.rs"]
+mod visual_trace;
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU32;
 use std::path::Path;
@@ -196,8 +200,18 @@ fn display_frame<'a>(bus: &'a gba_core::mem::MemMap, padding: &'a mut Vec<u16>) 
     padding.resize(width * height, 0);
     let start = width * ey;
     let end = start + width * 160;
-    padding[..start].fill(0);
-    padding[end..].fill(0);
+    if bus.ffta_dialogue.menu_pattern {
+        for y in (0..ey).chain(ey + 160..height) {
+            gba_core::ppu::render_menu_background_row(
+                bus,
+                y as i32 - ey as i32,
+                &mut padding[y * width..(y + 1) * width],
+            );
+        }
+    } else {
+        padding[..start].fill(0);
+        padding[end..].fill(0);
+    }
     padding[start..end].copy_from_slice(&bus.wide_framebuffer[..width * 160]);
     padding
 }
@@ -329,14 +343,13 @@ use winit::window::{Fullscreen, Window, WindowId};
 
 use recomp_core::fnv64;
 
-use crate::{
-    AudioStreams, BlockTable, FALLBACK_COLLECT, NO_INTERP, RING_TARGET, apply_av_change,
-    arm_audio_hle, build_gilrs, ensure_native, load_bios_file, load_native, make_machine,
-    print_fallback_census, record_labels, rom_sha256, run_frame_native, start_audio,
-    status_line, validate_rom, write_sav,
-};
 #[cfg(not(target_os = "linux"))]
 use crate::pad_pressed;
+use crate::{
+    apply_av_change, arm_audio_hle, build_gilrs, ensure_native, load_bios_file, load_native,
+    make_machine, print_fallback_census, record_labels, rom_sha256, run_frame_native, start_audio,
+    status_line, validate_rom, AudioStreams, BlockTable, FALLBACK_COLLECT, NO_INTERP, RING_TARGET,
+};
 
 /// Per-frame down-state of the host-menu navigation inputs, debounced against
 /// the previous frame to produce rising-edge events. Kept separate from the
@@ -358,6 +371,12 @@ struct NavEdges {
     open: bool,
 }
 
+/// Existing Linux shortcuts remain available in every build. The dedicated
+/// Steam Deck binary additionally accepts North (the physical Y button).
+fn linux_menu_shortcut(mode: bool, start: bool, select: bool, north: bool) -> bool {
+    mode || (start && select) || (cfg!(feature = "steamdeck") && north)
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ActiveController {
     Gilrs(gilrs::GamepadId),
@@ -367,6 +386,7 @@ enum ActiveController {
 /// A mouse event queued while the pause menu is open (physical window px).
 #[derive(Clone, Copy)]
 enum MouseEv {
+    Release,
     Move((f64, f64)),
     /// `true` = left button, `false` = right.
     Click((f64, f64), bool),
@@ -381,6 +401,11 @@ enum MouseEv {
 fn winit_key(name: &str) -> Option<KeyCode> {
     use KeyCode::*;
     Some(match name {
+        "Escape" => Escape,
+        "F10" => F10,
+        "F9" => F9,
+        "Equal" => Equal,
+        "Minus" => Minus,
         "A" => KeyA,
         "B" => KeyB,
         "C" => KeyC,
@@ -435,6 +460,11 @@ fn winit_key(name: &str) -> Option<KeyCode> {
 /// or `None` for keys the config format can't express (F-keys, Escape, ...).
 fn key_name(code: KeyCode) -> Option<&'static str> {
     const NAMES: &[&str] = &[
+        "Escape",
+        "F9",
+        "F10",
+        "Equal",
+        "Minus",
         "A",
         "B",
         "C",
@@ -503,6 +533,8 @@ struct PlayApp {
     // Core machine + persistence.
     machine: Machine,
     sav_path: String,
+    autosave: crate::autosave::AutoSave,
+    autosave_frame: Vec<u16>,
     sav_seen: Option<u64>,
     record: Option<(std::fs::File, u16)>,
     native: Option<(super::NativeLibrary, BlockTable)>,
@@ -549,8 +581,17 @@ struct PlayApp {
     grid_params: screen::present::GridParams,
     rgba: Vec<[u8; 4]>,
     pause_rgba: Vec<[u8; 4]>,
-    ui_pixels: Vec<[u8;4]>,
-    panel_pixels: Vec<[u8;4]>,
+    ui_pixels: Vec<[u8; 4]>,
+    battle_hud_pixels: [Vec<[u8; 4]>; 4],
+    battle_hud_motion: ui_motion::BattleHud,
+    panel_pixels: Vec<[u8; 4]>,
+    ui_auxiliary: [Vec<[u8; 4]>; 2],
+    ui_scene: gba_core::ffta_ui::Scene,
+    ui_motion: ui_motion::Motion,
+    pub_scroll_drag: Option<f32>,
+    ui_pack_cache: [gba_core::ffta_dialogue::PackedLayer; 4],
+    ui_inspector: crate::ui_inspect::Inspector,
+    ui_timing: crate::ui_inspect::Timing,
     padded_frame: Vec<u16>,
 
     // Window + presentation (created in `resumed`).
@@ -587,7 +628,8 @@ struct PlayApp {
     // Fast forward: remappable hold/toggle activation and selected audio mode.
     ff_active: bool,
     ff_latched: bool,
-    ff_speed: u32,
+    ff_speed: f32,
+    ff_budget: input_config::FrameBudget,
     ff_audio_active: String,
     /// Last key pressed while the menu is open (consumed by key capture).
     pending_key: Option<KeyCode>,
@@ -598,6 +640,9 @@ struct PlayApp {
     base_extra: usize,
     /// Zoom step index: zoom = ZOOM_STEP ^ zoom_level (0 = x1).
     zoom_level: u32,
+    zoom_display: f32,
+    zoom_from: f32,
+    zoom_started: Option<Instant>,
     zoom_max: u32,
     /// Crop shown, [x0, y0, w, h] in the rendered frame's pixels. Updated
     /// together with the render size (sync_view) so they never disagree.
@@ -614,6 +659,7 @@ struct PlayApp {
 }
 
 impl PlayApp {
+
     /// Width of the starting (x1) view, in frame pixels.
     fn base_w(&self) -> f32 {
         (240 + 2 * self.base_extra) as f32
@@ -624,6 +670,8 @@ impl PlayApp {
     fn zoom_by(&mut self, steps: i32) {
         let next = (self.zoom_level as i32 + steps).clamp(0, self.zoom_max as i32) as u32;
         if next != self.zoom_level {
+            self.zoom_from = self.zoom_display;
+            self.zoom_started = Some(Instant::now());
             self.zoom_level = next;
             eprintln!("zoom: x{:.2}", ZOOM_STEP.powi(next as i32));
         }
@@ -633,15 +681,32 @@ impl PlayApp {
     /// buffers if that changed, and recompute the crop. Called at the start
     /// of every emulated frame, never in the middle of one.
     fn sync_view(&mut self) {
-        let z = if self.zoom_level == 0 {
-            1.0
-        } else {
-            ZOOM_STEP.powi(self.zoom_level as i32)
-        };
+        let target = ZOOM_STEP.powi(self.zoom_level as i32);
+        let t = self.zoom_started.map_or(1.0, |start| {
+            (start.elapsed().as_secs_f32() / 0.20).clamp(0.0, 1.0)
+        });
+        let ease = t * t * (3.0 - 2.0 * t);
+        let z = self.zoom_from + (target - self.zoom_from) * ease;
+        self.zoom_display = z;
+        if t >= 1.0 {
+            self.zoom_started = None;
+            self.zoom_from = target;
+        }
         let vw = self.base_w() * z;
         let vh = 160.0 * z;
-        let ex = (((vw - 240.0) / 2.0).ceil().max(0.0) as usize).min(gba_core::mem::MAX_EXTRA);
-        let ey = (((vh - 160.0) / 2.0).ceil().max(0.0) as usize).min(gba_core::mem::MAX_EXTRA_Y);
+        // Allocate the transition's full extent once. Only the GPU crop
+        // changes per frame, rather than reallocating textures at every step.
+        let render_zoom = if t < 1.0 {
+            self.zoom_from.max(target)
+        } else {
+            target
+        };
+        let ex = (((self.base_w() * render_zoom - 240.0) / 2.0)
+            .ceil()
+            .max(0.0) as usize)
+            .min(gba_core::mem::MAX_EXTRA);
+        let ey = (((160.0 * render_zoom - 160.0) / 2.0).ceil().max(0.0) as usize)
+            .min(gba_core::mem::MAX_EXTRA_Y);
         if ex != gba_core::mem::extra() || ey != gba_core::mem::extra_y() {
             if gba_core::ffta_log::enabled() {
                 eprintln!(
@@ -661,6 +726,7 @@ impl PlayApp {
         let (vw, vh) = (vw.min(rw), vh.min(rh));
         self.view = [(rw - vw) / 2.0, (rh - vh) / 2.0, vw, vh];
         self.machine.bus.ffta_dialogue.view_zoom = z;
+        self.machine.bus.ffta_dialogue.battle_hud_overlay = true;
         self.machine.bus.ffta_dialogue.view_width = vw;
         self.machine.bus.ffta_dialogue.view_height = vh;
         self.machine.bus.ffta_dialogue.style.scale = self.av.bubble_size;
@@ -717,23 +783,418 @@ impl PlayApp {
         ))
     }
 
-    fn game_mouse_aim(&mut self,pos:(f64,f64),confirm:bool)->bool {
-        let ui_index=battle_menu_ui_layer(&self.machine.bus.ffta_dialogue);
-        if (gba_core::ffta_battle_mouse::MenuScene::read(&self.machine.bus).is_some() || self.machine.bus.ffta_dialogue.shop_layout) && ui_index.is_some() {
-            if let Some(window)=&self.window {
-                let size=window.inner_size();
-                if let Some(layout)=self.ui_layout((size.width.max(1),size.height.max(1)),ui_index.unwrap()) {
-                    if let Some(index)=layout.source(pos.0 as f32,pos.1 as f32) {
-                        let state=&self.machine.bus.ffta_dialogue;
-                        if state.town_layout || state.shop_layout || state.site_layout || state.extra.kind==gba_core::ffta_dialogue::PanelKind::Notice {
-                            let x=(index%480) as f32-120.;
-                            let y=(index/480) as f32;
-                            return gba_core::ffta_battle_mouse::aim(&mut self.machine.bus,x,y,confirm);
+    fn roster_scrollbar(&self) -> Option<screen::ui_scrollbar::Bar> {
+        if !self.icfg.mouse_keyboard {
+            return None;
+        }
+        let list = gba_core::ffta_roster_mouse::scrollbar_list(&self.machine.bus)?;
+        screen::ui_scrollbar::Bar::centered(list.bounds, list.first, list.visible, list.total)
+    }
+    fn roster_scrollbar_pointer(&mut self, pos: (f64, f64), pressed: bool) -> bool {
+        let Some(bar) = self.roster_scrollbar() else {
+            return false;
+        };
+        let Some(window) = &self.window else {
+            return false;
+        };
+        let size = window.inner_size();
+        let (scale, ox, oy) = screen::present::letterbox_f(
+            (size.width.max(1), size.height.max(1)),
+            self.view[2],
+            self.view[3],
+        );
+        let x = self.view[0] + (pos.0 as f32 - ox) / scale - gba_core::mem::extra() as f32;
+        let y = self.view[1] + (pos.1 as f32 - oy) / scale - gba_core::mem::extra_y() as f32;
+        if self.pub_scroll_drag.is_none() && !bar.hit(x, y) {
+            return false;
+        }
+        if pressed {
+            self.pub_scroll_drag = Some(bar.grab(y));
+        }
+        if let Some(grab) = self.pub_scroll_drag {
+            gba_core::ffta_roster_mouse::scroll_to(&mut self.machine.bus, bar.first_at(y, grab));
+        }
+        true
+    }
+    fn pub_scrollbar_slot(&self) -> usize {
+        if gba_core::ffta_battle_mouse::battle_list(&self.machine.bus).is_some() {
+            1
+        } else {
+            0
+        }
+    }
+    fn pub_scrollbar(&self) -> Option<screen::ui_scrollbar::Bar> {
+        if !self.icfg.mouse_keyboard {
+            return None;
+        }
+        if !gba_core::ffta_battle_mouse::pub_scroll_visible(&self.machine.bus) {
+            return None;
+        }
+        let battle = gba_core::ffta_battle_mouse::battle_list(&self.machine.bus);
+        let list = gba_core::ffta_battle_mouse::pub_list(&self.machine.bus)
+            .or(battle)
+            .or_else(|| gba_core::ffta_shop_mouse::list(&self.machine.bus))?;
+        let node = self.ui_scene.nodes[if battle.is_some() { 1 } else { 0 }]?;
+        let mut bounds = node.bounds;
+        if battle.is_some() {
+            let menu = gba_core::ffta_battle_mouse::MenuScene::read(&self.machine.bus)?;
+            bounds[1] = (menu.origin[1] - 4).max(node.bounds[1]);
+            bounds[3] = (menu.origin[1] - 4 + list.visible as i32 * menu.pitch).min(node.bounds[3]);
+        }
+        if self.machine.bus.ffta_dialogue.shop_layout {
+            bounds = [8, 0, 216, 88];
+        } else if gba_core::ffta_surface::Descriptor::read(&self.machine.bus)
+            .is_some_and(|s| matches!(s.id, 66 | 67))
+        {
+            let window = gba_core::ffta_ui_window::pub_windows(&self.machine.bus, [None; 3])[1]?;
+            bounds = window.frame_bounds;
+            if gba_core::ffta_surface::Descriptor::read(&self.machine.bus)
+                .is_some_and(|s| s.id == 67)
+            {
+                bounds[2] = (bounds[2] + 8).min(240);
+            }
+        }
+        if battle.is_some() {
+            screen::ui_scrollbar::Bar::centered(bounds, list.first, list.visible, list.total)
+        } else {
+            screen::ui_scrollbar::Bar::new(bounds, list.first, list.visible, list.total)
+        }
+    }
+    fn pub_scrollbar_pointer(&mut self, pos: (f64, f64), pressed: bool) -> bool {
+        let Some(bar) = self.pub_scrollbar() else {
+            self.pub_scroll_drag = None;
+            return false;
+        };
+        let Some(window) = &self.window else {
+            return false;
+        };
+        let size = window.inner_size();
+        let Some(layout) = self.ui_layout(
+            (size.width.max(1), size.height.max(1)),
+            self.pub_scrollbar_slot(),
+        ) else {
+            return false;
+        };
+        // Keep dragging when the pointer moves above/below the track.
+        let k = layout.rect[2] / 480.;
+        let x = (pos.0 as f32 - layout.rect[0]) / k - 120.;
+        let y = (pos.1 as f32 - layout.rect[1]) / k;
+        if self.pub_scroll_drag.is_none() && !bar.hit(x, y) {
+            return false;
+        }
+        if pressed {
+            self.pub_scroll_drag = Some(bar.grab(y));
+        }
+        if let Some(grab) = self.pub_scroll_drag {
+            let first = bar.first_at(y, grab);
+            if !gba_core::ffta_battle_mouse::pub_scroll_to(&mut self.machine.bus, first) {
+                gba_core::ffta_shop_mouse::scroll_to(&mut self.machine.bus, first);
+            }
+        }
+        true
+    }
+    fn game_mouse_aim(&mut self, pos: (f64, f64), confirm: bool) -> bool {
+        if confirm {
+            visual_trace::capture(
+                &self.machine.bus,
+                &self.ui_scene,
+                Some(pos),
+                self.view,
+                true,
+            );
+        }
+        if !self.icfg.mouse_keyboard {
+            return false;
+        }
+        if self.autosave.screen_active(&self.machine.bus) {
+            if let Some((x, y)) = self.window_to_frame(pos) {
+                let x = x as f32 - gba_core::mem::extra() as f32;
+                let y = y as f32 - gba_core::mem::extra_y() as f32;
+                if crate::autosave::confirming_save(&self.machine.bus) {
+                    return gba_core::ffta_battle_mouse::aim(&mut self.machine.bus, x, y, confirm);
+                }
+                let saving = crate::autosave::is_saving(&self.machine.bus);
+                if self.autosave.delete_confirm.is_some() {
+                    if confirm {
+                        let accept = x >= 131. && x < 160. && y >= 100. && y < 121.;
+                        let cancel = x >= 79. && x < 108. && y >= 100. && y < 121.;
+                        if accept || cancel {
+                            if let Err(e) = self.autosave.finish_delete(accept) {
+                                self.autosave.message = Some(e);
+                            }
                         }
-                        let bounds=if ui_index==Some(0) {gba_core::ffta_dialogue::panel_bounds(&state.pixels,&state.backing)}else{gba_core::ffta_dialogue::panel_bounds(&state.extra.pixels,&state.extra.backing)};
-                        if let Some(b)=bounds {
-                            let (x,y)=menu_panel_native(index,b,if state.town_layout || state.shop_layout {1.}else{state.style.length});
-                            return gba_core::ffta_battle_mouse::aim(&mut self.machine.bus,x,y,confirm);
+                    }
+                    return true;
+                }
+                if let Some(id) = self.autosave.trash_hit(saving, x, y) {
+                    if confirm {
+                        self.autosave.request_delete(id);
+                    }
+                    return true;
+                }
+
+                if let Some(right) = self.autosave.arrow_hit(saving, x, y) {
+                    if confirm {
+                        self.autosave.scroll_carousel(saving, right);
+                    }
+                    return true;
+                }
+                if let Some(slot) = self
+                    .autosave
+                    .hit_card(saving, x, y)
+                    .filter(|slot| crate::autosave::selectable(&self.machine.bus, *slot))
+                {
+                    self.autosave.selected = slot;
+                    if confirm {
+                        self.activate_save_card();
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Party is a gallery event, not a text-menu or frontend selector.
+        if gba_core::ffta_roster_mouse::party_gallery(&self.machine.bus) {
+            // The gallery owns its native canvas, including its scrollbar.
+            // Consume drag/click before testing troop rectangles underneath.
+            if self.roster_scrollbar_pointer(pos, confirm) {
+                return true;
+            }
+            let hit = self.window_to_frame(pos).is_some_and(|(x, y)| {
+                let native = (
+                    x as f32 - gba_core::mem::extra() as f32,
+                    y as f32 - gba_core::mem::extra_y() as f32,
+                );
+                let accepted = gba_core::ffta_roster_mouse::aim(
+                    &mut self.machine.bus,
+                    native.0,
+                    native.1,
+                    confirm,
+                );
+                if confirm {
+                    eprintln!(
+                        "FFTA_PARTY_CLICK native=({:.1},{:.1}) accepted={accepted}",
+                        native.0, native.1
+                    );
+                }
+                accepted
+            });
+            return hit;
+        }
+        // Naming is drawn on its own UI canvas; world zoom is not its transform.
+        if self.machine.bus.ffta_dialogue.naming_layout {
+            return self
+                .window
+                .as_ref()
+                .and_then(|w| {
+                    let s = w.inner_size();
+                    self.ui_layout((s.width.max(1), s.height.max(1)), 0)
+                })
+                .and_then(|l| l.source(pos.0 as f32, pos.1 as f32))
+                .is_some_and(|p| {
+                    self.game_mouse.aim(
+                        &self.machine.bus,
+                        (p % 480) as f32 - 120.,
+                        (p / 480) as f32,
+                        confirm,
+                    )
+                });
+        }
+        // Frontend/save screens own input before stale gameplay selectors.
+        if self.game_mouse.scene(&self.machine.bus).is_some() {
+            return self.window_to_frame(pos).is_some_and(|(x, y)| {
+                self.game_mouse.aim(
+                    &self.machine.bus,
+                    x as f32 - gba_core::mem::extra() as f32,
+                    y as f32 - gba_core::mem::extra_y() as f32,
+                    confirm,
+                )
+            });
+        }
+        // A verified text wait owns the click even if a service keeps its
+        // root selector alive behind the dialogue. Never turn a failed text
+        // request into a consumed click or a menu confirmation.
+        let menu_present = gba_core::ffta_roster_mouse::active(&self.machine.bus)
+            || gba_core::ffta_battle_mouse::MenuScene::read(&self.machine.bus).is_some();
+        let speech_present = self.machine.bus.ffta_dialogue.service_speech.active()
+            || self.machine.bus.ffta_dialogue.split_speech
+                && self.ui_scene.nodes.iter().enumerate().any(|(slot, node)| {
+                    node.is_some_and(|n| n.role == gba_core::ffta_ui::Role::Dialogue)
+                        && self
+                            .ui_pixels_at(slot)
+                            .iter()
+                            .any(|p| p[2] != 0 || p[3] != 16)
+                });
+        if confirm
+            && (!menu_present || speech_present)
+            && self.window_to_frame(pos).is_some()
+            && gba_core::ffta_battle_mouse::advance_dialogue(&mut self.machine.bus)
+        {
+            self.game_mouse.cancel();
+            return true;
+        }
+        if let Some(choice) = gba_core::ffta_battle_mouse::DialogueChoice::read(&self.machine.bus) {
+            // A question owns input before an inactive service menu behind it.
+            // Yes/No belongs to its rendered canvas, including centered NOTICE
+            // prompts such as Begin Battle. World coordinates are only valid
+            // on frontend prompts that have no detached UI canvas.
+            if let Some((slot, _)) = self
+                .ui_scene
+                .nodes
+                .iter()
+                .enumerate()
+                .find(|(_, n)| n.is_some_and(|n| dialogue_choice_canvas(n.role)))
+            {
+                if let Some(w) = &self.window {
+                    let size = w.inner_size();
+                    if let Some(index) = self
+                        .ui_layout((size.width.max(1), size.height.max(1)), slot)
+                        .and_then(|l| l.source(pos.0 as f32, pos.1 as f32))
+                    {
+                        let x = (index % 480) as f32 - 120.;
+                        let y = (index / 480) as f32;
+                        if let Some(target) = choice.hit(x, y) {
+                            return choice.select(&mut self.machine.bus, target, confirm);
+                        }
+                    }
+                }
+            } else if let Some((x, y)) = self.window_to_frame(pos) {
+                // Save-file NOTICE uses the native frontend planes, without a
+                // detached dialogue canvas. Its choice model is still the
+                // same original text engine (state 9).
+                if let Some(target) = choice.hit(
+                    x as f32 - gba_core::mem::extra() as f32,
+                    y as f32 - gba_core::mem::extra_y() as f32,
+                ) {
+                    return choice.select(&mut self.machine.bus, target, confirm);
+                }
+            }
+            return true; // Outside Yes/No: do not confirm a hidden menu.
+        }
+        if self.roster_scrollbar_pointer(pos, confirm) {
+            return true;
+        }
+        // Native Party/Clan/Area menus own their own canvas; never transform
+        // their pointer through a stale battle/service panel behind them.
+        if gba_core::ffta_roster_mouse::Scene::read(&self.machine.bus).is_some() {
+            return self.window_to_frame(pos).is_some_and(|(x, y)| {
+                gba_core::ffta_roster_mouse::aim(
+                    &mut self.machine.bus,
+                    x as f32 - gba_core::mem::extra() as f32,
+                    y as f32 - gba_core::mem::extra_y() as f32,
+                    confirm,
+                )
+            });
+        }
+        if gba_core::ffta_battle_mouse::FacingPrompt::read(&self.machine.bus).is_some() {
+            // PC uses keyboard/gamepad for facing. Keep ordinary mouse A,
+            // while the calibrated actor-relative selector remains in the core
+            // for Android's experimental touch path.
+            if confirm {
+                gba_core::ffta_battle_mouse::press(&mut self.machine.bus, 0x3fe);
+            }
+            return true;
+        }
+        if self.pub_scrollbar_pointer(pos, confirm) {
+            return true;
+        }
+        let scene = gba_core::ffta_battle_mouse::MenuScene::read(&self.machine.bus);
+        let state = &self.machine.bus.ffta_dialogue;
+        let ui_index = if state.service_layout {
+            // Submenus/inventory belong to the right canvas even while their
+            // inactive root MENU still exists on the independent left canvas.
+            Some(
+                if !state.shop_layout
+                    && scene.is_some_and(|m| {
+                        state.extra.bounds.is_some_and(|[l, t, r, b]| {
+                            m.origin[0] >= l
+                                && m.origin[0] < r
+                                && m.origin[1] >= t
+                                && m.origin[1] < b
+                        })
+                    })
+                {
+                    1
+                } else {
+                    0
+                },
+            )
+        } else {
+            battle_menu_ui_layer_at(state, &self.ui_scene, scene.map(|m| m.origin))
+        };
+        if (scene.is_some() || state.shop_layout) && ui_index.is_some() {
+            if let Some(window) = &self.window {
+                let size = window.inner_size();
+                if let Some(layout) =
+                    self.ui_layout((size.width.max(1), size.height.max(1)), ui_index.unwrap())
+                {
+                    if let Some(index) = layout.source(pos.0 as f32, pos.1 as f32) {
+                        let state = &self.machine.bus.ffta_dialogue;
+                        if let Some(node) = self.ui_scene.nodes[ui_index.unwrap()] {
+                            let mut bounds = node.bounds;
+                            if node.length {
+                                let amount = ((bounds[2] - bounds[0]) as f32
+                                    * (state.style.length.clamp(1., 2.) - 1.))
+                                    .round() as i32;
+                                match node.anchor {
+                                    gba_core::ffta_ui::Anchor::Corner { right, .. }
+                                    | gba_core::ffta_ui::Anchor::Edge { right, .. } => {
+                                        if right {
+                                            bounds[0] -= amount;
+                                        } else {
+                                            bounds[2] += amount;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            if matches!(
+                                node.role,
+                                gba_core::ffta_ui::Role::ServiceMenu
+                                    | gba_core::ffta_ui::Role::ServiceContent
+                                    | gba_core::ffta_ui::Role::ActionMenu
+                                    | gba_core::ffta_ui::Role::Notice
+                            ) && (!pointer_in_ui_bounds(index, bounds)
+                                || !self
+                                    .ui_pixels_at(ui_index.unwrap())
+                                    .get(index)
+                                    .is_some_and(|p| p[2] != 0 || p[3] != 16))
+                            {
+                                self.machine.bus.ffta_battle_mouse.cancel();
+                                return false;
+                            }
+                        }
+                        if state.town_layout
+                            || state.shop_layout
+                            || state.site_layout
+                            || state.extra.kind == gba_core::ffta_dialogue::PanelKind::Notice
+                        {
+                            let x = (index % 480) as f32 - 120.;
+                            let y = (index / 480) as f32;
+                            return gba_core::ffta_battle_mouse::aim(
+                                &mut self.machine.bus,
+                                x,
+                                y,
+                                confirm,
+                            );
+                        }
+                        let bounds = self.ui_scene.nodes[ui_index.unwrap()].map(|n| n.bounds);
+                        if let Some(b) = bounds {
+                            let (x, y) = menu_panel_native(
+                                index,
+                                b,
+                                if state.town_layout || state.shop_layout {
+                                    1.
+                                } else {
+                                    state.style.length
+                                },
+                            );
+                            return gba_core::ffta_battle_mouse::aim(
+                                &mut self.machine.bus,
+                                x,
+                                y,
+                                confirm,
+                            );
                         }
                     }
                     self.machine.bus.ffta_battle_mouse.cancel();
@@ -741,55 +1202,181 @@ impl PlayApp {
                 }
             }
         }
-        if let Some((x,y))=self.window_to_frame(pos) {
-            let x=x as f32-gba_core::mem::extra()as f32;let y=y as f32-gba_core::mem::extra_y()as f32;
-            if self.game_mouse.scene(&self.machine.bus).is_some(){self.game_mouse.aim(&self.machine.bus,x,y,confirm)}
-            else{gba_core::ffta_battle_mouse::aim(&mut self.machine.bus,x,y,confirm)}
-        }else{self.game_mouse.cancel();self.machine.bus.ffta_battle_mouse.cancel();false}
+        if let Some((x, y)) = self.window_to_frame(pos) {
+            let x = x as f32 - gba_core::mem::extra() as f32;
+            let y = y as f32 - gba_core::mem::extra_y() as f32;
+            if self.game_mouse.scene(&self.machine.bus).is_some() {
+                self.game_mouse.aim(&self.machine.bus, x, y, confirm)
+            } else {
+                gba_core::ffta_battle_mouse::aim(&mut self.machine.bus, x, y, confirm)
+            }
+        } else {
+            self.game_mouse.cancel();
+            self.machine.bus.ffta_battle_mouse.cancel();
+            false
+        }
     }
 
-    fn choose_rom(&mut self)->bool {
-        let Some(path)=crate::rom_switch::pick(&self.sav_path)else{return false;};
-        let result=crate::rom_switch::validate(&path).and_then(|_| {
+    fn choose_rom(&mut self) -> bool {
+        let Some(path) = crate::rom_switch::pick(&self.sav_path) else {
+            return false;
+        };
+        let result = crate::rom_switch::validate(&path).and_then(|_| {
             // Flush the current cartridge before the replacement process reads
             // any save. A failed save or launch keeps this paused game alive.
-            if let Some(data)=self.machine.bus.save_data() {
-                write_sav(&self.sav_path,data).map_err(|e|format!("Cannot save the current game: {e}"))?;
-            }
-            crate::rom_switch::launch(&path,&self.sav_path)
+            crate::rom_switch::launch(&path, &self.sav_path)
         });
-        match result {Ok(())=>true,Err(e)=>{crate::rom_switch::show_error(&e);false}}
-    }
-    fn ui_layout(&self,physical:(u32,u32),index:usize)->Option<screen::ui_layer::Layout> {
-        let state=&self.machine.bus.ffta_dialogue;
-        if index==1 {
-            if !state.separate || !state.extra.active() {return None;}
-            if state.extra.kind==gba_core::ffta_dialogue::PanelKind::Notice {
-                return Some(screen::ui_layer::Layout::centered_panel(physical,self.base_w(),state.style.scale,state.extra.bounds?));
+        match result {
+            Ok(()) => true,
+            Err(e) => {
+                crate::rom_switch::show_error(&e);
+                false
             }
-            let b=if state.extra.kind==gba_core::ffta_dialogue::PanelKind::Actions {gba_core::ffta_dialogue::panel_bounds(&state.extra.pixels,&state.extra.backing)?}else{gba_core::ffta_dialogue::pixel_bounds(&state.extra.pixels)?};
-            return Some(screen::ui_layer::Layout::at_corner(physical,self.base_w(),state.town_layout || b[0]+b[2]>=240,b[1]+b[3]>=160,state.style.scale,if state.town_layout {1.}else{state.style.length},b));
-        }
-        let (_,right)=state.layer()?;
-        if state.action_layout {
-            let b=gba_core::ffta_dialogue::panel_bounds(&state.pixels,&state.backing)?;
-            Some(screen::ui_layer::Layout::at_corner(physical,self.base_w(),false,true,state.style.scale,state.style.length,b))
-        } else if state.shop_layout || state.site_layout {
-            Some(screen::ui_layer::Layout::centered(physical,self.base_w(),state.style.scale))
-        } else if state.town_layout || state.shop_layout {
-            // One fixed native canvas: animated portraits/cursor highlights
-            // must never change the origin of the Pub UI or its mouse targets.
-            Some(pub_ui_layout(physical,self.base_w(),state.style.scale))
-        } else {
-            Some(screen::ui_layer::Layout::new_with_anchor(physical,self.base_w(),right,state.style.scale,
-                [state.style.offset_x,state.style.offset_y],state.vertical_anchor()))
         }
     }
-    fn ui_frame(&self,layout:screen::ui_layer::Layout,index:usize)->screen::ui_layer::Frame<'_> {
-        screen::ui_layer::Frame {pixels:if index==0 {&self.ui_pixels}else{&self.panel_pixels},
-            raw_world:if index==1 && self.machine.bus.ffta_dialogue.extra.kind==gba_core::ffta_dialogue::PanelKind::Stats {&self.machine.bus.ffta_dialogue.extra.background}else{&self.machine.bus.wide_framebuffer},
-            world_dims:(wide_w() as u32,wide_h() as u32),lut:self.lut.table.as_slice(),
-            layout,world_view:self.view}
+    fn activate_save_card(&mut self) {
+        let slot = self.autosave.selected;
+        if !crate::autosave::selectable(&self.machine.bus, slot) {
+            return;
+        }
+        if crate::autosave::is_saving(&self.machine.bus) {
+            match self.autosave.save_and_return(slot - 1) {
+                Ok(()) => {
+                    self.game_mouse.cancel();
+                    self.suppress = 0x3ff;
+                }
+                Err(e) => {
+                    eprintln!("FFTA_STATE_SAVE error={e}");
+                    self.autosave.message = Some(e);
+                }
+            }
+        } else if slot == 0 {
+            if self.autosave.available() {
+                self.autosave.queue_load(0);
+            }
+        } else if self.autosave.new_slot(slot - 1) {
+            self.autosave.queue_load(slot);
+        } else if !self.autosave.deleted(slot) {
+            match crate::autosave::activate_manual(&mut self.machine, slot - 1) {
+                Ok(()) => {
+                    self.autosave.import_after_load(slot - 1);
+                    self.game_mouse.cancel();
+                    self.suppress = 0x3ff;
+                }
+                Err(e) => {
+                    eprintln!("FFTA_IMPORT error={e}");
+                    self.autosave.message = Some(e);
+                }
+            }
+        }
+    }
+    fn load_auto_state(&mut self) {
+        self.autosave.pending_load = false;
+        match self.autosave.load(&mut self.machine) {
+            Ok(()) => {
+                arm_audio_hle(&mut self.machine, None);
+                self.game_mouse.cancel();
+                self.machine.bus.ffta_battle_mouse.cancel();
+                self.machine.bus.keys = 0x3ff;
+                self.game_keys = 0x3ff;
+                self.suppress = 0x3ff;
+                self.held.clear();
+                self.ui_motion = Default::default();
+                self.battle_hud_motion = Default::default();
+                self.ui_pixels.clear();
+                self.panel_pixels.clear();
+                for p in &mut self.ui_auxiliary {
+                    p.clear();
+                }
+                for c in &mut self.ui_pack_cache {
+                    c.invalidate();
+                }
+                self.ui_scene = Default::default();
+                self.rebuild_temporal();
+                reset_audio_counters(&self.streams);
+                self.next_frame = Instant::now();
+                self.sav_seen = self.machine.bus.save_data().map(fnv64);
+                eprintln!("FFTA_AUTOSAVE restored frame={}", self.machine.bus.frames);
+            }
+            Err(e) => {
+                eprintln!("FFTA_AUTOSAVE load_failed={e}");
+                self.autosave.message = Some(e);
+            }
+        }
+    }
+    fn ui_layout(&self, physical: (u32, u32), index: usize) -> Option<screen::ui_layer::Layout> {
+        if !self.ui_motion.panels[index].input() {
+            return None;
+        }
+        let node = self.ui_scene.nodes.get(index).copied().flatten()?;
+        Some(self.ui_motion.layout(
+            index,
+            host_ui_layout(
+                physical,
+                self.base_w(),
+                self.machine.bus.ffta_dialogue.style,
+                node,
+            ),
+        ))
+    }
+    fn ui_render_layout(
+        &self,
+        physical: (u32, u32),
+        index: usize,
+    ) -> Option<screen::ui_layer::Layout> {
+        let node = self.ui_motion.drawing(index)?;
+        Some(self.ui_motion.layout(
+            index,
+            host_ui_layout(
+                physical,
+                self.base_w(),
+                self.machine.bus.ffta_dialogue.style,
+                node,
+            ),
+        ))
+    }
+    fn ui_pixels_at(&self, index: usize) -> &[[u8; 4]] {
+        match index {
+            0 => &self.ui_pixels,
+            1 => &self.panel_pixels,
+            2 => &self.ui_auxiliary[0],
+            3 => &self.ui_auxiliary[1],
+            _ => &[],
+        }
+    }
+    fn ui_world_rect(&self, physical: (u32, u32)) -> [f32; 4] {
+        let (s, x, y) = screen::present::letterbox_f(physical, self.base_w(), 160.);
+        [x, y, self.base_w() * s, 160. * s]
+    }
+    fn ui_frame(
+        &self,
+        layout: screen::ui_layer::Layout,
+        index: usize,
+    ) -> screen::ui_layer::Frame<'_> {
+        screen::ui_layer::Frame {
+            pixels: self.ui_motion.panels[index].pixels(),
+            raw_world: if index == 1
+                && self.machine.bus.ffta_dialogue.extra.kind
+                    == gba_core::ffta_dialogue::PanelKind::Stats
+            {
+                &self.machine.bus.ffta_dialogue.extra.background
+            } else {
+                &self.machine.bus.wide_framebuffer
+            },
+            world_dims: (wide_w() as u32, wide_h() as u32),
+            lut: self.lut.table.as_slice(),
+            layout,
+            world_view: self.view,
+            world_rect: self.ui_world_rect(
+                self.window
+                    .as_ref()
+                    .map(|w| {
+                        let s = w.inner_size();
+                        (s.width, s.height)
+                    })
+                    .unwrap_or((1, 1)),
+            ),
+        }
     }
 
     /// Present `self.rgba` at the window's current size: the GPU grid/scaling
@@ -797,29 +1384,81 @@ impl PlayApp {
     /// color-corrected, no grid). Cloning the `Arc` avoids borrowing
     /// `self.window` while `self.presenter`/`self.sb_surface` are mutated.
     fn present_rgba(&mut self) {
+        let save_ui = !self.paused && self.autosave.screen_active(&self.machine.bus);
+        if save_ui {
+            let (w, h) = self.menu_dimensions();
+            let mut canvas = std::mem::take(&mut self.pause_rgba);
+            crate::autosave::compose_display(
+                &self.machine.bus,
+                &self.autosave,
+                &self.rgba,
+                &mut canvas,
+                (wide_w(), wide_h()),
+                (w, h),
+                self.view,
+                self.lut.table.as_slice(),
+            );
+            std::mem::swap(&mut self.rgba, &mut canvas);
+            let view = self.view;
+            self.view = [0., 0., w as f32, h as f32];
+            self.present_rgba_content(true);
+            self.view = view;
+            std::mem::swap(&mut self.rgba, &mut canvas);
+            self.pause_rgba = canvas;
+        } else {
+            self.present_rgba_content(false);
+        }
+    }
+    fn present_rgba_content(&mut self, save_ui: bool) {
+        let ui_presented = self.ui_timing.start();
         let Some(window) = self.window.clone() else {
             return;
         };
         let size = window.inner_size();
         let phys = (size.width.max(1), size.height.max(1));
-        let frame_dims = if self.paused {
+        let frame_dims = if self.paused || save_ui {
             let (w, h) = self.menu_dimensions();
             (w as u32, h as u32)
         } else {
             (wide_w() as u32, wide_h() as u32)
         };
         if let Some(mut p) = self.presenter.take() {
-            if !self.paused {
-                let layers=std::array::from_fn::<_,2,_>(|i|self.ui_layout(phys,i).map(|layout|self.ui_frame(layout,i)));
+            if !self.paused && !save_ui {
+                let mut layers: Vec<_> = (0..gba_core::ffta_ui::LAYERS)
+                    .map(|i| {
+                        self.ui_render_layout(phys, i)
+                            .map(|layout| self.ui_frame(layout, i))
+                    })
+                    .collect();
+                for i in 0..4 {
+                    let base = screen::ui_layer::Layout::centered(phys, self.base_w(), 1.);
+                    layers.push(self.battle_hud_motion.layout(i, base).map(|layout| {
+                        screen::ui_layer::Frame {
+                            pixels: self.battle_hud_motion.pixels(i),
+                            raw_world: &self.machine.bus.wide_framebuffer,
+                            world_dims: (wide_w() as u32, wide_h() as u32),
+                            lut: self.lut.table.as_slice(),
+                            layout,
+                            world_view: self.view,
+                            world_rect: self.ui_world_rect(phys),
+                        }
+                    }));
+                }
                 p.set_ui_layers(&layers);
-            } else {p.set_ui_layer(None);}
+            } else {
+                p.set_ui_layer(None);
+            }
             let mut grid = self.grid_params;
-            if self.paused {
+            if self.paused || save_ui {
                 grid.strength = 0.;
                 grid.scale_mode = 1;
             }
             match p.present(&self.rgba, frame_dims, phys, &grid, self.view) {
-                Ok(()) => {self.presenter=Some(p);return;},
+                Ok(()) => {
+                    self.presenter = Some(p);
+                    self.ui_timing.presented(ui_presented);
+                    return;
+                }
                 Err(e) => {
                     eprintln!("video: GPU presenter failed ({e}); CPU scaling active");
                     self.presenter = None;
@@ -830,17 +1469,24 @@ impl PlayApp {
         if self.presenter.is_none() && self.sb_surface.is_none() {
             eprintln!("video: software presenter active; CPU scaling will be used");
         }
-        self.present_software(&window, phys);
+        self.present_software(&window, phys, save_ui);
+        self.ui_timing.presented(ui_presented);
     }
 
     /// Software fallback (no GPU / presenter lost): nearest-neighbor, aspect-
     /// correct letterbox of the visible crop into the window via softbuffer,
     /// matching the GPU presenter's centering. Lazily creates the surface.
-    fn present_software(&mut self, window: &Arc<Window>, (w, h): (u32, u32)) {
-        let ui_layouts=std::array::from_fn::<_,2,_>(|i|if self.paused {None}else{self.ui_layout((w,h),i)});
+    fn present_software(&mut self, window: &Arc<Window>, (w, h): (u32, u32), save_ui: bool) {
+        let ui_layouts = std::array::from_fn::<_, { gba_core::ffta_ui::LAYERS }, _>(|i| {
+            if self.paused || save_ui {
+                None
+            } else {
+                self.ui_render_layout((w, h), i)
+            }
+        });
         // Zoom crop, computed before `surf` borrows `self` mutably.
         let [vx0, vy0, vw, vh] = self.view;
-        let (stride, frame_h) = if self.paused {
+        let (stride, frame_h) = if self.paused || save_ui {
             self.menu_dimensions()
         } else {
             (wide_w(), wide_h())
@@ -863,6 +1509,7 @@ impl PlayApp {
                 }
             }
         }
+        let ui_world_rect = self.ui_world_rect((w, h));
         let Some(surf) = self.sb_surface.as_mut() else {
             return;
         };
@@ -912,19 +1559,70 @@ impl PlayApp {
                 *pixel = (s[0] as u32) << 16 | (s[1] as u32) << 8 | s[2] as u32;
             }
         }
-        for (i,layout) in ui_layouts.into_iter().enumerate() {if let Some(layout)=layout {
-            let ui=screen::ui_layer::Frame {pixels:if i==0 {&self.ui_pixels}else{&self.panel_pixels},raw_world:if i==1 && self.machine.bus.ffta_dialogue.extra.kind==gba_core::ffta_dialogue::PanelKind::Stats {&self.machine.bus.ffta_dialogue.extra.background}else{&self.machine.bus.wide_framebuffer},
-                world_dims:(wide_w() as u32,wide_h() as u32),lut:self.lut.table.as_slice(),layout,world_view:self.view};
-            let x0=layout.rect[0].max(layout.clip[0]).max(0.) as usize;
-            let y0=layout.rect[1].max(layout.clip[1]).max(0.) as usize;
-            let x1=(layout.rect[0]+layout.rect[2]).min(w as f32).max(0.) as usize;
-            let y1=(layout.rect[1]+layout.rect[3]).min(h as f32).max(0.) as usize;
-            for y in y0..y1 {for x in x0..x1 {
-                if let Some(c)=ui.sample(x as f32+0.5,y as f32+0.5) {
-                    buffer[y*w as usize+x]=(c[0] as u32)<<16|(c[1] as u32)<<8|c[2] as u32;
+        for (i, layout) in ui_layouts.into_iter().enumerate() {
+            if let Some(layout) = layout {
+                let ui = screen::ui_layer::Frame {
+                    pixels: self.ui_motion.panels[i].pixels(),
+                    raw_world: if i == 1
+                        && self.machine.bus.ffta_dialogue.extra.kind
+                            == gba_core::ffta_dialogue::PanelKind::Stats
+                    {
+                        &self.machine.bus.ffta_dialogue.extra.background
+                    } else {
+                        &self.machine.bus.wide_framebuffer
+                    },
+                    world_dims: (wide_w() as u32, wide_h() as u32),
+                    lut: self.lut.table.as_slice(),
+                    layout,
+                    world_view: self.view,
+                    world_rect: ui_world_rect,
+                };
+                let x0 = layout.rect[0].max(layout.clip[0]).max(0.) as usize;
+                let y0 = layout.rect[1].max(layout.clip[1]).max(0.) as usize;
+                let x1 = (layout.rect[0] + layout.rect[2]).min(w as f32).max(0.) as usize;
+                let y1 = (layout.rect[1] + layout.rect[3]).min(h as f32).max(0.) as usize;
+                for y in y0..y1 {
+                    for x in x0..x1 {
+                        if let Some(c) = ui.sample(x as f32 + 0.5, y as f32 + 0.5) {
+                            buffer[y * w as usize + x] =
+                                (c[0] as u32) << 16 | (c[1] as u32) << 8 | c[2] as u32;
+                        }
+                    }
                 }
-            }}
+            }
         }
+        if !self.paused && !save_ui {
+            for i in 0..4 {
+                let base = screen::ui_layer::Layout::centered(
+                    (w, h),
+                    (240 + 2 * self.base_extra) as f32,
+                    1.,
+                );
+                let Some(layout) = self.battle_hud_motion.layout(i, base) else {
+                    continue;
+                };
+                let ui = screen::ui_layer::Frame {
+                    pixels: self.battle_hud_motion.pixels(i),
+                    raw_world: &self.machine.bus.wide_framebuffer,
+                    world_dims: (wide_w() as u32, wide_h() as u32),
+                    lut: self.lut.table.as_slice(),
+                    layout,
+                    world_view: self.view,
+                    world_rect: ui_world_rect,
+                };
+                let x0 = layout.clip[0].max(0.) as usize;
+                let y0 = layout.clip[1].max(0.) as usize;
+                let x1 = (layout.clip[0] + layout.clip[2]).min(w as f32).max(0.) as usize;
+                let y1 = (layout.clip[1] + layout.clip[3]).min(h as f32).max(0.) as usize;
+                for y in y0..y1 {
+                    for x in x0..x1 {
+                        if let Some(c) = ui.sample(x as f32 + 0.5, y as f32 + 0.5) {
+                            buffer[y * w as usize + x] =
+                                (c[0] as u32) << 16 | (c[1] as u32) << 8 | c[2] as u32;
+                        }
+                    }
+                }
+            }
         }
         let _ = buffer.present();
     }
@@ -952,7 +1650,7 @@ impl PlayApp {
             right: self.held.contains(&KeyCode::ArrowRight),
             confirm: self.held.contains(&KeyCode::Enter),
             cancel: self.held.contains(&KeyCode::Escape),
-            open: self.held.contains(&KeyCode::Escape),
+            open: winit_key(&self.icfg.menu_key).is_some_and(|k| self.held.contains(&k)),
         };
         let capture_pad = matches!(
             self.menu.capturing(),
@@ -961,6 +1659,7 @@ impl PlayApp {
                     | menu::Bind::GamepadZoomIn
                     | menu::Bind::GamepadZoomOut
                     | menu::Bind::GamepadFastForward
+                    | menu::Bind::GamepadMenu
                     | menu::Bind::GamepadFastForwardToggle
             )
         );
@@ -972,6 +1671,7 @@ impl PlayApp {
         #[cfg(not(windows))]
         let native_xinput = false;
         let mut gilrs_activity = false;
+        let mut pointer_pad_activity = false;
         let mut gilrs_active_name = None;
         let mut gilrs_active_layout = None;
 
@@ -990,74 +1690,76 @@ impl PlayApp {
                     }
                     #[cfg(not(target_os = "linux"))]
                     {
-                    let gesture = self.gilrs_gestures.entry(event.id).or_default();
-                    gesture.arm_capture(capture_pad && !self.directinput_only);
-                    for (token, pressed) in gilrs_control_transitions(event.event) {
-                        if let Some(captured) = gesture.event(&token, pressed) {
-                            if self.pending_pad.is_none() {
-                                self.pending_pad = Some(captured);
+                        let gesture = self.gilrs_gestures.entry(event.id).or_default();
+                        gesture.arm_capture(capture_pad && !self.directinput_only);
+                        for (token, pressed) in gilrs_control_transitions(event.event) {
+                            if let Some(captured) = gesture.event(&token, pressed) {
+                                if self.pending_pad.is_none() {
+                                    self.pending_pad = Some(captured);
+                                }
                             }
                         }
-                    }
-                    if matches!(event.event, gilrs::EventType::Disconnected) {
-                        self.gilrs_gestures.remove(&event.id);
-                    }
-                    match event.event {
-                        gilrs::EventType::Disconnected => {
-                            if self.active_controller == Some(ActiveController::Gilrs(event.id)) {
-                                self.active_controller = None;
-                            }
+                        if matches!(event.event, gilrs::EventType::Disconnected) {
+                            self.gilrs_gestures.remove(&event.id);
                         }
-                        gilrs::EventType::ButtonPressed(button, _)
-                        | gilrs::EventType::ButtonRepeated(button, _)
-                            if button != gilrs::Button::Unknown =>
-                        {
-                            self.active_controller = Some(ActiveController::Gilrs(event.id));
-                            gilrs_activity = true;
-                            let gamepad = g.gamepad(event.id);
-                            if gamepad.is_connected() {
-                                gilrs_active_name = Some(gamepad.name().to_owned());
-                                gilrs_active_layout =
-                                    Some(input_config::GamepadLayout::detect_with_vendor(
-                                        gamepad.name(),
-                                        gamepad.vendor_id(),
-                                    ));
+                        match event.event {
+                            gilrs::EventType::Disconnected => {
+                                if self.active_controller == Some(ActiveController::Gilrs(event.id))
+                                {
+                                    self.active_controller = None;
+                                }
                             }
-                        }
-                        gilrs::EventType::ButtonReleased(button, _)
-                            if button != gilrs::Button::Unknown => {}
-                        gilrs::EventType::ButtonChanged(button, value, _)
-                            if button != gilrs::Button::Unknown && value >= activity_threshold =>
-                        {
-                            self.active_controller = Some(ActiveController::Gilrs(event.id));
-                            gilrs_activity = true;
-                            let gamepad = g.gamepad(event.id);
-                            if gamepad.is_connected() {
-                                gilrs_active_name = Some(gamepad.name().to_owned());
-                                gilrs_active_layout =
-                                    Some(input_config::GamepadLayout::detect_with_vendor(
-                                        gamepad.name(),
-                                        gamepad.vendor_id(),
-                                    ));
+                            gilrs::EventType::ButtonPressed(button, _)
+                            | gilrs::EventType::ButtonRepeated(button, _)
+                                if button != gilrs::Button::Unknown =>
+                            {
+                                self.active_controller = Some(ActiveController::Gilrs(event.id));
+                                gilrs_activity = true;
+                                let gamepad = g.gamepad(event.id);
+                                if gamepad.is_connected() {
+                                    gilrs_active_name = Some(gamepad.name().to_owned());
+                                    gilrs_active_layout =
+                                        Some(input_config::GamepadLayout::detect_with_vendor(
+                                            gamepad.name(),
+                                            gamepad.vendor_id(),
+                                        ));
+                                }
                             }
-                        }
-                        gilrs::EventType::AxisChanged(_, value, _)
-                            if value.abs() >= activity_threshold =>
-                        {
-                            self.active_controller = Some(ActiveController::Gilrs(event.id));
-                            gilrs_activity = true;
-                            let gamepad = g.gamepad(event.id);
-                            if gamepad.is_connected() {
-                                gilrs_active_name = Some(gamepad.name().to_owned());
-                                gilrs_active_layout =
-                                    Some(input_config::GamepadLayout::detect_with_vendor(
-                                        gamepad.name(),
-                                        gamepad.vendor_id(),
-                                    ));
+                            gilrs::EventType::ButtonReleased(button, _)
+                                if button != gilrs::Button::Unknown => {}
+                            gilrs::EventType::ButtonChanged(button, value, _)
+                                if button != gilrs::Button::Unknown
+                                    && value >= activity_threshold =>
+                            {
+                                self.active_controller = Some(ActiveController::Gilrs(event.id));
+                                gilrs_activity = true;
+                                let gamepad = g.gamepad(event.id);
+                                if gamepad.is_connected() {
+                                    gilrs_active_name = Some(gamepad.name().to_owned());
+                                    gilrs_active_layout =
+                                        Some(input_config::GamepadLayout::detect_with_vendor(
+                                            gamepad.name(),
+                                            gamepad.vendor_id(),
+                                        ));
+                                }
                             }
+                            gilrs::EventType::AxisChanged(_, value, _)
+                                if value.abs() >= activity_threshold =>
+                            {
+                                self.active_controller = Some(ActiveController::Gilrs(event.id));
+                                gilrs_activity = true;
+                                let gamepad = g.gamepad(event.id);
+                                if gamepad.is_connected() {
+                                    gilrs_active_name = Some(gamepad.name().to_owned());
+                                    gilrs_active_layout =
+                                        Some(input_config::GamepadLayout::detect_with_vendor(
+                                            gamepad.name(),
+                                            gamepad.vendor_id(),
+                                        ));
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => {}
-                    }
                     }
                 }
                 #[cfg(target_os = "linux")]
@@ -1066,20 +1768,24 @@ impl PlayApp {
                     // single complete snapshot, never Pressed/Changed/Repeated
                     // variants independently for the same physical press.
                     let now = std::time::Instant::now();
-                    let connected: Vec<_> = g.gamepads().map(|(id,_)|id).collect();
-                    self.linux_pads.retain(|id,_|connected.contains(id));
+                    let connected: Vec<_> = g.gamepads().map(|(id, _)| id).collect();
+                    self.linux_pads.retain(|id, _| connected.contains(id));
                     for (id, gamepad) in g.gamepads() {
-                        let pad=self.linux_pads.entry(id).or_default();
-                        let snapshot=crate::linux_pad::Snapshot::read(&gamepad,self.icfg.stick_deadzone,pad.state);
-                        let update=pad.poll(snapshot,capture_pad,now);
+                        let pad = self.linux_pads.entry(id).or_default();
+                        let snapshot = crate::linux_pad::Snapshot::read(
+                            &gamepad,
+                            self.icfg.stick_deadzone,
+                            pad.state,
+                        );
+                        let update = pad.poll(snapshot, capture_pad, now);
                         if self.pending_pad.is_none() {
-                            self.pending_pad=update.capture.map(str::to_owned);
+                            self.pending_pad = update.capture.map(str::to_owned);
                         }
                         if update.activity {
-                            self.active_controller=Some(ActiveController::Gilrs(id));
-                            gilrs_activity=true;
-                            gilrs_active_name=Some(gamepad.name().to_owned());
-                            gilrs_active_layout=Some(input_config::GamepadLayout::Xbox);
+                            self.active_controller = Some(ActiveController::Gilrs(id));
+                            gilrs_activity = true;
+                            gilrs_active_name = Some(gamepad.name().to_owned());
+                            gilrs_active_layout = Some(input_config::GamepadLayout::Xbox);
                         }
                     }
                 }
@@ -1122,6 +1828,7 @@ impl PlayApp {
             let new_activity =
                 self.last_direct_activity.as_ref() != Some(&(name.clone(), tokens.clone()));
             if !gilrs_activity && new_activity {
+                pointer_pad_activity = true;
                 self.active_controller = Some(ActiveController::DirectInput);
                 let layout = input_config::GamepadLayout::detect(name);
                 if self.icfg.gamepad_name != *name
@@ -1201,6 +1908,7 @@ impl PlayApp {
                         .filter(|&n| n < 4 && current[n].is_some())
                 })
                 .or_else(|| current.iter().position(Option::is_some));
+            pointer_pad_activity |= activity_slot.is_some();
             if let Some(slot) = activity_slot.or(active_slot) {
                 let name = format!("XInput Controller {}", slot + 1);
                 if self.icfg.gamepad_name != name
@@ -1290,7 +1998,8 @@ impl PlayApp {
                         nav.right |= pressed("DPadRight") || state.gamepad.left_x > dz_axis;
                         nav.confirm |= pressed("South");
                         nav.cancel |= pressed("East");
-                        nav.open |= pressed("Mode") || (pressed("Start") && pressed("Select"));
+                        nav.open |=
+                            pressed(&self.icfg.menu_pad) || (pressed("Start") && pressed("Select"));
                     }
                 }
             }
@@ -1317,14 +2026,21 @@ impl PlayApp {
                     .get(&id)
                     .is_some_and(input_config::PadGesture::blocked);
                 #[cfg(target_os = "linux")]
-                let pad_blocked=self.linux_pads.get(&id).is_some_and(crate::linux_pad::Pad::blocked);
+                let pad_blocked = self
+                    .linux_pads
+                    .get(&id)
+                    .is_some_and(crate::linux_pad::Pad::blocked);
                 #[cfg(not(target_os = "linux"))]
                 let dz = self.icfg.stick_deadzone;
                 if !pad_blocked {
                     #[cfg(not(target_os = "linux"))]
-                    let pressed=|name:&str|pad_pressed(&gp,name,dz);
+                    let pressed = |name: &str| pad_pressed(&gp, name, dz);
                     #[cfg(target_os = "linux")]
-                    let pressed=|name:&str|self.linux_pads.get(&id).is_some_and(|pad|pad.state.pressed(name));
+                    let pressed = |name: &str| {
+                        self.linux_pads
+                            .get(&id)
+                            .is_some_and(|pad| pad.state.pressed(name))
+                    };
                     pad_zoom_in = pressed(&self.icfg.zoom_in_pad);
                     pad_zoom_out = pressed(&self.icfg.zoom_out_pad);
                     pad_ff_held = pressed(&self.icfg.ff_pad);
@@ -1341,35 +2057,47 @@ impl PlayApp {
                     if src.uses_left_stick() || src.uses_right_stick() {
                         #[cfg(target_os = "linux")]
                         {
-                            let directions=if src.uses_right_stick(){
-                                [("RightStickRight",4),("RightStickLeft",5),("RightStickUp",6),("RightStickDown",7)]
-                            }else{
-                                [("LeftStickRight",4),("LeftStickLeft",5),("LeftStickUp",6),("LeftStickDown",7)]
+                            let directions = if src.uses_right_stick() {
+                                [
+                                    ("RightStickRight", 4),
+                                    ("RightStickLeft", 5),
+                                    ("RightStickUp", 6),
+                                    ("RightStickDown", 7),
+                                ]
+                            } else {
+                                [
+                                    ("LeftStickRight", 4),
+                                    ("LeftStickLeft", 5),
+                                    ("LeftStickUp", 6),
+                                    ("LeftStickDown", 7),
+                                ]
                             };
-                            for (token,bit) in directions {
-                                if pressed(token){keys &= !(1<<bit);}
+                            for (token, bit) in directions {
+                                if pressed(token) {
+                                    keys &= !(1 << bit);
+                                }
                             }
                         }
                         #[cfg(not(target_os = "linux"))]
                         {
-                        let (ax, ay) = if src.uses_right_stick() {
-                            (gilrs::Axis::RightStickX, gilrs::Axis::RightStickY)
-                        } else {
-                            (gilrs::Axis::LeftStickX, gilrs::Axis::LeftStickY)
-                        };
-                        let (x, y) = (gp.value(ax), gp.value(ay));
-                        if x > dz {
-                            keys &= !(1 << 4);
-                        } // Right
-                        if x < -dz {
-                            keys &= !(1 << 5);
-                        } // Left
-                        if y > dz {
-                            keys &= !(1 << 6);
-                        } // Up
-                        if y < -dz {
-                            keys &= !(1 << 7);
-                        } // Down
+                            let (ax, ay) = if src.uses_right_stick() {
+                                (gilrs::Axis::RightStickX, gilrs::Axis::RightStickY)
+                            } else {
+                                (gilrs::Axis::LeftStickX, gilrs::Axis::LeftStickY)
+                            };
+                            let (x, y) = (gp.value(ax), gp.value(ay));
+                            if x > dz {
+                                keys &= !(1 << 4);
+                            } // Right
+                            if x < -dz {
+                                keys &= !(1 << 5);
+                            } // Left
+                            if y > dz {
+                                keys &= !(1 << 6);
+                            } // Up
+                            if y < -dz {
+                                keys &= !(1 << 7);
+                            } // Down
                         }
                     }
                     // Menu nav from the pad: d-pad and sticks move the cursor;
@@ -1386,16 +2114,25 @@ impl PlayApp {
                         right: gp.is_pressed(Gb::DPadRight) || gp.value(Axis::LeftStickX) > dz,
                         confirm: gp.is_pressed(Gb::South),
                         cancel: gp.is_pressed(Gb::East),
-                        open: gp.is_pressed(Gb::Mode),
+                        open: super::gilrs_button(&self.icfg.menu_pad)
+                            .is_some_and(|b| gp.is_pressed(b)),
                     };
                     #[cfg(target_os = "linux")]
-                    let pad_nav=NavEdges {
-                        up:pressed("DPadUp")||pressed("LeftStickUp"),
-                        down:pressed("DPadDown")||pressed("LeftStickDown"),
-                        left:pressed("DPadLeft")||pressed("LeftStickLeft"),
-                        right:pressed("DPadRight")||pressed("LeftStickRight"),
-                        confirm:pressed("South"),cancel:pressed("East"),
-                        open:pressed("Mode")||(pressed("Start")&&pressed("Select")),
+                    let pad_nav = NavEdges {
+                        up: pressed("DPadUp") || pressed("LeftStickUp"),
+                        down: pressed("DPadDown") || pressed("LeftStickDown"),
+                        left: pressed("DPadLeft") || pressed("LeftStickLeft"),
+                        right: pressed("DPadRight") || pressed("LeftStickRight"),
+                        confirm: pressed("South"),
+                        cancel: pressed("East"),
+                        // The Steam Deck package adds Y (Gilrs North); the
+                        // standard Linux binary keeps its existing shortcuts.
+                        open: linux_menu_shortcut(
+                            pressed(&self.icfg.menu_pad),
+                            pressed("Start"),
+                            pressed("Select"),
+                            pressed("North"),
+                        ),
                     };
                     nav.up |= pad_nav.up;
                     nav.down |= pad_nav.down;
@@ -1445,7 +2182,7 @@ impl PlayApp {
                         right: gp.pressed("DPadRight", dz) || gp.axes[0] > dz,
                         confirm: gp.pressed("South", dz),
                         cancel: gp.pressed("East", dz),
-                        open: gp.pressed("Mode", dz),
+                        open: gp.pressed(&self.icfg.menu_pad, dz),
                     };
                     nav.up |= pad_nav.up;
                     nav.down |= pad_nav.down;
@@ -1456,6 +2193,9 @@ impl PlayApp {
                     nav.open |= pad_nav.open;
                 }
             }
+        }
+        if gilrs_activity || pointer_pad_activity {
+            gba_core::ffta_battle_mouse::set_mouse_visual(&mut self.machine.bus, false);
         }
         if capture_pad {
             // Remapping is an exclusive input mode. Do not let the physical
@@ -1472,11 +2212,16 @@ impl PlayApp {
         if !self.paused && pad_zoom_in && !self.pad_zoom_prev.0 {
             self.zoom_by(-1);
         }
-        if !self.paused && pad_zoom_out && !self.pad_zoom_prev.1 {
+        if !self.paused && pad_zoom_out && !self.pad_zoom_prev.1
+        {
             self.zoom_by(1);
         }
         self.pad_zoom_prev = (pad_zoom_in, pad_zoom_out);
-        if !self.paused && pad_ff_toggle && !self.pad_ff_toggle_prev {
+        if !self.paused
+
+            && pad_ff_toggle
+            && !self.pad_ff_toggle_prev
+        {
             self.ff_latched = !self.ff_latched;
         }
         self.pad_ff_toggle_prev = pad_ff_toggle;
@@ -1500,7 +2245,8 @@ impl PlayApp {
 
     /// Change fast-forward activation or audio speed. Flush stale audio on
     /// transitions and re-prime when returning to normal play.
-    fn set_fast_forward(&mut self, on: bool, speed: u32) {
+    fn set_fast_forward(&mut self, on: bool, speed: f32) {
+        self.ff_budget.reset();
         self.ff_active = on;
         self.ff_audio_active = self.av.ff_audio.clone();
         {
@@ -1542,20 +2288,41 @@ impl PlayApp {
     /// vs fallback dispatch, advances the screen's temporal response, surfaces
     /// the realtime / audio-defect alarms, and flushes backup media.
     fn run_one_frame(&mut self) {
+        let ui_started = self.ui_timing.start();
+        if self.autosave.pending_load {
+            self.load_auto_state();
+        }
+        self.autosave.route_entry(&mut self.machine);
         // Apply a pending zoom change before the frame is emulated, so the
         // core renders (and we read back) the size the zoom needs.
         self.sync_view();
-        let keys=self.game_mouse.keys(&mut self.machine.bus,self.game_keys);
-        let keys=gba_core::ffta_battle_mouse::keys(&mut self.machine.bus,keys);
-        self.machine.bus.keys=keys;
-        if let Some(index)=self.machine.bus.ffta_battle_mouse.take_event(){if let Some((file,_))=&mut self.record{use std::io::Write;let _=writeln!(file,"{} mouse:{index}",self.machine.bus.frames);}}
-        if let Some(index)=self.game_mouse.take_selection_event() {if let Some((file,_))=&mut self.record {
-            use std::io::Write;let _=writeln!(file,"{} mouse:{index}",self.machine.bus.frames);
-        }}
-        if let Some((file,last))=&mut self.record {if keys!=*last {
-            use std::io::Write;let _=writeln!(file,"{} {keys:03x}",self.machine.bus.frames);*last=keys;
-        }}
+        gba_core::ffta_roster_mouse::publish_party_click(&mut self.machine);
+        self.autosave
+            .capture_before_menu(&self.machine, self.game_keys);
+        let keys = self.game_mouse.keys(&mut self.machine.bus, self.game_keys);
+        let keys = gba_core::ffta_battle_mouse::keys(&mut self.machine.bus, keys);
+        self.machine.bus.keys = keys;
+        if let Some(index) = self.machine.bus.ffta_battle_mouse.take_event() {
+            if let Some((file, _)) = &mut self.record {
+                use std::io::Write;
+                let _ = writeln!(file, "{} mouse:{index}", self.machine.bus.frames);
+            }
+        }
+        if let Some(index) = self.game_mouse.take_selection_event() {
+            if let Some((file, _)) = &mut self.record {
+                use std::io::Write;
+                let _ = writeln!(file, "{} mouse:{index}", self.machine.bus.frames);
+            }
+        }
+        if let Some((file, last)) = &mut self.record {
+            if keys != *last {
+                use std::io::Write;
+                let _ = writeln!(file, "{} {keys:03x}", self.machine.bus.frames);
+                *last = keys;
+            }
+        }
         let emu_t0 = Instant::now();
+        gba_core::ffta_debug::tick(&mut self.machine.bus);
         match &self.native {
             Some((_lib, table)) => {
                 let mptr = &mut self.machine as *mut Machine as *mut std::ffi::c_void;
@@ -1565,28 +2332,249 @@ impl PlayApp {
             }
             None => self.machine.run_frame(5_000_000),
         }
+        self.autosave.route_entry(&mut self.machine);
+        let ui_emulated = self.ui_timing.start();
+        gba_core::ffta_battle_hud::capture_layers(&self.machine.bus, &mut self.battle_hud_pixels);
+        self.battle_hud_motion
+            .sync(&self.machine.bus, &self.battle_hud_pixels);
         gba_core::ffta_sprites::trace_frame(&self.machine.bus);
-        if let Some((pixels,_))=self.machine.bus.ffta_dialogue.layer() {
-            self.ui_pixels.resize(pixels.len(),[0;4]);
-            let state=&self.machine.bus.ffta_dialogue;
+        if let Some((pixels, _)) = self.machine.bus.ffta_dialogue.layer() {
+            self.ui_pixels.resize(pixels.len(), [0; 4]);
+            let state = &self.machine.bus.ffta_dialogue;
             if state.action_layout {
-                gba_core::ffta_dialogue::pack_panel(pixels,&state.backing,state.style.length,false,&mut self.ui_pixels);
+                self.ui_pack_cache[0].update_with_bounds(
+                    pixels,
+                    &state.backing,
+                    if state.action_banner.is_some() {
+                        1.
+                    } else {
+                        state.style.length
+                    },
+                    false,
+                    Some([0, 48, 160, 160]),
+                    &mut self.ui_pixels,
+                );
             } else if state.town_layout || state.shop_layout {
-                gba_core::ffta_dialogue::pack_panel(pixels,&[],1.,true,&mut self.ui_pixels);
-            } else {for (out,pixel) in self.ui_pixels.iter_mut().zip(pixels) {*out=pixel.packed();}}
-        } else {self.ui_pixels.clear();}
-        let extra=&self.machine.bus.ffta_dialogue.extra;
+                self.ui_pack_cache[0].update(pixels, &[], 1., true, &mut self.ui_pixels);
+            } else {
+                self.ui_pack_cache[0].update(pixels, &[], 1., true, &mut self.ui_pixels);
+            }
+        } else {
+            self.ui_pixels.clear();
+            self.ui_pack_cache[0].invalidate();
+        }
+        let extra = &self.machine.bus.ffta_dialogue.extra;
         if self.machine.bus.ffta_dialogue.separate && extra.active() {
-            self.panel_pixels.resize(extra.pixels.len(),[0;4]);
-            let b=gba_core::ffta_dialogue::panel_bounds(&extra.pixels,&extra.backing).unwrap_or([0;4]);
-            let state=&self.machine.bus.ffta_dialogue;
-            gba_core::ffta_dialogue::pack_panel(&extra.pixels,&extra.backing,if state.town_layout || extra.kind==gba_core::ffta_dialogue::PanelKind::Notice {1.}else{state.style.length},state.town_layout || b[0]+b[2]>=240,&mut self.panel_pixels);
-        } else {self.panel_pixels.clear();}
+            self.panel_pixels.resize(extra.pixels.len(), [0; 4]);
+            let b = self
+                .machine
+                .bus
+                .ffta_dialogue
+                .stats_target
+                .or(extra.bounds)
+                .or(self.ui_pack_cache[1].bounds)
+                .unwrap_or([0; 4]);
+            let state = &self.machine.bus.ffta_dialogue;
+            let geometry = gba_core::ffta_ui::Scene::capture(state).nodes[1]
+                .map(|n| n.bounds)
+                .or(state.stats_target.or(extra.bounds));
+            self.ui_pack_cache[1].update_with_bounds(
+                &extra.pixels,
+                &extra.backing,
+                if state.town_layout || extra.kind == gba_core::ffta_dialogue::PanelKind::Notice {
+                    1.
+                } else {
+                    state.style.length
+                },
+                state.town_layout || b[0] + b[2] >= 240,
+                geometry,
+                &mut self.panel_pixels,
+            );
+        } else {
+            self.panel_pixels.clear();
+            self.ui_pack_cache[1].invalidate();
+        }
+        self.ui_scene = gba_core::ffta_ui::Scene::capture_with_bounds(
+            &self.machine.bus.ffta_dialogue,
+            [self.ui_pack_cache[0].bounds, self.ui_pack_cache[1].bounds],
+        );
+        let mut auxiliary_used = [false; 2];
+        let target = &self.machine.bus.ffta_dialogue.battle_stats;
+        if target.active() {
+            if let Some(bounds) = self
+                .machine
+                .bus
+                .ffta_dialogue
+                .stats_target
+                .or(target.bounds)
+            {
+                let right = self.machine.bus.ffta_dialogue.stats_right;
+                self.ui_pack_cache[2].update_with_bounds(
+                    &target.pixels,
+                    &target.backing,
+                    self.machine.bus.ffta_dialogue.style.length,
+                    right,
+                    Some(bounds),
+                    &mut self.ui_auxiliary[0],
+                );
+                auxiliary_used[0] = true;
+                self.ui_scene.nodes[2] = Some(gba_core::ffta_ui::Node {
+                    slot: 2,
+                    role: gba_core::ffta_ui::Role::Stats,
+                    anchor: gba_core::ffta_ui::Anchor::Corner {
+                        right,
+                        bottom: true,
+                    },
+                    bounds,
+                    length: true,
+                });
+            }
+        }
+        if let Some(bounds) = self.machine.bus.ffta_dialogue.funds_bounds {
+            self.ui_pack_cache[2].update_with_bounds(
+                &self.machine.bus.ffta_dialogue.funds_pixels,
+                &[],
+                1.,
+                true,
+                Some(bounds),
+                &mut self.ui_auxiliary[0],
+            );
+            auxiliary_used[0] = true;
+            self.ui_scene.nodes[2] = Some(gba_core::ffta_ui::Node {
+                slot: 2,
+                role: gba_core::ffta_ui::Role::Funds,
+                anchor: gba_core::ffta_ui::Anchor::Edge {
+                    right: true,
+                    vertical: 160.,
+                },
+                bounds,
+                length: false,
+            });
+        }
+        let speech = &self.machine.bus.ffta_dialogue.service_speech;
+        if speech.active() {
+            if let Some(bounds) = speech.bounds {
+                self.ui_pack_cache[3].update_with_bounds(
+                    &speech.pixels,
+                    &[],
+                    1.,
+                    false,
+                    Some(bounds),
+                    &mut self.ui_auxiliary[1],
+                );
+                auxiliary_used[1] = true;
+                self.ui_scene.nodes[3] = Some(gba_core::ffta_ui::Node {
+                    slot: 3,
+                    role: gba_core::ffta_ui::Role::Dialogue,
+                    anchor: gba_core::ffta_ui::Anchor::Edge {
+                        right: self.machine.bus.ffta_dialogue.service_speech_right,
+                        vertical: if bounds[1] + bounds[3] >= 160 {
+                            160.
+                        } else {
+                            0.
+                        },
+                    },
+                    bounds,
+                    length: false,
+                });
+            }
+        }
+        if let Some(bounds) = self.machine.bus.ffta_dialogue.action_banner {
+            extract_ui_rectangle(&mut self.ui_pixels, &mut self.ui_auxiliary[1], bounds);
+            self.ui_pack_cache[3].invalidate();
+            auxiliary_used[1] = true;
+            self.ui_scene.nodes[3] = Some(gba_core::ffta_ui::Node {
+                slot: 3,
+                role: gba_core::ffta_ui::Role::AttackName,
+                anchor: gba_core::ffta_ui::Anchor::TopCenter,
+                bounds,
+                length: false,
+            });
+        }
+        for (i, used) in auxiliary_used.into_iter().enumerate() {
+            if !used {
+                self.ui_auxiliary[i].clear();
+                self.ui_pack_cache[i + 2].invalidate();
+            }
+        }
+        if self.machine.bus.ffta_dialogue.action_banner.is_some() {
+            self.ui_pack_cache[0].invalidate();
+        }
+        if self.pub_scrollbar_slot() == 1 && self.ui_scene.nodes[1].is_some() {
+            if let Some(bar) = self.pub_scrollbar() {
+                bar.paint_over(&mut self.panel_pixels);
+                self.ui_pack_cache[1].invalidate();
+            }
+        } else if self.ui_scene.nodes[1].is_none() {
+            if let Some(bar) = self.pub_scrollbar() {
+                bar.paint(&mut self.panel_pixels);
+                let mut node = self.ui_scene.nodes[0].unwrap();
+                node.slot = 1;
+                self.ui_scene.nodes[1] = Some(node);
+            }
+        }
+        self.ui_motion.sync(
+            &self.machine.bus,
+            self.ui_scene.nodes,
+            [
+                &self.ui_pixels,
+                &self.panel_pixels,
+                &self.ui_auxiliary[0],
+                &self.ui_auxiliary[1],
+            ],
+        );
+        self.ui_inspector.observe(&self.machine.bus, &self.ui_scene);
+        visual_trace::capture(
+            &self.machine.bus,
+            &self.ui_scene,
+            self.mouse_pos,
+            self.view,
+            false,
+        );
+        self.ui_timing.prepared(
+            ui_started,
+            ui_emulated,
+            self.machine.bus.frames,
+            self.ui_scene.nodes.iter().flatten().count(),
+        );
         // Advance the screen's temporal response once per EMULATED frame —
         // never per presented frame, or flicker-transparency titles lock onto
         // one phase (the classic parity bug).
+        let bar = self.roster_scrollbar();
         let wf = display_frame(&self.machine.bus, &mut self.padded_frame);
-        self.temporal.push(wf, &self.lut);
+        let wf = if self.autosave.screen_active(&self.machine.bus) {
+            crate::autosave::paint(
+                &self.machine.bus,
+                wf,
+                &mut self.autosave_frame,
+                &self.autosave,
+            );
+            &self.autosave_frame[..]
+        } else {
+            wf
+        };
+
+        if let Some(bar) = bar {
+            let mut pixels = wf.to_vec();
+            for (rect, color) in [
+                (bar.track, 2u16 | (5 << 5) | (13 << 10)),
+                (bar.thumb, 10u16 | (24 << 5) | (31 << 10)),
+            ] {
+                for y in rect[1].max(0)..rect[3].min(160) {
+                    for x in rect[0].max(0)..rect[2].min(240) {
+                        let p = (y as usize + gba_core::mem::extra_y()) * wide_w()
+                            + x as usize
+                            + gba_core::mem::extra();
+                        if let Some(pixel) = pixels.get_mut(p) {
+                            *pixel = color;
+                        }
+                    }
+                }
+            }
+            self.temporal.push(&pixels, &self.lut);
+        } else {
+            self.temporal.push(wf, &self.lut);
+        }
 
         // Realtime alarm: the frame budget is 16.7 ms. If smoothed emulation
         // cost approaches it, the product promise is broken — say so once.
@@ -1649,17 +2637,12 @@ impl PlayApp {
             }
         }
 
-        // Flush backup media periodically when it changed, so an external
-        // teardown (launcher kills us) can't lose more than ~5 s of progress.
-        if self.frames_run % 300 == 0 {
-            if let Some(data) = self.machine.bus.save_data() {
-                let h = fnv64(data);
-                if self.sav_seen != Some(h) && write_sav(&self.sav_path, data).is_ok() {
-                    self.sav_seen = Some(h);
-                }
-            }
-        }
-
+        // New state saves own persistence; never recreate the archived .sav.
+        let auto_eligible = self.autosave.eligible(&self.machine.bus);
+        self.autosave.tick(
+            &self.machine,
+            auto_eligible && !self.paused && !self.machine.bus.skip_render,
+        );
         self.handoff_audio();
     }
 
@@ -1845,7 +2828,12 @@ impl ApplicationHandler for PlayApp {
             .with_title(self.title.clone())
             .with_window_icon(load_window_icon())
             .with_inner_size(LogicalSize::new(self.base_w() as f64 * 3.0, 160.0 * 3.0))
-            .with_resizable(true);
+            .with_resizable(true)
+            .with_fullscreen(if self.av.video_fullscreen {
+                Some(Fullscreen::Borderless(None))
+            } else {
+                None
+            });
         let window = match event_loop.create_window(attrs) {
             Ok(w) => Arc::new(w),
             Err(e) => {
@@ -1854,9 +2842,11 @@ impl ApplicationHandler for PlayApp {
                 return;
             }
         };
-        if let Ok(image)=image::load_from_memory(include_bytes!("../../../assets/cursor.png")) {
-            let image=image.into_rgba8();
-            if let Ok(source)=winit::window::CustomCursor::from_rgba(image.into_raw(),32,40,2,2) {
+        if let Ok(image) = image::load_from_memory(include_bytes!("../../../assets/cursor.png")) {
+            let image = image.into_rgba8();
+            if let Ok(source) =
+                winit::window::CustomCursor::from_rgba(image.into_raw(), 32, 40, 2, 2)
+            {
                 window.set_cursor(event_loop.create_custom_cursor(source));
             }
         }
@@ -1888,7 +2878,12 @@ impl ApplicationHandler for PlayApp {
             WindowEvent::CloseRequested => event_loop.exit(),
             // Lost focus: a key held during alt-tab might never deliver its
             // release, so drop the held set defensively (no stuck inputs).
-            WindowEvent::Focused(false) => {self.held.clear();self.game_keys=0x3ff;self.game_mouse.cancel();self.machine.bus.ffta_battle_mouse.cancel();},
+            WindowEvent::Focused(false) => {
+                self.held.clear();
+                self.game_keys = 0x3ff;
+                self.game_mouse.cancel();
+                self.machine.bus.ffta_battle_mouse.cancel();
+            }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
@@ -1899,67 +2894,147 @@ impl ApplicationHandler for PlayApp {
                         ..
                     },
                 ..
-            } => match state {
-                ElementState::Pressed => {
-                    if !self.paused && self.game_mouse.is_name_input(&self.machine.bus) {
-                        let consumed=match code {
-                            KeyCode::Backspace=>self.game_mouse.name_command(&self.machine.bus,false),
-                            KeyCode::Enter|KeyCode::NumpadEnter=>self.game_mouse.name_command(&self.machine.bus,true),
-                            _=>text.as_ref().is_some_and(|t|self.game_mouse.type_text(&self.machine.bus,t.as_str())),
-                        };
-                        if consumed {self.held.remove(&code);return;}
-                    }
-                    self.held.insert(code);
-                    if !self.paused && !repeat && winit_key(&self.icfg.ff_toggle_key) == Some(code)
-                    {
-                        self.ff_latched = !self.ff_latched;
-                    }
-                    if self.paused && !repeat {
-                        self.pending_key = Some(code);
-                    }
-                    // F11 toggles fullscreen (the OS's own fullscreen
-                    // affordance — macOS green button, Linux/Windows compositor
-                    // — also works under winit). Act on the initial press, not
-                    // auto-repeat.
-                    if code == KeyCode::F11 && !repeat {
-                        if let Some(w) = self.window.as_ref() {
-                            let next = if w.fullscreen().is_some() {
-                                None
-                            } else {
-                                Some(Fullscreen::Borderless(None))
+            } => {
+                match state {
+                    ElementState::Pressed => {
+                        if self
+                            .key_pairs
+                            .iter()
+                            .any(|(key, bit)| *key == code && bit & 0xf0 != 0)
+                        {
+                            gba_core::ffta_battle_mouse::set_mouse_visual(
+                                &mut self.machine.bus,
+                                false,
+                            );
+                        }
+                        // One toggle per physical press. This is presentation-only and never pauses.
+                        if code == KeyCode::F9
+                            && !repeat
+                            && std::env::var("FFTA_DEBUG").as_deref() == Ok("1")
+                        {
+                            visual_trace::toggle();
+                            return;
+                        }
+                        if code == KeyCode::F8 && std::env::var("FFTA_DEBUG").as_deref() == Ok("1")
+                        {
+                            if !repeat
+                                && self.held.insert(code)
+                                && gba_core::ffta_rom::version(&self.machine.bus.rom)
+                                    == Some(gba_core::ffta_rom::Version::Europe)
+                            {
+                                self.paused = true;
+
+                                self.game_mouse.cancel();
+                                self.machine.bus.ffta_battle_mouse.cancel();
+                                self.machine.bus.keys = 0x3ff;
+                                self.menu.open_debug();
+
+                                self.menu_dirty = true;
+                                self.mouse_queue.clear();
+                                self.pending_key = None;
+                                self.pending_pad = None;
+                                reset_audio_counters(&self.streams);
+                            }
+                            return;
+                        }
+
+                        if !self.paused && self.game_mouse.is_name_input(&self.machine.bus) {
+                            let consumed = match code {
+                                KeyCode::Backspace => {
+                                    self.game_mouse.name_command(&self.machine.bus, false)
+                                }
+                                KeyCode::Enter | KeyCode::NumpadEnter => {
+                                    self.game_mouse.name_command(&self.machine.bus, true)
+                                }
+                                _ => text.as_ref().is_some_and(|t| {
+                                    self.game_mouse.type_text(&self.machine.bus, t.as_str())
+                                }),
                             };
-                            w.set_fullscreen(next);
+                            if consumed {
+                                self.held.remove(&code);
+                                return;
+                            }
+                        }
+                        self.held.insert(code);
+                        if !self.paused
+                            && !repeat
+                            && winit_key(&self.icfg.ff_toggle_key) == Some(code)
+                        {
+                            self.ff_latched = !self.ff_latched;
+                        }
+                        if self.paused && !repeat {
+                            self.pending_key = Some(code);
+                        }
+                        // F11 toggles fullscreen (the OS's own fullscreen
+                        // affordance — macOS green button, Linux/Windows compositor
+                        // — also works under winit). Act on the initial press, not
+                        // auto-repeat.
+                        if code == KeyCode::F11 && !repeat && self.menu.capturing().is_none() {
+                            if let Some(w) = self.window.as_ref() {
+                                let next = if w.fullscreen().is_some() {
+                                    None
+                                } else {
+                                    Some(Fullscreen::Borderless(None))
+                                };
+                                self.av.video_fullscreen = next.is_some();
+                                w.set_fullscreen(next);
+                                if let Err(e) = self.av.save() {
+                                    eprintln!("menu: cannot save window mode ({e})");
+                                }
+                            }
+                        }
+                        if !self.paused {
+                            // Zoom is gameplay-only; prevent it changing behind menus.
+                            match code {
+                                _ if key_name(code).is_some_and(|n| n == self.icfg.zoom_in_key) => {
+                                    self.zoom_by(-1)
+                                }
+                                _ if key_name(code)
+                                    .is_some_and(|n| n == self.icfg.zoom_out_key) =>
+                                {
+                                    self.zoom_by(1)
+                                }
+                                KeyCode::Equal | KeyCode::NumpadAdd => self.zoom_by(-1),
+                                KeyCode::Minus | KeyCode::NumpadSubtract => self.zoom_by(1),
+                                _ => {}
+                            }
                         }
                     }
-                    if !self.paused {
-                        // Zoom is gameplay-only; prevent it changing behind menus.
-                        match code {
-                            _ if key_name(code).is_some_and(|n| n == self.icfg.zoom_in_key) => {
-                                self.zoom_by(-1)
-                            }
-                            _ if key_name(code).is_some_and(|n| n == self.icfg.zoom_out_key) => {
-                                self.zoom_by(1)
-                            }
-                            KeyCode::Equal | KeyCode::NumpadAdd => self.zoom_by(-1),
-                            KeyCode::Minus | KeyCode::NumpadSubtract => self.zoom_by(1),
-                            _ => {}
-                        }
+                    ElementState::Released => {
+                        self.held.remove(&code);
                     }
                 }
-                ElementState::Released => {
-                    self.held.remove(&code);
-                }
-            },
+            }
             WindowEvent::CursorMoved { position, .. } => {
+                if !self.paused && self.icfg.mouse_keyboard {
+                    gba_core::ffta_battle_mouse::set_mouse_visual(&mut self.machine.bus, true);
+                }
                 let p = (position.x, position.y);
                 self.mouse_pos = Some(p);
+
                 if self.paused {
                     self.mouse_queue.push(MouseEv::Move(p));
                 } else {
-                    self.game_mouse_aim(p,false);
+                    self.game_mouse_aim(p, false);
                 }
             }
-            WindowEvent::CursorLeft { .. } => {self.mouse_pos=None;self.game_mouse.cancel();self.machine.bus.ffta_battle_mouse.cancel();},
+            WindowEvent::CursorLeft { .. } => {
+                self.pub_scroll_drag = None;
+                self.mouse_pos = None;
+                self.game_mouse.cancel();
+                self.machine.bus.ffta_battle_mouse.cancel();
+            }
+            WindowEvent::MouseInput {
+                state: ElementState::Released,
+                button: MouseButton::Left,
+                ..
+            } => {
+                self.pub_scroll_drag = None;
+                if self.paused {
+                    self.mouse_queue.push(MouseEv::Release);
+                } else {
+                    }
+            }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
                 button,
@@ -1971,18 +3046,47 @@ impl ApplicationHandler for PlayApp {
                         MouseButton::Right => self.mouse_queue.push(MouseEv::Click(p, false)),
                         _ => {}
                     }
-                }else if button==MouseButton::Right {
+                } else if !self.icfg.mouse_keyboard {
+                    return;
+                } else if button == MouseButton::Right {
+                    gba_core::ffta_battle_mouse::set_mouse_visual(&mut self.machine.bus, true);
                     self.game_mouse.cancel();
                     gba_core::ffta_battle_mouse::back(&mut self.machine.bus);
-                }else if button==MouseButton::Left {
-                    let handled=self.mouse_pos.is_some_and(|p|self.game_mouse_aim(p,true));
-                    if !handled {
+                } else if button == MouseButton::Left {
+                    gba_core::ffta_battle_mouse::set_mouse_visual(&mut self.machine.bus, true);
+                    // Capture context BEFORE aiming: a miss cancels pending
+                    // selection but must never turn into a blind confirm.
+                    let menu_context = self.game_mouse.scene(&self.machine.bus).is_some()
+                        || gba_core::ffta_battle_mouse::MenuScene::read(&self.machine.bus)
+                            .is_some()
+                        || {
+                            let ui = &self.machine.bus.ffta_dialogue;
+                            !ui.service_speech.active()
+                                && (ui.service_layout
+                                    || ui.town_layout
+                                    || ui.shop_layout
+                                    || ui.site_layout
+                                    || ui.extra.kind == gba_core::ffta_dialogue::PanelKind::Notice)
+                        };
+                    let menu_context = menu_context
+                        || gba_core::ffta_roster_mouse::active(&self.machine.bus)
+                        || gba_core::ffta_battle_mouse::map_award_bounds(&self.machine.bus)
+                            .is_some();
+                    let handled = self.mouse_pos.is_some_and(|p| self.game_mouse_aim(p, true));
+                    if allow_background_confirm(
+                        handled,
+                        menu_context,
+                        self.mouse_pos
+                            .and_then(|p| self.window_to_frame(p))
+                            .is_some(),
+                    ) {
                         self.game_mouse.cancel();
-                        gba_core::ffta_battle_mouse::press(&mut self.machine.bus,0x3fe);
+                        gba_core::ffta_battle_mouse::press(&mut self.machine.bus, 0x3fe);
                     }
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
+
                 if self.paused {
                     let dy = match delta {
                         MouseScrollDelta::LineDelta(_, y) => y,
@@ -1994,8 +3098,23 @@ impl ApplicationHandler for PlayApp {
                         self.mouse_queue.push(MouseEv::Wheel(false));
                     }
                 } else {
-                    let dy=match delta {MouseScrollDelta::LineDelta(_,y)=>y,MouseScrollDelta::PixelDelta(p)=>(p.y/30.)as f32};
-                    if dy!=0. {gba_core::ffta_shop_mouse::scroll(&mut self.machine.bus,dy>0.);}
+                    let dy = match delta {
+                        MouseScrollDelta::LineDelta(_, y) => y,
+                        MouseScrollDelta::PixelDelta(p) => (p.y / 30.) as f32,
+                    };
+                    if !self.icfg.mouse_keyboard {
+                        return;
+                    }
+                    gba_core::ffta_battle_mouse::set_mouse_visual(&mut self.machine.bus, true);
+                    if dy != 0.
+                        && !gba_core::ffta_roster_mouse::scroll_by(&mut self.machine.bus, dy > 0.)
+                        && !gba_core::ffta_battle_mouse::pub_scroll_by(
+                            &mut self.machine.bus,
+                            dy > 0.,
+                        )
+                    {
+                        gba_core::ffta_shop_mouse::scroll(&mut self.machine.bus, dy > 0.);
+                    }
                 }
             }
             _ => {}
@@ -2015,7 +3134,10 @@ impl ApplicationHandler for PlayApp {
             .window
             .as_ref()
             .is_some_and(|w| w.fullscreen().is_some());
-        let want_cursor = self.paused || !fullscreen || self.machine.bus.ffta_battle_mouse.enabled || self.game_mouse.scene(&self.machine.bus).is_some();
+        let want_cursor = self.paused
+            || !fullscreen
+            || self.machine.bus.ffta_battle_mouse.enabled
+            || self.game_mouse.scene(&self.machine.bus).is_some();
         if want_cursor != self.cursor_visible {
             if let Some(w) = self.window.as_ref() {
                 w.set_cursor_visible(want_cursor);
@@ -2023,7 +3145,46 @@ impl ApplicationHandler for PlayApp {
             self.cursor_visible = want_cursor;
         }
 
-        let (mut keys, nav) = self.gather_input();
+        let (mut keys, mut nav) = self.gather_input();
+        let save_screen = !self.paused && self.autosave.screen_active(&self.machine.bus);
+        if save_screen && !crate::autosave::confirming_save(&self.machine.bus) {
+            nav.left |= keys & 0x20 == 0;
+            nav.right |= keys & 0x10 == 0;
+            nav.confirm |= keys & 1 == 0;
+            if !self.autosave.screen {
+                self.autosave.delete_confirm = None;
+                self.autosave.selected = 1;
+                self.autosave.carousel_start = 0;
+                self.autosave.message = None;
+            }
+            let delete_modal = self.autosave.delete_confirm.is_some();
+            if delete_modal {
+                if (nav.left && !self.nav_prev.left) || (nav.right && !self.nav_prev.right) {
+                    self.autosave.delete_accept = !self.autosave.delete_accept;
+                }
+                if nav.cancel && !self.nav_prev.cancel {
+                    let _ = self.autosave.finish_delete(false);
+                } else if nav.confirm && !self.nav_prev.confirm {
+                    let accept = self.autosave.delete_accept;
+                    let _ = self.autosave.finish_delete(accept);
+                }
+            } else {
+                if nav.left && !self.nav_prev.left {
+                    self.autosave
+                        .move_carousel(crate::autosave::is_saving(&self.machine.bus), false);
+                }
+                if nav.right && !self.nav_prev.right {
+                    self.autosave
+                        .move_carousel(crate::autosave::is_saving(&self.machine.bus), true);
+                }
+                if nav.confirm && !self.nav_prev.confirm {
+                    self.activate_save_card();
+                }
+            }
+            // The host owns all three cards; do not also navigate the two-slot guest menu.
+            keys |= if delete_modal { 0x03ff } else { 0x00f9 };
+        }
+        self.autosave.screen = save_screen;
 
         // Drop any button from the suppression mask once observed released
         // (active-low bit set → cleared from `!keys`), then force the buttons
@@ -2045,7 +3206,8 @@ impl ApplicationHandler for PlayApp {
             }
             self.paused = !self.paused;
             if self.paused {
-                self.game_mouse.cancel();self.machine.bus.ffta_battle_mouse.cancel();
+                self.game_mouse.cancel();
+                self.machine.bus.ffta_battle_mouse.cancel();
                 self.menu.reset();
                 self.menu_dirty = true;
                 // Drop stale pointer events from before the menu opened.
@@ -2086,8 +3248,8 @@ impl ApplicationHandler for PlayApp {
                         menu::Bind::Button(b) => {
                             let idx = b.index();
                             let old = self.icfg.active_keys()[idx].clone();
-                            if let Some(j) =
-                                (0..10).find(|&j| j != idx && self.icfg.active_keys_mut()[j] == name)
+                            if let Some(j) = (0..10)
+                                .find(|&j| j != idx && self.icfg.active_keys_mut()[j] == name)
                             {
                                 self.icfg.active_keys_mut()[j] = old;
                             } else if self.icfg.ff_key == name {
@@ -2099,7 +3261,9 @@ impl ApplicationHandler for PlayApp {
                         }
                         menu::Bind::FastForward => {
                             let old = self.icfg.ff_key.clone();
-                            if let Some(j) = (0..10).find(|&j| self.icfg.active_keys_mut()[j] == name) {
+                            if let Some(j) =
+                                (0..10).find(|&j| self.icfg.active_keys_mut()[j] == name)
+                            {
                                 self.icfg.active_keys_mut()[j] = old;
                             } else if self.icfg.ff_toggle_key == name {
                                 self.icfg.ff_toggle_key = old;
@@ -2108,7 +3272,9 @@ impl ApplicationHandler for PlayApp {
                         }
                         menu::Bind::FastForwardToggle => {
                             let old = self.icfg.ff_toggle_key.clone();
-                            if let Some(j) = (0..10).find(|&j| self.icfg.active_keys_mut()[j] == name) {
+                            if let Some(j) =
+                                (0..10).find(|&j| self.icfg.active_keys_mut()[j] == name)
+                            {
                                 self.icfg.active_keys_mut()[j] = old;
                             } else if self.icfg.ff_key == name {
                                 self.icfg.ff_key = old;
@@ -2117,9 +3283,11 @@ impl ApplicationHandler for PlayApp {
                         }
                         menu::Bind::ZoomIn => self.icfg.zoom_in_key = name.to_string(),
                         menu::Bind::ZoomOut => self.icfg.zoom_out_key = name.to_string(),
+                        menu::Bind::MenuKey => self.icfg.menu_key = name.to_string(),
                         menu::Bind::GamepadZoomIn
                         | menu::Bind::GamepadZoomOut
                         | menu::Bind::GamepadFastForward
+                        | menu::Bind::GamepadMenu
                         | menu::Bind::GamepadFastForwardToggle => {}
                         menu::Bind::Gamepad(_) => {}
                     }
@@ -2148,6 +3316,8 @@ impl ApplicationHandler for PlayApp {
                         self.icfg.pads[other] = old;
                     }
                     self.icfg.pads[index] = name;
+                } else if binding == menu::Bind::GamepadMenu {
+                    self.icfg.menu_pad = name;
                 } else if binding == menu::Bind::GamepadZoomIn {
                     self.icfg.zoom_in_pad = name;
                 } else if binding == menu::Bind::GamepadZoomOut {
@@ -2215,8 +3385,10 @@ impl ApplicationHandler for PlayApp {
                     continue;
                 }
                 match m {
+                    MouseEv::Release => {},
                     MouseEv::Move(p) => {
                         if let Some((x, y)) = self.window_to_frame(p) {
+
                             self.menu.hover(x, y, fw, fh);
                         }
                     }
@@ -2228,12 +3400,7 @@ impl ApplicationHandler for PlayApp {
                         }
                     }
                     MouseEv::Wheel(up) => {
-                        let ev = if up {
-                            menu::MenuInput::Up
-                        } else {
-                            menu::MenuInput::Down
-                        };
-                        if let Some(a) = self.menu.handle(ev, &mut self.av) {
+                        if let Some(a) = self.menu.scroll(up, &mut self.av) {
                             acts.push(a);
                         }
                     }
@@ -2241,18 +3408,37 @@ impl ApplicationHandler for PlayApp {
             }
             for action in acts {
                 match action {
+                    menu::MenuAction::DebugVictory => {
+                        let result = gba_core::ffta_debug::request_victory(&mut self.machine.bus);
+                        eprintln!(
+                            "FFTA_DEBUG_WIN frame={} result={result:?}",
+                            self.machine.bus.frames
+                        );
+                        match result {
+                            Ok(()) => self.paused = false,
+                            Err(error) => self.menu.debug_status(error),
+                        }
+                        self.menu_dirty = true;
+                    }
                     menu::MenuAction::Resume => self.paused = false,
                     menu::MenuAction::Quit => quit = true,
                     menu::MenuAction::SwitchRom => {
-                        if self.choose_rom() {quit=true;break;}
-                    },
+                        if self.choose_rom() {
+                            quit = true;
+                            break;
+                        }
+                    }
                     menu::MenuAction::InputDevice(device) => {
                         self.icfg.device = device;
                         if device != input_config::Device::Gamepad {
-                            self.icfg.mouse_keyboard = device == input_config::Device::MouseKeyboard;
-                            let enabled=self.icfg.mouse_keyboard;
+                            self.icfg.mouse_keyboard =
+                                device == input_config::Device::MouseKeyboard;
+                            let enabled = self.icfg.mouse_keyboard;
                             self.machine.bus.ffta_battle_mouse.set_enabled(enabled);
-                            self.game_mouse=gba_core::ffta_mouse::LanguageMouse::new(&self.machine.bus.rom,enabled);
+                            self.game_mouse = gba_core::ffta_mouse::LanguageMouse::new(
+                                &self.machine.bus.rom,
+                                enabled,
+                            );
                         }
                         self.rebuild_key_pairs();
                         if device == input_config::Device::Gamepad {
@@ -2272,6 +3458,7 @@ impl ApplicationHandler for PlayApp {
                     menu::MenuAction::ResetGamepad => {
                         let defaults = input_config::InputConfig::default();
                         self.icfg.pads = defaults.pads;
+                        self.icfg.menu_pad = defaults.menu_pad;
                         self.icfg.zoom_in_pad = defaults.zoom_in_pad;
                         self.icfg.ff_pad = defaults.ff_pad;
                         self.icfg.ff_toggle_pad = defaults.ff_toggle_pad;
@@ -2303,9 +3490,19 @@ impl ApplicationHandler for PlayApp {
                         );
                         // apply_av_change may rebuild the temporal state for
                         // a 160-row frame; make it match the zoomed size.
-                        self.rebuild_temporal();
-                        // apply_av_change rebuilds grid_params from scratch.
-                        self.grid_params.scale_mode = scale_mode_of(&self.av.scaling);
+                        if what == menu::Changed::Video {
+                            self.rebuild_temporal();
+                            self.grid_params.scale_mode = scale_mode_of(&self.av.scaling);
+                        }
+                        if what == menu::Changed::WindowMode {
+                            if let Some(w) = self.window.as_ref() {
+                                w.set_fullscreen(if self.av.video_fullscreen {
+                                    Some(Fullscreen::Borderless(None))
+                                } else {
+                                    None
+                                });
+                            }
+                        }
                         if let Err(e) = self.av.save() {
                             eprintln!("menu: could not save av.cfg ({e})");
                         }
@@ -2363,14 +3560,20 @@ impl ApplicationHandler for PlayApp {
                     };
                 }
             }
-            for i in 0..2 {if let Some(layout)=self.ui_layout((mw as u32,mh as u32),i) {
-                let mut canvas=std::mem::take(&mut self.pause_rgba);
-                let ui=self.ui_frame(layout,i);
-                for y in 0..mh {for x in 0..mw {
-                    if let Some(c)=ui.sample(x as f32+0.5,y as f32+0.5) {canvas[y*mw+x]=c;}
-                }}
-                self.pause_rgba=canvas;
-            }}
+            for i in 0..gba_core::ffta_ui::LAYERS {
+                if let Some(layout) = self.ui_layout((mw as u32, mh as u32), i) {
+                    let mut canvas = std::mem::take(&mut self.pause_rgba);
+                    let ui = self.ui_frame(layout, i);
+                    for y in 0..mh {
+                        for x in 0..mw {
+                            if let Some(c) = ui.sample(x as f32 + 0.5, y as f32 + 0.5) {
+                                canvas[y * mw + x] = c;
+                            }
+                        }
+                    }
+                    self.pause_rgba = canvas;
+                }
+            }
             self.menu
                 .draw_inputs(&self.av, &self.icfg, &mut self.pause_rgba, mw, mh);
             std::mem::swap(&mut self.rgba, &mut self.pause_rgba);
@@ -2385,7 +3588,7 @@ impl ApplicationHandler for PlayApp {
         }
         self.nav_prev = nav;
 
-        self.game_keys=keys;
+        self.game_keys = keys;
 
         // Audio-clock pacing: the device callback consumes at a fixed rate, so
         // run exactly as many frames as the ring needs — production follows
@@ -2397,7 +3600,7 @@ impl ApplicationHandler for PlayApp {
         let ff_held = self.pad_ff_held
             || winit_key(&self.icfg.ff_key).is_some_and(|k| self.held.contains(&k));
         let ff_speed = input_config::fast_forward_speed(self.av.ff_speed, self.ff_latched, ff_held);
-        let ff_now = ff_speed > 1;
+        let ff_now = ff_speed > 1.0;
         if ff_now != self.ff_active
             || ff_speed != self.ff_speed
             || self.av.ff_audio != self.ff_audio_active
@@ -2409,11 +3612,14 @@ impl ApplicationHandler for PlayApp {
         // those batches as video deadlines skips intermediate presentations.
         // Prime the audio normally, then present one frame per hardware tick.
         // Keep the original audio-driven path available for A/B comparison.
-        let clock_pacing = cfg!(any(target_os = "linux", windows))
-            && std::env::var("FFTA_FRAME_PACING").as_deref() != Ok("audio");
+        static CLOCK_PACING: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let clock_pacing = *CLOCK_PACING.get_or_init(|| {
+            cfg!(any(target_os = "linux", windows))
+                && std::env::var("FFTA_FRAME_PACING").as_deref() != Ok("audio")
+        });
         let smooth_normal = clock_pacing && self.primed && !self.ff_active;
         let frame_cap = if self.ff_active {
-            self.ff_speed
+            self.ff_budget.next(self.ff_speed)
         } else if smooth_normal {
             1
         } else {
@@ -2489,15 +3695,6 @@ impl ApplicationHandler for PlayApp {
         // failing (e.g. window creation never succeeded).
         if self.error.is_some() {
             return;
-        }
-        if let Some(data) = self.machine.bus.save_data() {
-            match write_sav(&self.sav_path, data) {
-                Ok(()) => eprintln!("saved {}", self.sav_path),
-                Err(e) => {
-                    self.error = Some(format!("{}: {e}", self.sav_path));
-                    return;
-                }
-            }
         }
         print_fallback_census();
         if FALLBACK_COLLECT.load(Ordering::Relaxed) {
@@ -2578,7 +3775,31 @@ pub fn cmd_play(args: &[String]) -> Result<(), String> {
             ));
         }
     }
-    let sav_path = crate::save_path::resolve(Path::new(&rom_path))?.to_string_lossy().into_owned();
+    let sav_path = crate::save_path::resolve(Path::new(&rom_path))?
+        .to_string_lossy()
+        .into_owned();
+    // Debug changes may later reach the game's normal save routine. Always
+    // isolate this session, including autosave and teardown, before loading it.
+    let sav_path = if std::env::var("FFTA_DEBUG").as_deref() == Ok("1") {
+        let original = std::path::Path::new(&sav_path);
+        let folder = original
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join("ffta-debug-saves");
+        std::fs::create_dir_all(&folder).map_err(|e| format!("debug save folder: {e}"))?;
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_nanos();
+        let copy = folder.join(format!("session-{}-{stamp}.sav", std::process::id()));
+        if original.is_file() {
+            std::fs::copy(original, &copy).map_err(|e| format!("debug save copy: {e}"))?;
+        }
+        eprintln!("FFTA_DEBUG_SAVE isolated={}", copy.display());
+        copy.to_string_lossy().into_owned()
+    } else {
+        sav_path
+    };
 
     // Product boot path: real BIOS when an image is installed (explicit --bios
     // > the launcher-installed image via the shared resolution), BIOS HLE
@@ -2669,7 +3890,9 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     };
 
     let mut machine = make_machine(rom, bios.as_deref());
-    if let Ok(sav) = std::fs::read(&sav_path) {
+    if let Ok(sav) =
+        std::fs::read(&sav_path).or_else(|_| std::fs::read(format!("{sav_path}.legacy-backup")))
+    {
         machine.bus.load_save_data(&sav);
         eprintln!("loaded {sav_path}");
     }
@@ -2719,6 +3942,8 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     let base_extra = widescreen_extra(&av).min(gba_core::mem::MAX_EXTRA);
     gba_core::mem::set_extra(base_extra);
     gba_core::mem::set_extra_y(0);
+    #[cfg(any(windows, target_os = "linux"))]
+    gba_core::ppu::set_parallel_zoom(std::env::var("FFTA_PARALLEL_ZOOM").as_deref() != Ok("0"));
     let zoom_max = zoom_limit(base_extra);
     machine.bus.tap_channels = true;
     let desc = arm_audio_hle(
@@ -2727,7 +3952,12 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     );
     eprintln!("audio engine: {desc}");
     let streams = Arc::new(Mutex::new(AudioStreams::default()));
-    streams.lock().unwrap().enhanced_on = av.audio_enhanced;
+    {
+        // Apply persisted gain before the device callback can consume samples.
+        let mut audio = streams.lock().unwrap();
+        audio.enhanced_on = av.audio_enhanced;
+        audio.vol_cut = 1.0 - av.audio_volume.clamp(0.0, 1.0);
+    }
     let stream = start_audio(streams.clone());
 
     // Bindings come from the launcher-managed config (defaults match the
@@ -2758,9 +3988,12 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     // switches the active device at runtime.
     let pad = build_gilrs();
     #[cfg(target_os = "linux")]
-    if let Some(gilrs)=&pad {
-        eprintln!("gamepad: Linux native snapshot polling (gilrs/evdev), {} connected",gilrs.gamepads().count());
-    }else{
+    if let Some(gilrs) = &pad {
+        eprintln!(
+            "gamepad: Linux native snapshot polling (gilrs/evdev), {} connected",
+            gilrs.gamepads().count()
+        );
+    } else {
         eprintln!("gamepad: Linux input backend unavailable; check device access and libudev");
     }
     let directinput = if std::env::var("FFTA_GAMEPAD_BACKEND").as_deref() != Ok("gilrs") {
@@ -2806,13 +4039,16 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     // the panel's own primaries — see screen::display). EDID is sysfs and the
     // probe opens its own Wayland connection, so this needs no window.
     let lut_primaries = screen::display::resolve(display_target);
-    let lut = screen::ColorLut::build(&screen::ColorSettings {
-        screen: screen_kind,
-        darken: input_config::AvConfig::knob(&av.screen_darken)
-            .map(f64::from)
-            .unwrap_or(f64::NAN),
-        target: lut_primaries,
-    });
+    let lut = screen::ColorLut::build_with_brightness(
+        &screen::ColorSettings {
+            screen: screen_kind,
+            darken: input_config::AvConfig::knob(&av.screen_darken)
+                .map(f64::from)
+                .unwrap_or(f64::NAN),
+            target: lut_primaries,
+        },
+        f64::from(av.video_brightness),
+    );
     let response = screen::ResponseMode::by_name(&av.response).unwrap_or_else(|| {
         eprintln!(
             "av.cfg: unknown video.response {:?} — using smart",
@@ -2838,10 +4074,31 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     let menu_enabled = manifest.as_ref().map(|m| m.menu).unwrap_or(true);
 
     let sav_seen = machine.bus.save_data().map(fnv64);
-    let game_mouse=gba_core::ffta_mouse::LanguageMouse::new(&machine.bus.rom,icfg.mouse_keyboard || std::env::var("FFTA_MOUSE").as_deref()==Ok("1"));
-    if icfg.mouse_keyboard {machine.bus.ffta_battle_mouse.set_enabled(true);}
+    let save_dir = std::env::var_os("FFTA_SAVES_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            let cwd = std::env::current_dir().unwrap_or_default();
+            if cwd.join("Cargo.toml").is_file() {
+                cwd.join("Saves")
+            } else {
+                std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|d| d.join("Saves")))
+                    .unwrap_or(cwd.join("Saves"))
+            }
+        });
+    let autosave =
+        crate::autosave::AutoSave::new_at(&sav_path, &rom_sha256(&machine.bus.rom), save_dir);
+    let game_mouse =
+        gba_core::ffta_mouse::LanguageMouse::new(&machine.bus.rom, icfg.mouse_keyboard);
+    machine
+        .bus
+        .ffta_battle_mouse
+        .set_enabled(icfg.mouse_keyboard);
     let mut app = PlayApp {
         machine,
+        autosave,
+        autosave_frame: Vec::new(),
         sav_path,
         sav_seen,
         record,
@@ -2879,7 +4136,16 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
         rgba: vec![[0u8; 4]; wide_w() * wide_h()],
         pause_rgba: Vec::new(),
         ui_pixels: Vec::new(),
+        battle_hud_pixels: Default::default(),
+        battle_hud_motion: Default::default(),
         panel_pixels: Vec::new(),
+        ui_auxiliary: Default::default(),
+        ui_scene: Default::default(),
+        ui_motion: Default::default(),
+        pub_scroll_drag: None,
+        ui_pack_cache: Default::default(),
+        ui_inspector: crate::ui_inspect::Inspector::from_env(),
+        ui_timing: crate::ui_inspect::Timing::from_env(),
         padded_frame: Vec::new(),
         title,
         status,
@@ -2909,16 +4175,20 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
         audio_retry: None,
         ff_active: false,
         ff_latched: false,
-        ff_speed: 4,
+        ff_speed: 4.0,
+        ff_budget: input_config::FrameBudget::default(),
         ff_audio_active: String::new(),
         pending_key: None,
         base_extra,
         zoom_level: 0,
+        zoom_display: 1.0,
+        zoom_from: 1.0,
+        zoom_started: None,
         zoom_max,
         view: [0.0, 0.0, (240 + 2 * base_extra) as f32, 160.0],
         mouse_pos: None,
         game_mouse,
-        game_keys:0x3ff,
+        game_keys: 0x3ff,
         mouse_queue: Vec::new(),
         error: None,
     };
@@ -2947,17 +4217,294 @@ fn load_window_icon() -> Option<winit::window::Icon> {
 
 // The action list is the independent foreground panel. The main action HUD
 // may be active simultaneously and must not steal its mouse coordinates.
-fn battle_menu_ui_layer(state:&gba_core::ffta_dialogue::DialogueState)->Option<usize> {
-    if matches!(state.extra.kind,gba_core::ffta_dialogue::PanelKind::Actions|gba_core::ffta_dialogue::PanelKind::Notice) && state.extra.active() {Some(1)}
-    else if state.action_layout || state.town_layout || state.shop_layout {Some(0)}else{None}
+fn battle_menu_ui_layer(state: &gba_core::ffta_dialogue::DialogueState) -> Option<usize> {
+    if matches!(
+        state.extra.kind,
+        gba_core::ffta_dialogue::PanelKind::Actions | gba_core::ffta_dialogue::PanelKind::Notice
+    ) && state.extra.active()
+    {
+        Some(1)
+    } else if state.action_layout || state.town_layout || state.shop_layout {
+        Some(0)
+    } else {
+        None
+    }
 }
-fn pub_ui_layout(physical:(u32,u32),base_width:f32,size:f32)->screen::ui_layer::Layout {
-    screen::ui_layer::Layout::new_with_anchor(physical,base_width,true,size,[0.,0.],0.)
+fn dialogue_choice_canvas(role: gba_core::ffta_ui::Role) -> bool {
+    matches!(
+        role,
+        gba_core::ffta_ui::Role::Dialogue | gba_core::ffta_ui::Role::Notice
+    )
 }
-fn menu_panel_native(index:usize,bounds:[i32;4],length:f32)->(f32,f32) {
-    let distance=((bounds[2]-bounds[0])as f32*(length.clamp(1.,2.)-1.)).round();
-    let shift=if bounds[0]+bounds[2]>=240 {distance}else{-distance};
-    ((index%480)as f32-120.+shift,(index/480)as f32)
+fn battle_menu_ui_layer_at(
+    state: &gba_core::ffta_dialogue::DialogueState,
+    scene: &gba_core::ffta_ui::Scene,
+    origin: Option<[i32; 2]>,
+) -> Option<usize> {
+    if state.extra.kind == gba_core::ffta_dialogue::PanelKind::Notice && state.extra.active() {
+        return Some(1);
+    }
+    if let Some([x, y]) = origin {
+        for slot in [1, 0] {
+            if scene.nodes[slot].is_some_and(|n| {
+                let [l, t, r, b] = n.bounds;
+                x >= l && x < r && y >= t && y < b
+            }) {
+                return Some(slot);
+            }
+        }
+    }
+    battle_menu_ui_layer(state)
+}
+fn extract_ui_rectangle(source: &mut Vec<[u8; 4]>, out: &mut Vec<[u8; 4]>, b: [i32; 4]) {
+    out.resize(480 * 160, [0, 0, 0, 16]);
+    out.fill([0, 0, 0, 16]);
+    if source.len() != 480 * 160 {
+        return;
+    }
+    for y in b[1].max(0)..b[3].min(160) {
+        for x in b[0].max(-120)..b[2].min(360) {
+            let i = y as usize * 480 + (x + 120) as usize;
+            out[i] = source[i];
+            source[i] = [0, 0, 0, 16];
+        }
+    }
+}
+fn allow_background_confirm(handled: bool, menu: bool, in_game: bool) -> bool {
+    !handled && !menu && in_game
+}
+fn pointer_in_ui_bounds(index: usize, bounds: [i32; 4]) -> bool {
+    let x = (index % 480) as i32 - 120;
+    let y = (index / 480) as i32;
+    x >= bounds[0] && x < bounds[2] && y >= bounds[1] && y < bounds[3]
+}
+#[cfg(test)]
+mod mouse_confirm_guard_tests {
+    #[test]
+    fn begin_battle_choice_uses_notice_canvas_instead_of_world() {
+        use gba_core::ffta_ui::{Anchor, Node, Role};
+        let node = Node {
+            slot: 1,
+            role: Role::Notice,
+            anchor: Anchor::Modal,
+            bounds: [16, 16, 224, 64],
+            length: false,
+        };
+        assert!(super::dialogue_choice_canvas(node.role));
+        assert!(!super::dialogue_choice_canvas(Role::ActionInfo));
+        let style = gba_core::ffta_dialogue::DialogueStyle {
+            scale: 0.9,
+            length: 1.1,
+            offset_x: 0.,
+            offset_y: 0.,
+        };
+        let layout = super::host_ui_layout((1704, 480), 568., style, node);
+        // Actual visible Yes button in the user's 1704x480 battle window.
+        let index = layout.source(645., 261.).unwrap();
+        let x = (index % 480) as i32 - 120;
+        let y = (index / 480) as i32;
+        assert!((27..65).contains(&x) && (44..60).contains(&y), "{x},{y}");
+    }
+
+    #[test]
+    fn confirmation_uses_the_canvas_containing_its_native_origin() {
+        use gba_core::ffta_ui::{Anchor, Node, Role, Scene};
+        let mut state = gba_core::ffta_dialogue::DialogueState::default();
+        state.action_layout = true;
+        state.extra.kind = gba_core::ffta_dialogue::PanelKind::Actions;
+        state.extra.bounds = Some([176, 64, 240, 152]);
+        let mut scene = Scene::default();
+        scene.nodes[0] = Some(Node {
+            slot: 0,
+            role: Role::ActionInfo,
+            anchor: Anchor::Corner {
+                right: false,
+                bottom: true,
+            },
+            bounds: [0, 48, 160, 160],
+            length: true,
+        });
+        scene.nodes[1] = Some(Node {
+            slot: 1,
+            role: Role::ActionMenu,
+            anchor: Anchor::Corner {
+                right: true,
+                bottom: true,
+            },
+            bounds: [168, 64, 240, 160],
+            length: true,
+        });
+        assert_eq!(
+            super::battle_menu_ui_layer_at(&state, &scene, Some([80, 104])),
+            Some(0)
+        );
+        assert_eq!(
+            super::battle_menu_ui_layer_at(&state, &scene, Some([184, 84])),
+            Some(1)
+        );
+        for length in [1., 1.5, 2.] {
+            let shifted = 100. + 160. * (length - 1.);
+            let index = 112 * 480 + (shifted + 120.) as usize;
+            assert_eq!(
+                super::menu_panel_native(index, scene.nodes[0].unwrap().bounds, length),
+                (100., 112.)
+            );
+        }
+    }
+    #[test]
+    fn menus_and_consumed_scroll_clicks_never_fall_through_to_a() {
+        for handled in [false, true] {
+            for inside in [false, true] {
+                assert!(!super::allow_background_confirm(handled, true, inside));
+            }
+        }
+        assert!(!super::allow_background_confirm(true, false, true));
+        assert!(!super::allow_background_confirm(false, false, false));
+        assert!(super::allow_background_confirm(false, false, true));
+    }
+    #[test]
+    fn service_menu_hit_does_not_extend_outside_its_visible_frame() {
+        let bounds = [8, 72, 96, 160];
+        for x in 0..240 {
+            let index = 100 * 480 + (x + 120) as usize;
+            assert_eq!(
+                super::pointer_in_ui_bounds(index, bounds),
+                (8..96).contains(&x)
+            );
+        }
+    }
+    #[test]
+    fn funds_canvas_stays_fixed_while_guest_objects_slide_through_viewport_edges() {
+        let style = gba_core::ffta_dialogue::DialogueStyle::default();
+        let mut previous = None;
+        for bounds in [
+            [152, 144, 240, 160],
+            [168, 152, 256, 168],
+            [184, 160, 272, 176],
+        ] {
+            let node = gba_core::ffta_ui::Node {
+                slot: 2,
+                role: gba_core::ffta_ui::Role::Funds,
+                anchor: gba_core::ffta_ui::Anchor::Edge {
+                    right: true,
+                    vertical: 160.,
+                },
+                bounds,
+                length: false,
+            };
+            let layout = super::host_ui_layout((1704, 960), 284., style, node);
+            if let Some(rect) = previous {
+                assert_eq!(layout.rect, rect);
+            }
+            previous = Some(layout.rect);
+        }
+    }
+}
+fn centered_ui_panel(
+    window: (u32, u32),
+    base: f32,
+    size: f32,
+    b: [i32; 4],
+    top: bool,
+) -> screen::ui_layer::Layout {
+    let mut l = screen::ui_layer::Layout::centered(window, base, size);
+    let k = l.rect[2] / 480.;
+    let s = l.clip[3] / 160.;
+    l.rect[0] = (l.clip[0] + l.clip[2] * 0.5 - (120. + (b[0] + b[2]) as f32 * 0.5) * k).round();
+    l.rect[1] = if top {
+        (l.clip[1] + 6. * s - b[1] as f32 * k).round()
+    } else {
+        (l.clip[1] + l.clip[3] * 0.5 - (b[1] + b[3]) as f32 * 0.5 * k).round()
+    };
+    l
+}
+fn host_ui_layout(
+    window: (u32, u32),
+    base: f32,
+    style: gba_core::ffta_dialogue::DialogueStyle,
+    node: gba_core::ffta_ui::Node,
+) -> screen::ui_layer::Layout {
+    use gba_core::ffta_ui::Anchor;
+    use screen::ui_layer::Layout;
+    let length = if node.length { style.length } else { 1. };
+    let mut size = node.fitted_scale_with_length(style.scale, base, length);
+    if matches!(
+        node.role,
+        gba_core::ffta_ui::Role::Stats
+            | gba_core::ffta_ui::Role::ActionInfo
+            | gba_core::ffta_ui::Role::Funds
+    ) {
+        size = size
+            .min(148. / (node.bounds[3] - node.bounds[1]).max(1) as f32)
+            .max(0.5);
+    }
+    let mut layout = match node.anchor {
+        Anchor::Edge { right, vertical } => Layout::new_with_anchor(
+            window,
+            base,
+            right,
+            size,
+            if node.role == gba_core::ffta_ui::Role::Dialogue {
+                [style.offset_x, style.offset_y]
+            } else {
+                [0., 0.]
+            },
+            vertical,
+        ),
+        Anchor::Corner { right, bottom } => {
+            Layout::at_corner(window, base, right, bottom, size, length, node.bounds)
+        }
+        Anchor::Center => Layout::centered(window, base, size),
+        Anchor::Modal | Anchor::PanelCenter => {
+            centered_ui_panel(window, base, size, node.bounds, false)
+        }
+        Anchor::TopCenter => centered_ui_panel(window, base, size, node.bounds, true),
+    };
+    if matches!(
+        node.role,
+        gba_core::ffta_ui::Role::Stats
+            | gba_core::ffta_ui::Role::ActionInfo
+            | gba_core::ffta_ui::Role::Funds
+    ) {
+        let margin = 6. * layout.clip[3] / 160.;
+        let bottom = matches!(
+            node.anchor,
+            Anchor::Corner { bottom: true, .. } | Anchor::Edge { vertical: 160., .. }
+        );
+        layout.rect[1] += if bottom { -margin } else { margin };
+    }
+    layout
+}
+// Fixed native canvases preserve the original entry/exit animation within
+// each panel, without moving its host origin when visible bounds change.
+#[cfg(test)]
+fn service_ui_layout(
+    physical: (u32, u32),
+    base_width: f32,
+    size: f32,
+    root: bool,
+) -> screen::ui_layer::Layout {
+    screen::ui_layer::Layout::new_with_anchor(
+        physical,
+        base_width,
+        !root,
+        size,
+        [0., 0.],
+        if root { 160. } else { 0. },
+    )
+}
+#[cfg(test)]
+fn pub_ui_layout(physical: (u32, u32), base_width: f32, size: f32) -> screen::ui_layer::Layout {
+    screen::ui_layer::Layout::new_with_anchor(physical, base_width, true, size, [0., 0.], 0.)
+}
+fn menu_panel_native(index: usize, bounds: [i32; 4], length: f32) -> (f32, f32) {
+    let distance = ((bounds[2] - bounds[0]) as f32 * (length.clamp(1., 2.) - 1.)).round();
+    let shift = if bounds[0] + bounds[2] >= 240 {
+        distance
+    } else {
+        -distance
+    };
+    ((index % 480) as f32 - 120. + shift, (index / 480) as f32)
 }
 #[cfg(test)]
 mod gamepad_capture_simulation {
@@ -2965,72 +4512,271 @@ mod gamepad_capture_simulation {
     use std::time::{Duration, Instant};
 
     #[test]
+    fn steam_deck_y_shortcut_is_build_specific_and_mapping_is_present() {
+        let linux_deck_rows: Vec<_> = crate::CONTROLLER_DB
+            .lines()
+            .filter(|line| line.contains(",Valve Steam Deck,") && line.ends_with("platform:Linux,"))
+            .collect();
+        assert_eq!(linux_deck_rows.len(), 2);
+        assert!(linux_deck_rows.iter().all(|line| line.contains(",y:b6,")));
+
+        let steam_virtual_linux = crate::CONTROLLER_DB
+            .lines()
+            .find(|line| {
+                line.contains(",Steam Virtual Gamepad,") && line.ends_with("platform:Linux,")
+            })
+            .expect("Steam Input virtual pad mapping for Linux");
+        assert!(steam_virtual_linux.contains(",y:b3,"));
+
+        assert!(super::linux_menu_shortcut(true, false, false, false));
+        assert!(super::linux_menu_shortcut(false, true, true, false));
+        #[cfg(feature = "steamdeck")]
+        assert!(super::linux_menu_shortcut(false, false, false, true));
+        #[cfg(not(feature = "steamdeck"))]
+        assert!(!super::linux_menu_shortcut(false, false, false, true));
+    }
+
+    #[test]
     fn shop_mouse_maps_categories_items_and_quantity_through_the_same_ui_canvas() {
-        let mut state=gba_core::ffta_dialogue::DialogueState::default();
-        state.shop_layout=true;
-        assert_eq!(super::battle_menu_ui_layer(&state),Some(0));
-        for window in [(960,640),(1920,1080),(2560,720)] {for scale in [0.5,1.] {
-            let layout=super::pub_ui_layout(window,568.,scale);
-            for (x,y)in[(24usize,8usize),(40,36),(170,96)] {
-                let px=layout.rect[0]+(120.+x as f32+0.5)*layout.rect[2]/480.;
-                let py=layout.rect[1]+(y as f32+0.5)*layout.rect[3]/160.;
-                let index=layout.source(px,py).unwrap();
-                assert_eq!(super::menu_panel_native(index,[0,0,238,155],1.),(x as f32,y as f32));
+        let mut state = gba_core::ffta_dialogue::DialogueState::default();
+        state.shop_layout = true;
+        assert_eq!(super::battle_menu_ui_layer(&state), Some(0));
+        for window in [(960, 640), (1920, 1080), (2560, 720)] {
+            for scale in [0.5, 1.] {
+                let layout = super::pub_ui_layout(window, 568., scale);
+                for (x, y) in [(24usize, 8usize), (40, 36), (170, 96)] {
+                    let px = layout.rect[0] + (120. + x as f32 + 0.5) * layout.rect[2] / 480.;
+                    let py = layout.rect[1] + (y as f32 + 0.5) * layout.rect[3] / 160.;
+                    let index = layout.source(px, py).unwrap();
+                    assert_eq!(
+                        super::menu_panel_native(index, [0, 0, 238, 155], 1.),
+                        (x as f32, y as f32)
+                    );
+                }
             }
-        }}
+        }
+    }
+    #[test]
+    fn service_root_owns_left_edge_even_when_native_window_origin_is_centered() {
+        use gba_core::ffta_ui::{Anchor, Node, Role};
+        for x in [0, 32, 72, 128] {
+            let bounds = [x, 76, x + 80, 160];
+            let n = Node {
+                slot: 1,
+                role: Role::ServiceMenu,
+                anchor: Anchor::Corner {
+                    right: false,
+                    bottom: true,
+                },
+                bounds,
+                length: false,
+            };
+            let l = super::host_ui_layout((1920, 1080), 284., Default::default(), n);
+            let edge = l.rect[0] + (120 + x) as f32 * l.rect[2] / 480.;
+            assert!((edge - l.clip[0]).abs() < 1.);
+        }
+    }
+    #[test]
+    fn centered_cards_top_attack_names_and_bottom_margin_are_viewport_relative() {
+        use gba_core::ffta_ui::{Anchor, Node, Role};
+        let style = gba_core::ffta_dialogue::DialogueStyle::default();
+        for (window, base) in [((1920, 1080), 284.), ((2560, 720), 568.)] {
+            for (role, anchor, bounds) in [
+                (Role::AttackName, Anchor::TopCenter, [0, 16, 96, 32]),
+                (Role::Notice, Anchor::Modal, [16, 48, 224, 96]),
+                (Role::Notice, Anchor::Modal, [40, 48, 200, 112]),
+                (Role::ServiceContent, Anchor::PanelCenter, [72, 8, 216, 96]),
+            ] {
+                let l = super::host_ui_layout(
+                    window,
+                    base,
+                    style,
+                    Node {
+                        slot: 0,
+                        role,
+                        anchor,
+                        bounds,
+                        length: false,
+                    },
+                );
+                let k = l.rect[2] / 480.;
+                let center = l.rect[0] + (120. + (bounds[0] + bounds[2]) as f32 * 0.5) * k;
+                assert!((center - l.clip[0] - l.clip[2] * 0.5).abs() < 1.);
+                if role == Role::AttackName {
+                    assert!(
+                        (l.rect[1] + bounds[1] as f32 * k - l.clip[1] - 6. * l.clip[3] / 160.)
+                            .abs()
+                            < 1.
+                    );
+                } else {
+                    assert!(
+                        (l.rect[1] + (bounds[1] + bounds[3]) as f32 * 0.5 * k
+                            - l.clip[1]
+                            - l.clip[3] * 0.5)
+                            .abs()
+                            < 1.
+                    );
+                }
+            }
+            let bounds = [152, 104, 240, 160];
+            let n = Node {
+                slot: 0,
+                role: Role::ActionInfo,
+                anchor: Anchor::Corner {
+                    right: false,
+                    bottom: true,
+                },
+                bounds,
+                length: false,
+            };
+            let l = super::host_ui_layout(window, base, style, n);
+            let bottom = l.rect[1] + 160. * l.rect[3] / 160.;
+            assert!(bottom < l.clip[1] + l.clip[3] - 1.);
+        }
+    }
+    #[test]
+    fn auxiliary_partition_moves_pixels_once_and_clears_old_images() {
+        let mut src = vec![[0, 0, 0, 16]; 480 * 160];
+        src[120 * 480 + 120 + 200] = [31, 0, 16, 0];
+        src[40 * 480 + 120 + 40] = [1, 0, 16, 0];
+        let mut aux = Vec::new();
+        super::extract_ui_rectangle(&mut src, &mut aux, [176, 112, 240, 136]);
+        assert_eq!(src[120 * 480 + 320], [0, 0, 0, 16]);
+        assert_eq!(aux[120 * 480 + 320], [31, 0, 16, 0]);
+        assert_eq!(src[40 * 480 + 160], [1, 0, 16, 0]);
+        super::extract_ui_rectangle(&mut src, &mut aux, [176, 112, 240, 136]);
+        assert!(aux.iter().all(|p| *p == [0, 0, 0, 16]));
+    }
+    #[test]
+    fn service_canvases_keep_menu_left_and_remaining_ui_right_at_every_size() {
+        for window in [(1280, 720), (1920, 1080), (2560, 720)] {
+            for size in [0.5, 1., 1.5, 2.] {
+                let root = super::service_ui_layout(window, 568., size, true);
+                let rest = super::service_ui_layout(window, 568., size, false);
+                let k = root.rect[2] / 480.;
+                assert!((root.rect[0] + 120. * k - root.clip[0]).abs() <= 1.);
+                assert!((rest.rect[0] + 360. * k - rest.clip[0] - rest.clip[2]).abs() <= 1.);
+                assert!((root.rect[1] + 160. * k - root.clip[1] - root.clip[3]).abs() <= 1.);
+                // Native row movement stays inside the fixed canvas; no new
+                // origin is derived from the changing visible pixel bounds.
+                for y in [80., 92., 144.] {
+                    let x = root.rect[0] + (120. + 24.5) * k;
+                    let py = root.rect[1] + (y + 0.5) * k;
+                    if let Some(index) = root.source(x, py) {
+                        assert_eq!(
+                            super::menu_panel_native(index, [0, 76, 96, 160], 1.),
+                            (24., y)
+                        );
+                    }
+                }
+            }
+        }
     }
     #[test]
     fn pub_menu_mouse_keeps_fixed_right_origin_through_animation() {
-        use gba_core::ffta_dialogue::{DialogueState,UiPixel,pack_panel};
-        let mut state=DialogueState::default();state.town_layout=true;
-        assert_eq!(super::battle_menu_ui_layer(&state),Some(0));
-        let bounds=[0,0,240,160];
-        let mut pixels=vec![UiPixel::default();480*160];
-        pixels[132*480+120+100]=UiPixel::opaque(31);
-        let mut packed=Vec::new();pack_panel(&pixels,&[],1.,true,&mut packed);
-        for size in [(1280,720),(2560,720)] {
-            let layout=super::pub_ui_layout(size,568.,1.);
-            let [left,top,width,height]=layout.rect;
-            let native_right=left+360.*width/480.;
-            assert!((native_right-layout.clip[0]-layout.clip[2]).abs()<1.);
-            let index=layout.source(left+220.5/480.*width,top+132.5/160.*height).unwrap();
-            assert_eq!(super::menu_panel_native(index,bounds,1.),(100.,132.));
-            assert_ne!(packed[index],[0;4]);
+        use gba_core::ffta_dialogue::{pack_panel, DialogueState, UiPixel};
+        let mut state = DialogueState::default();
+        state.town_layout = true;
+        assert_eq!(super::battle_menu_ui_layer(&state), Some(0));
+        let bounds = [0, 0, 240, 160];
+        let mut pixels = vec![UiPixel::default(); 480 * 160];
+        pixels[132 * 480 + 120 + 100] = UiPixel::opaque(31);
+        let mut packed = Vec::new();
+        pack_panel(&pixels, &[], 1., true, &mut packed);
+        for size in [(1280, 720), (2560, 720)] {
+            let layout = super::pub_ui_layout(size, 568., 1.);
+            let [left, top, width, height] = layout.rect;
+            let native_right = left + 360. * width / 480.;
+            assert!((native_right - layout.clip[0] - layout.clip[2]).abs() < 1.);
+            let index = layout
+                .source(left + 220.5 / 480. * width, top + 132.5 / 160. * height)
+                .unwrap();
+            assert_eq!(super::menu_panel_native(index, bounds, 1.), (100., 132.));
+            assert_ne!(packed[index], [0; 4]);
         }
     }
 
     #[test]
     fn battle_menu_mouse_uses_foreground_panel_when_action_hud_is_also_present() {
-        use gba_core::ffta_dialogue::{DialogueState,PanelKind,UiPixel,pack_panel};
-        let mut state=DialogueState::default();
-        state.action_layout=true;
-        assert_eq!(super::battle_menu_ui_layer(&state),Some(0)); // confirmation path
-        state.extra.kind=PanelKind::Actions;
-        let bounds=[160,84,240,148];
-        state.extra.bounds=Some(bounds);
-        assert_eq!(super::battle_menu_ui_layer(&state),Some(1));
-        let mut backing=vec![UiPixel::default();480*160];
-        for y in 84..148 {for x in 160..240 {backing[y*480+x+120]=UiPixel::opaque(31);}}
-        let mut pixels=backing.clone();
-        let target=(192usize,140usize);
-        pixels[target.1*480+target.0+120]=UiPixel::opaque(0x7fff);
-        for window in [(960,640),(1920,1080),(2560,720)] {
-            for width in [240.,284.,568.] {for size in [0.75,1.,1.5] {for length in [1.,1.5,2.] {
-                let mut packed=Vec::new();pack_panel(&pixels,&backing,length,true,&mut packed);
-                let index=packed.iter().position(|p|*p==UiPixel::opaque(0x7fff).packed()).unwrap();
-                let layout=screen::ui_layer::Layout::at_corner(window,width,true,true,size,length,bounds);
-                let point=(layout.rect[0]+(index%480)as f32*layout.rect[2]/480.+layout.rect[2]/960.,
-                    layout.rect[1]+(index/480)as f32*layout.rect[3]/160.+layout.rect[3]/320.);
-                let source=layout.source(point.0,point.1).expect("drawn option must be hittable");
-                let (x,y)=super::menu_panel_native(source,bounds,length);
-                assert_eq!((x as usize,y as usize),target);
-                assert_eq!(((y-84.)/16.)as usize,3);
-            }}}
+        use gba_core::ffta_dialogue::{pack_panel, DialogueState, PanelKind, UiPixel};
+        let mut state = DialogueState::default();
+        state.action_layout = true;
+        assert_eq!(super::battle_menu_ui_layer(&state), Some(0)); // confirmation path
+        state.extra.kind = PanelKind::Actions;
+        let bounds = [160, 84, 240, 148];
+        state.extra.bounds = Some(bounds);
+        assert_eq!(super::battle_menu_ui_layer(&state), Some(1));
+        let mut backing = vec![UiPixel::default(); 480 * 160];
+        for y in 84..148 {
+            for x in 160..240 {
+                backing[y * 480 + x + 120] = UiPixel::opaque(31);
+            }
         }
-        state.extra.kind=PanelKind::None;
-        assert_eq!(super::battle_menu_ui_layer(&state),Some(0));
+        let mut pixels = backing.clone();
+        let target = (192usize, 140usize);
+        pixels[target.1 * 480 + target.0 + 120] = UiPixel::opaque(0x7fff);
+        for window in [(960, 640), (1920, 1080), (2560, 720)] {
+            for width in [240., 284., 568.] {
+                for size in [0.75, 1., 1.5] {
+                    for length in [1., 1.5, 2.] {
+                        let mut packed = Vec::new();
+                        pack_panel(&pixels, &backing, length, true, &mut packed);
+                        let index = packed
+                            .iter()
+                            .position(|p| *p == UiPixel::opaque(0x7fff).packed())
+                            .unwrap();
+                        let layout = screen::ui_layer::Layout::at_corner(
+                            window, width, true, true, size, length, bounds,
+                        );
+                        let point = (
+                            layout.rect[0]
+                                + (index % 480) as f32 * layout.rect[2] / 480.
+                                + layout.rect[2] / 960.,
+                            layout.rect[1]
+                                + (index / 480) as f32 * layout.rect[3] / 160.
+                                + layout.rect[3] / 320.,
+                        );
+                        let source = layout
+                            .source(point.0, point.1)
+                            .expect("drawn option must be hittable");
+                        let (x, y) = super::menu_panel_native(source, bounds, length);
+                        assert_eq!((x as usize, y as usize), target);
+                        assert_eq!(((y - 84.) / 16.) as usize, 3);
+                    }
+                }
+            }
+        }
+        state.extra.kind = PanelKind::None;
+        assert_eq!(super::battle_menu_ui_layer(&state), Some(0));
     }
 
+    #[test]
+    fn patterned_menu_fills_extra_rows_with_background_only() {
+        gba_core::mem::set_extra(164);
+        gba_core::mem::set_extra_y(80);
+        let mut bus = gba_core::MemMap::new(vec![]);
+        bus.ffta_dialogue.menu_pattern = true;
+        bus.io[8..10].copy_from_slice(&0xad0bu16.to_le_bytes());
+        for e in bus.vram[0x6800..0x7800].chunks_exact_mut(2) {
+            e.copy_from_slice(&0xa03cu16.to_le_bytes());
+        }
+        bus.vram[0x8780..0x87a0].fill(0x11);
+        bus.palette[0x142..0x144].copy_from_slice(&31u16.to_le_bytes());
+        let width = super::wide_w();
+        bus.wide_framebuffer.fill(0x3e0);
+        bus.wide_framebuffer[..width * 160].fill(0x7fff);
+        let original = bus.wide_framebuffer.clone();
+        let oam = bus.oam.clone();
+        let mut padding = Vec::new();
+        let frame = super::display_frame(&bus, &mut padding);
+        assert!(frame[..width * 80].iter().all(|&p| p == 31));
+        assert!(frame[width * 80..width * 240].iter().all(|&p| p == 0x7fff));
+        assert!(frame[width * 240..].iter().all(|&p| p == 31));
+        assert_eq!(bus.wide_framebuffer, original);
+        assert_eq!(bus.oam, oam);
+        gba_core::mem::set_extra(0);
+        gba_core::mem::set_extra_y(0);
+    }
     #[test]
     fn scene_without_zoom_rows_cannot_show_stale_object_pixels() {
         gba_core::mem::set_extra(164);
@@ -3085,7 +4831,7 @@ mod gamepad_capture_simulation {
     #[cfg(windows)]
     #[test]
     fn simulated_native_xinput_a_press_assigns_once_and_does_not_confirm_menu() {
-        use super::{XInputGamepad, XInputState, xinput_new_press, xinput_pressed};
+        use super::{xinput_new_press, xinput_pressed, XInputGamepad, XInputState};
 
         let mut av = input_config::AvConfig::default();
         let mut menu = menu::Menu::new(true, false);

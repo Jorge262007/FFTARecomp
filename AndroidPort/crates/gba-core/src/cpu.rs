@@ -257,3 +257,5 @@ impl Default for Cpu {
         Cpu::new()
     }
 }
+
+crate::state::fields!(Cpu,regs,cpsr,branch,bank_r13,bank_r14,spsr,usr_r8_12,fiq_r8_12);

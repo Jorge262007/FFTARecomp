@@ -6,16 +6,24 @@ const BRASS: [u8; 3] = [184, 146, 65];
 const INK: [u8; 3] = [35, 24, 16];
 const LIGHT: [u8; 3] = [254, 252, 245];
 const PAPER: [u8; 3] = [235, 220, 185];
+
 pub(super) fn segment_geometry(l: Layout) -> (usize, usize) {
-    let width = ((l.panel_w.saturating_sub(l.pad * 2)) / 6).max(16);
-    (l.panel_x + l.panel_w - l.pad - (width * 3 + 4), width)
+    segment_geometry_for(l, 3)
+}
+pub(super) fn segment_geometry_for(l: Layout, count: usize) -> (usize, usize) {
+    let width = ((l.panel_w.saturating_sub(l.pad * 2)) / (count * 2)).max(16);
+    (
+        l.panel_x + l.panel_w - l.pad - (width * count + (count - 1) * 2),
+        width,
+    )
 }
 pub(super) fn segment_hit(row: Row, l: Layout, x: usize) -> Option<usize> {
     if !matches!(row, Row::FastForward | Row::FastForwardAudio) {
         return None;
     }
-    let (start, width) = segment_geometry(l);
-    (0..3).find(|&i| (start + i * (width + 2)..start + i * (width + 2) + width).contains(&x))
+    let count = if row == Row::FastForward { FF_SPEEDS.len() } else { 3 };
+    let (start, width) = segment_geometry_for(l, count);
+    (0..count).find(|&i| (start + i * (width + 2)..start + i * (width + 2) + width).contains(&x))
 }
 fn binding_value(
     menu: &Menu,
@@ -27,6 +35,38 @@ fn binding_value(
     zin: &str,
     zout: &str,
 ) -> Option<String> {
+    match row {
+        Row::MenuKey => {
+            return Some(
+                if menu.capture
+                    == Some(if menu.page == Page::Gamepad {
+                        Bind::GamepadMenu
+                    } else {
+                        Bind::MenuKey
+                    })
+                {
+                    if menu.page == Page::Gamepad {
+                        "PRESS BUTTON"
+                    } else {
+                        "PRESS KEY"
+                    }
+                    .into()
+                } else {
+                    if menu.page == Page::Gamepad {
+                        gamepad_label(&menu.menu_binding.borrow(), menu.controller_layout.get())
+                    } else {
+                        menu.menu_binding.borrow().to_uppercase()
+                    }
+                },
+            )
+        }
+
+        Row::DebugEnabled => return Some(if menu.debug_tools { "ON" } else { "OFF" }.into()),
+        Row::DebugCharacters | Row::DebugLaunch => return Some("LOCKED".into()),
+        Row::DebugMission => return Some(format!("{:03} / 405", menu.debug_mission)),
+        Row::DebugStatus => return Some(menu.debug_status.clone()),
+        _ => {}
+    }
     if menu.page == Page::Gamepad && matches!(row, Row::FfKey | Row::FfToggleKey) {
         let b = if row == Row::FfKey {
             Bind::GamepadFastForward
@@ -143,6 +183,8 @@ pub(super) fn draw(
     );
     if menu.page != Page::Main {
         let label = match menu.page {
+            Page::Debug => "DEVELOPER TOOLS (EUR)",
+
             Page::Exit => "QUIT GAME?",
             Page::FastForward => "FAST FORWARD",
             Page::Audio => "AUDIO SETTINGS",
@@ -161,11 +203,22 @@ pub(super) fn draw(
             scale,
         );
     }
-    if matches!(menu.page, Page::Inputs | Page::Gamepad | Page::MouseKeyboard) {
+    if matches!(
+        menu.page,
+        Page::Inputs | Page::Gamepad | Page::MouseKeyboard
+    ) {
         let width = (pw - pad * 2. - 12. * scale) / 3.;
-        for (i, label) in ["KEYBOARD", "GAMEPAD", "MOUSE & KEYBOARD"].iter().enumerate() {
-            let disabled=i==0 && menu.mouse_mode.get();
-            let active = i == match menu.page {Page::Gamepad=>1,Page::MouseKeyboard=>2,_=>0};
+        for (i, label) in ["KEYBOARD", "GAMEPAD", "MOUSE & KEYBOARD"]
+            .iter()
+            .enumerate()
+        {
+            let disabled = i == 0 && menu.mouse_mode.get();
+            let active = i
+                == match menu.page {
+                    Page::Gamepad => 1,
+                    Page::MouseKeyboard => 2,
+                    _ => 0,
+                };
             let xx = x + pad + i as f32 * (width + 6. * scale);
             let yy = y + pad + l.line_h as f32;
             c.rect(
@@ -186,8 +239,8 @@ pub(super) fn draw(
                 xx + 12. * scale,
                 yy + 7. * scale,
                 label,
-                if disabled {[145,133,111]}else{INK},
-                if i==2 {fs*0.70}else{fs},
+                if disabled { [145, 133, 111] } else { INK },
+                if i == 2 { fs * 0.70 } else { fs },
                 true,
                 width - 20. * scale,
             );
@@ -204,7 +257,11 @@ pub(super) fn draw(
             pw - pad * 2.,
         );
     }
-    let count = rows.len() - usize::from(matches!(menu.page, Page::Inputs | Page::Gamepad | Page::MouseKeyboard));
+    let count = rows.len()
+        - usize::from(matches!(
+            menu.page,
+            Page::Inputs | Page::Gamepad | Page::MouseKeyboard
+        ));
     for (visible, &row) in rows[..count]
         .iter()
         .skip(first)
@@ -232,18 +289,62 @@ pub(super) fn draw(
         let fg = if sel { GOLD } else { INK };
         let ty = yy + (rh - fs) / 2.;
         let tx = xx + 18. * scale;
-        if row==Row::MouseMode {
-            c.text(tx,yy+3.*scale,"Enable (Experimental)",fg,fs*0.72,true,bw-104.*scale);
-            c.text(tx,yy+17.*scale,"Keyboard-only is unavailable",fg,fs*0.50,false,bw-104.*scale);
-            c.text(tx,yy+27.*scale,"until this mode is disabled.",fg,fs*0.50,false,bw-104.*scale);
-            let on=menu.mouse_mode.get();
-            let sx=xx+bw-68.*scale;let sy=yy+9.*scale;
-            c.rect(sx,sy,52.*scale,24.*scale,12.*scale,if on {BRASS}else{[145,133,111]},if on {GOLD}else{[181,167,137]},BRASS);
-            c.rect(sx+if on {30.*scale}else{3.*scale},sy+3.*scale,18.*scale,18.*scale,9.*scale,LIGHT,LIGHT,BRASS);
+
+        if row == Row::MouseMode {
+            c.text(
+                tx,
+                yy + 3. * scale,
+                "Enable (Experimental)",
+                fg,
+                fs * 0.72,
+                true,
+                bw - 104. * scale,
+            );
+            c.text(
+                tx,
+                yy + 17. * scale,
+                "Keyboard-only is unavailable",
+                fg,
+                fs * 0.50,
+                false,
+                bw - 104. * scale,
+            );
+            c.text(
+                tx,
+                yy + 27. * scale,
+                "until this mode is disabled.",
+                fg,
+                fs * 0.50,
+                false,
+                bw - 104. * scale,
+            );
+            let on = menu.mouse_mode.get();
+            let sx = xx + bw - 68. * scale;
+            let sy = yy + 9. * scale;
+            c.rect(
+                sx,
+                sy,
+                52. * scale,
+                24. * scale,
+                12. * scale,
+                if on { BRASS } else { [145, 133, 111] },
+                if on { GOLD } else { [181, 167, 137] },
+                BRASS,
+            );
+            c.rect(
+                sx + if on { 30. * scale } else { 3. * scale },
+                sy + 3. * scale,
+                18. * scale,
+                18. * scale,
+                9. * scale,
+                LIGHT,
+                LIGHT,
+                BRASS,
+            );
             continue;
         }
         if matches!(row, Row::FastForward | Row::FastForwardAudio) {
-            let (sx, sw) = segment_geometry(l);
+            let (sx, sw) = segment_geometry_for(l, if row == Row::FastForward { FF_SPEEDS.len() } else { 3 });
             c.text(
                 tx,
                 ty,
@@ -253,12 +354,12 @@ pub(super) fn draw(
                 true,
                 (sx as f32 - tx - 8. * scale).max(1.),
             );
-            let labels = if row == Row::FastForward {
-                ["2X", "4X", "8X"]
+            let labels: &[&str] = if row == Row::FastForward {
+                &["1.5X", "2X", "3X", "4X"]
             } else {
-                ["NORMAL", "MUTE", "FAST"]
+                &["NORMAL", "MUTE", "FAST"]
             };
-            for i in 0..3 {
+            for i in 0..labels.len() {
                 let active = if row == Row::FastForward {
                     av.ff_speed == FF_SPEEDS[i]
                 } else {
@@ -374,7 +475,10 @@ pub(super) fn draw(
             BRASS,
         );
     }
-    if matches!(menu.page, Page::Inputs | Page::Gamepad | Page::MouseKeyboard) {
+    if matches!(
+        menu.page,
+        Page::Inputs | Page::Gamepad | Page::MouseKeyboard
+    ) {
         let sel = menu.selected + 1 == rows.len();
         let bw = l.line_h as f32 * 3.;
         let xx = x + pw - pad - bw;
@@ -433,11 +537,31 @@ fn dropdown_geometry(
 }
 pub(super) fn dropdown_hit(dd: &Dropdown, x: usize, y: usize, w: usize, h: usize) -> Option<usize> {
     let (xx, yy, rw, _, visible, first) = dropdown_geometry(dd, w, h);
-    if !(xx..xx + rw).contains(&x) || y < yy + 6 {
+    let bar = if setting_options(dd.row).len() > visible {
+        14
+    } else {
+        0
+    };
+    if !(xx..xx + rw - bar).contains(&x) || y < yy + 6 {
         return None;
     }
     let i = (y - yy - 6) / (h / 15).clamp(14, 40);
     (i < visible).then_some(first + i)
+}
+pub(super) fn dropdown_scroll_hit(
+    dd: &Dropdown,
+    x: usize,
+    y: usize,
+    w: usize,
+    h: usize,
+) -> Option<usize> {
+    let (xx, yy, rw, rh, visible, _) = dropdown_geometry(dd, w, h);
+    let n = setting_options(dd.row).len();
+    if n <= visible || !(xx + rw - 14..xx + rw).contains(&x) || !(yy + 6..yy + rh - 6).contains(&y)
+    {
+        return None;
+    }
+    Some(((y - yy - 6) * (n - 1) / (rh - 13).max(1)).min(n - 1))
 }
 fn draw_dropdown(dd: &Dropdown, c: &mut Canvas, w: usize, h: usize) {
     let (x, y, rw, rh, visible, first) = dropdown_geometry(dd, w, h);
@@ -452,6 +576,23 @@ fn draw_dropdown(dd: &Dropdown, c: &mut Canvas, w: usize, h: usize) {
         [24, 15, 9],
         GOLD,
     );
+    let n = setting_options(dd.row).len();
+    if n > visible {
+        let track = (rh - 12) as f32;
+        let thumb = (track * visible as f32 / n as f32).max(18.).min(track);
+        let top = (y + 6) as f32 + (track - thumb) * first as f32 / (n - visible) as f32;
+        c.rect(
+            (x + rw - 12) as f32,
+            (y + 6) as f32,
+            8.,
+            track,
+            3.,
+            [24, 15, 9],
+            [24, 15, 9],
+            BRASS,
+        );
+        c.rect((x + rw - 12) as f32, top, 8., thumb, 3., GOLD, BRASS, GOLD);
+    }
     for (i, s) in setting_options(dd.row)
         .iter()
         .skip(first)

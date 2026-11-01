@@ -163,6 +163,21 @@ mod pad_gesture_tests {
     use super::PadGesture;
 
     #[test]
+    fn fractional_budget_and_window_preferences() {
+        use crate::{FrameBudget,AvConfig,InputConfig};
+        for speed in [1.0,1.5,2.0,3.0,4.0] {
+            let mut b=FrameBudget::default();
+            assert_eq!((0..60).map(|_|b.next(speed)).sum::<u32>(),(60.0*speed) as u32);
+        }
+        assert!(AvConfig::default().video_fullscreen);
+        let av=AvConfig::parse("video.fullscreen = false\nff.speed = 1.5\n");
+        assert!(!av.video_fullscreen);
+        assert_eq!(AvConfig::parse(&av.serialize()),av);
+        let cfg=InputConfig::parse("key.menu = F10\npad.menu = Select\n");
+        assert_eq!(InputConfig::parse(&cfg.serialize()),cfg);
+    }
+
+    #[test]
     fn xbox_a_remap_press_is_consumed_and_cannot_confirm_menu() {
         let mut pad = PadGesture::default();
 
@@ -413,7 +428,7 @@ impl StickToken {
 /// `Backspace`, `LeftShift`, `RightShift`. Pad names are gilrs button
 /// names (`South`, `East`, `DPadUp`, `LeftTrigger`, ...).
 ///
-/// Not `Eq` — `stick_deadzone` is an `f32`. Equality is `PartialEq`,
+/// Not `Eq` â€” `stick_deadzone` is an `f32`. Equality is `PartialEq`,
 /// which is all the tests and config diffing need.
 #[derive(Clone, PartialEq, Debug)]
 pub struct InputConfig {
@@ -427,6 +442,8 @@ pub struct InputConfig {
     pub mouse_keyboard: bool,
     /// Keyboard key that fast-forwards while held (4x, or the menu's speed).
     pub ff_key: String,
+    pub menu_key: String,
+    pub menu_pad: String,
     pub ff_toggle_key: String,
     pub ff_pad: String,
     pub ff_toggle_pad: String,
@@ -445,14 +462,20 @@ pub struct InputConfig {
 }
 
 /// Holding the momentary key inverts the latched fast-forward state.
-pub fn fast_forward_speed(multiplier: u32, latched: bool, held: bool) -> u32 {
-    if latched ^ held {
-        match multiplier {
-            2 | 4 | 8 => multiplier,
-            _ => 4,
-        }
-    } else {
-        1
+pub fn fast_forward_speed(multiplier: f32, latched: bool, held: bool) -> f32 {
+    if latched ^ held { if multiplier == 1.0 { 1.5 } else if [1.5, 2.0, 3.0, 4.0].contains(&multiplier) { multiplier } else { 4.0 } } else { 1.0 }
+}
+
+/// Fractional emulated frames carried between presentation ticks.
+#[derive(Default)]
+pub struct FrameBudget(f64);
+impl FrameBudget {
+    pub fn reset(&mut self) { self.0 = 0.0; }
+    pub fn next(&mut self, speed: f32) -> u32 {
+        self.0 += speed as f64;
+        let frames = self.0.floor() as u32;
+        self.0 -= frames as f64;
+        frames
     }
 }
 
@@ -466,6 +489,8 @@ impl Default for InputConfig {
             gamepad_name: String::new(),
             gamepad_layout: GamepadLayout::Xbox,
             ff_key: s("Tab"),
+            menu_key: s("Escape"),
+            menu_pad: s("Mode"),
             ff_toggle_key: s("T"),
             ff_pad: s("LeftThumb"),
             ff_toggle_pad: s("RightThumb"),
@@ -552,6 +577,8 @@ impl InputConfig {
                         }
                     }
                 }
+                "key.menu" => cfg.menu_key = v.to_owned(),
+                "pad.menu" => cfg.menu_pad = v.to_owned(),
                 "key.ff" => cfg.ff_key = v.to_string(),
                 "key.ff_toggle" => {
                     cfg.ff_toggle_key = v.to_string();
@@ -614,6 +641,7 @@ impl InputConfig {
 
     pub fn serialize(&self) -> String {
         let mut out = String::from("# gba-recomp input bindings\n");
+        out.push_str(&format!("key.menu = {}\npad.menu = {}\n",self.menu_key,self.menu_pad));
         out.push_str("gamepad_layout_version = 2\n");
         out.push_str(&format!(
             "device = {}\n",
@@ -707,7 +735,7 @@ pub struct AvConfig {
     /// Master output volume, 0..1 (1 = full).
     pub audio_volume: f32,
     /// Persistent fast-forward multiplier: 2, 4 or 8. Activation is session-only.
-    pub ff_speed: u32,
+    pub ff_speed: f32,
     /// silent, fast (accelerated audio), or normal (buffered 1x audio).
     pub ff_audio: String,
     /// Output brightness scale applied to the color table: 1.0 = unchanged.
@@ -730,6 +758,7 @@ pub struct AvConfig {
     /// (AutoNoVsync); on trades possible tearing for compositor pacing.
     /// Emulation speed is owned by the audio clock either way.
     pub video_vsync: bool,
+    pub video_fullscreen: bool,
     /// Output aspect ratio: auto | 3:2 (original) | 16:10 | 16:9 | 20:9 | 21:9 | 32:9.
     /// Sets how many extra columns the PPU renders; applied at launch.
     pub video_aspect: String,
@@ -742,7 +771,7 @@ impl Default for AvConfig {
         Self {
             audio_enhanced: false,
             audio_volume: 1.0,
-            ff_speed: 4,
+            ff_speed: 4.0,
             ff_audio: "silent".into(),
             video_brightness: 1.0,
             screen: "raw".into(),
@@ -753,6 +782,7 @@ impl Default for AvConfig {
             scaling: "nearest".into(),
             display_gamut: "auto".into(),
             video_vsync: false,
+            video_fullscreen: true,
             video_aspect: "16:9".into(),
             bubble_size: 1.,
             bubble_length: 1.,
@@ -770,10 +800,14 @@ impl AvConfig {
             };
             let v = v.trim();
             match k.trim() {
+                "video.fullscreen" if matches!(v,"true"|"false") => cfg.video_fullscreen = v == "true",
                 "audio.enhanced" => cfg.audio_enhanced = v.eq_ignore_ascii_case("true"),
                 "ff.speed" => {
-                    if let Ok(speed @ (2 | 4 | 8)) = v.parse::<u32>() {
+                    if let Ok(speed) = v.parse::<f32>() {
+                        let speed = if speed == 8.0 { 4.0 } else if speed == 1.0 { 1.5 } else { speed };
+                        if [1.5,2.0,3.0,4.0].contains(&speed) {
                         cfg.ff_speed = speed;
+                        }
                     }
                 }
                 "ff.audio" if matches!(v, "silent" | "fast" | "normal") => {
@@ -830,6 +864,7 @@ impl AvConfig {
              video.scaling = {}\n\
              video.gamut = {}\n\
              video.vsync = {}\n\
+             video.fullscreen = {}\n\
              video.aspect = {}\n\
              bubble.size = {}\n\
              bubble.length = {}\n",
@@ -846,6 +881,7 @@ impl AvConfig {
             self.scaling,
             self.display_gamut,
             self.video_vsync,
+            self.video_fullscreen,
             self.video_aspect,
             self.bubble_size,
             self.bubble_length,
@@ -902,7 +938,7 @@ pub fn config_root() -> Option<PathBuf> {
     Some(base.join("FFTARecomp"))
 }
 
-// ── BIOS image (real-BIOS boot) ─────────────────────────────────────
+// â”€â”€ BIOS image (real-BIOS boot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // The product boots the real BIOS: the launcher collects the user's
 // dump once (first-launch setup), installs it where the whole release
@@ -910,7 +946,7 @@ pub fn config_root() -> Option<PathBuf> {
 // cartridge. No image installed = the runtime falls back to BIOS HLE.
 
 /// Canonical on-disk name for the installed BIOS image. Lowercase and
-/// used verbatim everywhere — Linux filesystems are case-sensitive, so
+/// used verbatim everywhere â€” Linux filesystems are case-sensitive, so
 /// resolution and install must never disagree on case.
 pub const BIOS_FILE_NAME: &str = "gba_bios.bin";
 
@@ -918,11 +954,11 @@ pub const BIOS_FILE_NAME: &str = "gba_bios.bin";
 pub const BIOS_SIZE: usize = 0x4000;
 
 /// SHA-256 of the canonical BIOS dump. Other images (homebrew
-/// replacements, bad dumps) are warned about loudly but still tried —
+/// replacements, bad dumps) are warned about loudly but still tried â€”
 /// the user owns the choice.
 pub const BIOS_SHA256: &str = "fd2547724b505f487e6dcb29ec2ecff3af35a841a77ab2e85fd87350abd36570";
 
-/// Directory of the running executable — the "release directory" for
+/// Directory of the running executable â€” the "release directory" for
 /// portable installs. The exe path is canonicalized first so symlinked
 /// launches (Linux desktop entries, dev shims) resolve to the real
 /// install directory rather than the symlink's.
@@ -935,7 +971,7 @@ pub fn exe_dir() -> Option<PathBuf> {
 /// Locate the installed BIOS image. Resolution order:
 /// 1. `$GBA_RECOMP_BIOS` (explicit override, dev/CI),
 /// 2. next to the executable (portable release directory),
-/// 3. the per-user config directory (fallback installs — read-only
+/// 3. the per-user config directory (fallback installs â€” read-only
 ///    release dirs like /Applications or Program Files).
 pub fn find_bios() -> Option<PathBuf> {
     if let Some(v) = std::env::var_os("GBA_RECOMP_BIOS") {
@@ -959,7 +995,7 @@ pub fn find_bios() -> Option<PathBuf> {
 /// Install a user-selected BIOS image where `find_bios` will see it.
 /// Prefers the release directory (portable layout: the whole product
 /// travels as one folder); falls back to the per-user config directory
-/// when the release directory isn't writable — macOS app translocation
+/// when the release directory isn't writable â€” macOS app translocation
 /// and /Applications, Windows Program Files, system-wide Linux installs.
 /// The copy is staged to a temp file and renamed so a crash mid-write
 /// can never leave a torn image at the resolved name.
@@ -1064,17 +1100,17 @@ mod tests {
 
     #[test]
     fn fast_forward_toggle_and_hold_are_independent_of_multiplier() {
-        for speed in [2, 4, 8] {
-            assert_eq!(fast_forward_speed(speed, false, false), 1);
+        for speed in [1.5, 2.0, 3.0, 4.0] {
+            assert_eq!(fast_forward_speed(speed, false, false), 1.0);
             assert_eq!(fast_forward_speed(speed, false, true), speed);
             assert_eq!(fast_forward_speed(speed, true, false), speed);
-            assert_eq!(fast_forward_speed(speed, true, true), 1);
+            assert_eq!(fast_forward_speed(speed, true, true), 1.0);
         }
         let cfg = InputConfig::parse("key.ff = Space\nkey.ff_toggle = Y\n");
         assert_eq!(cfg.ff_key, "Space");
         assert_eq!(cfg.ff_toggle_key, "Y");
         assert_eq!(InputConfig::parse(&cfg.serialize()), cfg);
-        assert_eq!(AvConfig::parse("ff.speed = 1\n").ff_speed, 4);
+        assert_eq!(AvConfig::parse("ff.speed = 1\n").ff_speed, 1.5);
         let previous = InputConfig::parse("key.a = T\n");
         assert_eq!(previous.keys[Button::A.index()], "T");
         assert_eq!(previous.ff_toggle_key, "F");
@@ -1221,7 +1257,7 @@ mod tests {
         let d = AvConfig::default();
         assert_eq!(
             (d.audio_volume, d.ff_speed, d.video_brightness),
-            (1.0, 4, 1.0)
+            (1.0, 4.0, 1.0)
         );
         let cfg = AvConfig {
             audio_volume: 0.6,
@@ -1231,11 +1267,11 @@ mod tests {
         assert_eq!(AvConfig::parse(&cfg.serialize()), cfg);
         // The multiplier is persistent; activation remains session-only.
         let ff = AvConfig {
-            ff_speed: 8,
+            ff_speed: 4.0,
             ..AvConfig::default()
         };
-        assert_eq!(AvConfig::parse(&ff.serialize()).ff_speed, 8);
-        assert_eq!(AvConfig::parse("ff.speed = 8\n").ff_speed, 8);
+        assert_eq!(AvConfig::parse(&ff.serialize()).ff_speed, 4.0);
+        assert_eq!(AvConfig::parse("ff.speed = 8\n").ff_speed, 4.0);
         let wild = AvConfig::parse("audio.volume = 9\nvideo.brightness = -3\n");
         assert_eq!((wild.audio_volume, wild.video_brightness), (1.0, 0.0));
     }

@@ -35,6 +35,9 @@ class GameBenchmark private constructor(context:Context,val frames:Int,val paced
         if(frame%120==0)loopReport.flush()
         if(frame==frames){loopReport.close();loopClosed=true}
     }
+    private val snapshotFrame=(context as Activity).intent.getIntExtra("ffta_benchmark_snapshot_frame",-1)
+    private var frameSnapshot=false
+    private var nameSnapshot=false
     private val times=ArrayList<Long>(120)
     private var cursor=0
     var frame=0;private set
@@ -58,6 +61,10 @@ class GameBenchmark private constructor(context:Context,val frames:Int,val paced
         return if(cursor==0)0x3ff else points[cursor-1].second
     }
     fun record(nanos:Long,audioUnderruns:Int){
+        if(snapshotFrame<0 && !nameSnapshot && NativeBridge.gbaNameEntry()){NativeBridge.gbaBenchmarkSnapshot(false);nameSnapshot=true}
+        if(!frameSnapshot && snapshotFrame>=0 && frame>=snapshotFrame){
+            check(NativeBridge.gbaBenchmarkSnapshot(false)>0){NativeBridge.gbaStatus()};frameSnapshot=true
+        }
         val position=NativeBridge.gbaCamera()
         if(profileUi)NativeBridge.gbaUiTimings(uiTimings)
         camera.write(listOf(frame,if(position<0)-1 else position and 511,
@@ -78,20 +85,25 @@ class GameBenchmark private constructor(context:Context,val frames:Int,val paced
     companion object{
         fun enabled(context:Context)=BuildConfig.DEBUG &&
             (context as? Activity)?.intent?.getBooleanExtra("ffta_benchmark",false)==true
+        // Debug-only interactive save tests share no normal slots or SRAM.
+        fun isolatedSaves(context:Context)=enabled(context) || (BuildConfig.DEBUG &&
+            (context as? Activity)?.intent?.getBooleanExtra("ffta_save_sandbox",false)==true)
         fun preferFastCpu(context:Context)=!enabled(context) ||
             (context as? Activity)?.intent?.getBooleanExtra("ffta_benchmark_fast_cpu",false)==true
         fun create(context:Context):GameBenchmark?{
             if(!enabled(context))return null
             val intent=(context as Activity).intent
+            if(intent.getBooleanExtra("ffta_benchmark_state",false))check(NativeBridge.gbaBenchmarkSnapshot(true)>0){NativeBridge.gbaStatus()}
             NativeBridge.gbaUiProfile(intent.getBooleanExtra("ffta_benchmark_profile_ui",false),
                 intent.getBooleanExtra("ffta_benchmark_reference_ui",false))
             NativeBridge.gbaReferenceFrame(intent.getBooleanExtra("ffta_benchmark_reference_frame",false))
             NativeBridge.gbaReferenceDialogue(intent.getBooleanExtra("ffta_benchmark_reference_dialogue",false))
             NativeBridge.gbaParallelZoom(intent.getBooleanExtra("ffta_benchmark_parallel",true))
+            NativeBridge.gbaZoomWorkers(intent.getIntExtra("ffta_benchmark_zoom_workers",0))
             return GameBenchmark(context,intent.getIntExtra("ffta_benchmark_frames",9600).coerceIn(600,30000),
                 intent.getBooleanExtra("ffta_benchmark_clock",false),
                 ViewConfig(intent.getIntExtra("ffta_benchmark_extra_x",8).coerceIn(0,648),
-                    intent.getIntExtra("ffta_benchmark_extra_y",48).coerceIn(0,320)))
+                    intent.getIntExtra("ffta_benchmark_extra_y",48).coerceIn(0,320),intent.getBooleanExtra("ffta_benchmark_fill",false)))
         }
     }
 }

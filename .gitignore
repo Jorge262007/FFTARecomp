@@ -24,3 +24,32 @@ ffta-input-diagnostic*.txt
 *.swp
 .idea/
 .vscode/
+
+Saves/
+*.autosave.state
+*.autosave.state.bak
+*.sav.legacy-backup
+*.previews
+
+# Local builds, personal dumps and diagnostic captures
+*.apk
+*.sps
+*.state
+*.state.bak
+*.bak
+*.ppm
+**/local.properties
+/AndroidPort/APK/
+
+# Packaged release outputs
+/Installer/SteamDeck/
+/Installer/FFTAInstaller-*.zip
+/Installer/BUILD-MANIFEST.json
+/Installer/SHA256SUMS.txt
+/Installer/README-Windows.txt
+
+# Kotlin/NDK outputs are rebuilt by the Android scripts
+**/.kotlin/
+**/jniLibs/
+
+/Installer/FFTARecomp-windows-x86_64.zip

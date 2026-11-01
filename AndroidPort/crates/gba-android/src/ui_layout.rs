@@ -1,5 +1,5 @@
 // Screen-space UI coordinates shared with the desktop layout rules.
-fn letterbox_f(window:(u32,u32),width:f32,height:f32)->(f32,f32,f32){
+pub(crate) fn letterbox_f(window:(u32,u32),width:f32,height:f32)->(f32,f32,f32){
     let scale=(window.0 as f32/width).min(window.1 as f32/height);
     (scale,(window.0 as f32-width*scale)/2.,(window.1 as f32-height*scale)/2.)
 }

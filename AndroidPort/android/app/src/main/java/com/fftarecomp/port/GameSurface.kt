@@ -21,16 +21,23 @@ class GameSurface(context: Context, val onError: (String) -> Unit) : GLSurfaceVi
     companion object { val deliveredClicks=AtomicInteger(0) }
     val buttons = AtomicInteger(0)
     @Volatile var inputSource: AtomicInteger = buttons
+    @Volatile var saveSelectorActive=false
     @Volatile var gamePaused = false
     @Volatile var appActive = true
+    var videoOptions:VideoOptions
+        get()=frames.videoOptions
+        set(value){frames.videoOptions=value;requestRender()}
     @Volatile var viewRequest = ViewRequest(AspectMode.DEVICE,0)
-    @Volatile var speed = 1
+    @Volatile var speed = 1f
     @Volatile var audioMode=FastAudio.NORMAL
     @Volatile var soundEnabled = true
     @Volatile var volume = 0.8f
     @Volatile var experimentalClicks=false
+    @Volatile private var naming=false
+    val nameEntryActive get()=naming
     @Volatile var bubbleSize=1f
     @Volatile var bubbleLength=1f
+    fun cancelSave(){taps.offer(ScreenTap(.5f,.5f,true))}
     private val taps=java.util.concurrent.ConcurrentLinkedQueue<ScreenTap>()
     private var touchingGame=false
     private var downX=0f
@@ -38,7 +45,7 @@ class GameSurface(context: Context, val onError: (String) -> Unit) : GLSurfaceVi
     // Compose sends touches on its buttons to those buttons, never this underlying View.
     // Only complete single-pointer gestures that began on the game can become clicks.
     override fun onTouchEvent(event:MotionEvent):Boolean {
-        if(!experimentalClicks || gamePaused || !appActive){touchingGame=false;return false}
+        if((!experimentalClicks && !naming && !NativeBridge.gbaSaveScreen()) || gamePaused || !appActive){touchingGame=false;return false}
         when(event.actionMasked){
             MotionEvent.ACTION_DOWN->{touchingGame=true;downX=event.x;downY=event.y}
             MotionEvent.ACTION_POINTER_DOWN,MotionEvent.ACTION_CANCEL->touchingGame=false
@@ -47,7 +54,7 @@ class GameSurface(context: Context, val onError: (String) -> Unit) : GLSurfaceVi
                     kotlin.math.abs(event.y-downY)<48*resources.displayMetrics.density){
                     val view=frames.displayedView
                     val point=TouchSelection.map(event.x,event.y,width,height,view)
-                    if(point!=null && taps.size<8)taps.offer(ScreenTap(event.x/width,event.y/height,
+                    if((naming || point!=null) && taps.size<8)taps.offer(ScreenTap(event.x/width,event.y/height,
                         event.buttonState and MotionEvent.BUTTON_SECONDARY!=0))
                 }
                 touchingGame=false
@@ -133,33 +140,37 @@ class GameSurface(context: Context, val onError: (String) -> Unit) : GLSurfaceVi
                     continue
                 }
                 wasPaused = false
+                saveSelectorActive=NativeBridge.gbaSaveScreen()
                 val request=viewRequest
-                val config = benchmark?.view ?: ViewConfig.create(request.aspect,request.zoom,frames.screenWidth,frames.screenHeight)
+                val frontendCanvas=NativeBridge.gbaMenuBackground()
+                val config = benchmark?.view ?: if(frontendCanvas) ViewConfig.menu(frames.screenWidth,frames.screenHeight)
+                    else ViewConfig.create(request.aspect,request.zoom,frames.screenWidth,frames.screenHeight)
                 val bytes = config.width * config.height * 4
                 if (back == null || back.capacity() != bytes) {
                     back = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder())
                 }
                 uiBack.resize(bytes)
                 val audioCheck=benchmark!=null && benchmark.frame>=benchmark.frames && benchmark.audioFrames>0
-                val multiplier = if(audioCheck)4 else if(benchmark!=null)1 else speed.coerceIn(1, 8)
+                val multiplier = if(audioCheck)4f else if(benchmark!=null)1f else speed.coerceIn(1f,4f)
                 val mode=if(audioCheck)FastAudio.NORMAL else audioMode
-                val sound = soundEnabled && (multiplier==1 || mode!=FastAudio.SILENT) && track != null
-                val independentNormal=sound && multiplier>1 && mode==FastAudio.NORMAL
+                val sound = soundEnabled && (multiplier==1f || mode!=FastAudio.SILENT) && track != null
+                val independentNormal=sound && multiplier>1f && mode==FastAudio.NORMAL
                 normalOutput.volume=volume
                 normalOutput.active=independentNormal
-                val audioKey=if(!sound)0 else if(multiplier==1)1 else 10+mode.ordinal*10+multiplier
+                val audioKey=if(!sound)0 else if(multiplier==1f)1 else 10+mode.ordinal*10+(multiplier*2).toInt()
                 if(audioKey!=lastAudioKey) {
                     track?.pause();track?.flush();queuedCount = 0;audible=false;lastAudioKey=audioKey
                 }
                 if(audioCheck)benchmark?.beginAudio()
                 val start = System.nanoTime()
-                if(!experimentalClicks)taps.clear()
+                if(!experimentalClicks && !naming && !NativeBridge.gbaSaveScreen())taps.clear()
                 while(true){val tap=taps.poll()?:break;NativeBridge.gbaTap(tap.x,tap.y,tap.back);deliveredClicks.incrementAndGet()}
-                val base=ViewConfig.create(request.aspect,0,frames.screenWidth,frames.screenHeight)
+                val base=if(frontendCanvas)config else ViewConfig.create(request.aspect,0,frames.screenWidth,frames.screenHeight)
                 val samples = NativeBridge.gbaFrame(benchmark?.keys() ?: (inputSource.get().inv() and 0x3ff),
                     config.extraX, config.extraY, multiplier, sound, if(mode==FastAudio.NORMAL)2 else 1, back, sampleBuffer,
                     experimentalClicks,base.width*160f/base.height,bubbleSize,bubbleLength,
                     frames.screenWidth,frames.screenHeight,config.fillScreen,uiBack.pixels,uiBack.params,uiBack.background)
+                naming=NativeBridge.gbaNameEntry()
                 val frameNanos=System.nanoTime()-start
                 simulationNanos += frameNanos
                 if (samples < 0) throw IllegalStateException(NativeBridge.gbaStatus())
@@ -193,7 +204,7 @@ class GameSurface(context: Context, val onError: (String) -> Unit) : GLSurfaceVi
                 count++
                 if (count >= 120) {
                     val elapsed = System.nanoTime() - sampleStart
-                    performance = "Game loop: %.1f FPS\nSimulation: %.2f ms/frame\nSpeed: %dx\nAudio underruns: %d\n".format(
+                    performance = "Game loop: %.1f FPS\nSimulation: %.2f ms/frame\nSpeed: %.1fx\nAudio underruns: %d\n".format(
                         count * 1e9 / elapsed, simulationNanos / 1e6 / count / multiplier,
                         multiplier, track?.underrunCount ?: 0)
                     val saveStart=if(benchmark!=null)System.nanoTime() else 0L
@@ -229,20 +240,22 @@ class GameSurface(context: Context, val onError: (String) -> Unit) : GLSurfaceVi
 }
 
 private class UiBuffers(bytes:Int){
-    val pixels:ByteBuffer=ByteBuffer.allocateDirect(480*160*4*2).order(ByteOrder.nativeOrder())
-    val params=FloatArray(18)
+    val pixels:ByteBuffer=ByteBuffer.allocateDirect(480*160*4*11).order(ByteOrder.nativeOrder())
+    val params=FloatArray(99)
     var background:ByteBuffer=ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder())
         private set
     fun resize(bytes:Int){if(background.capacity()!=bytes)background=ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder())}
 }
 
 private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceView.Renderer {
+    @Volatile var videoOptions=VideoOptions()
+    private val videoPass=VideoPass()
     @Volatile var displayedView=ViewConfig(0,0)
         private set
     private data class PublishedFrame(val pixels:ByteBuffer,val view:ViewConfig,val ui:UiBuffers)
     private val mailbox=FrameMailbox<PublishedFrame>()
     private var uploadedView:ViewConfig?=null
-    private val uploadedUiParams=FloatArray(18)
+    private val uploadedUiParams=FloatArray(99)
     @Volatile var screenWidth = 2280
         private set
     @Volatile var screenHeight = 1080
@@ -256,7 +269,7 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
     private var uiProgram=0
     private var uiPosition=0
     private var uiCoordinates=0
-    private val uiTextures=IntArray(3)
+    private val uiTextures=IntArray(12)
     private var bgWidth=0
     private var bgHeight=0
     private val vertices = floats(floatArrayOf(-1f,-1f, 1f,-1f, -1f,1f, 1f,1f))
@@ -269,6 +282,7 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
 
     override fun onSurfaceCreated(gl: GL10?, egl: EGLConfig?) {
         try {
+            videoPass.reset()
             val vertex = shader(GL_VERTEX_SHADER,
                 "attribute vec2 position; attribute vec2 uv; varying vec2 tex; void main(){ gl_Position=vec4(position,0.0,1.0);tex=uv; }")
             val fragment = shader(GL_FRAGMENT_SHADER,
@@ -298,9 +312,10 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
             glAttachShader(uiProgram,shader(GL_FRAGMENT_SHADER,"""
                 precision highp float;
                 varying vec2 tex; uniform sampler2D panel; uniform sampler2D world;
-                uniform vec2 screen; uniform vec4 worldRect; uniform vec4 clip;
+                uniform vec2 screen; uniform vec4 worldRect; uniform vec4 clip; uniform float rawPreview;
                 void main(){vec2 p=vec2(gl_FragCoord.x,screen.y-gl_FragCoord.y);
                   if(p.x<clip.x||p.y<clip.y||p.x>=clip.x+clip.z||p.y>=clip.y+clip.w)discard;
+                  if(rawPreview>1.5){gl_FragColor=texture2D(panel,tex).bgra;return;}
                   vec4 data=floor(texture2D(panel,tex)*255.+.5);
                   if(data.b==0.&&data.a==16.)discard;
                   float code=data.r+data.g*256.;
@@ -315,14 +330,14 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
             glGetProgramiv(uiProgram,GL_LINK_STATUS,linked,0)
             check(linked[0]!=0){glGetProgramInfoLog(uiProgram)}
             uiPosition=glGetAttribLocation(uiProgram,"position");uiCoordinates=glGetAttribLocation(uiProgram,"uv")
-            glGenTextures(3,uiTextures,0)
-            for(i in 0..2){
+            glGenTextures(12,uiTextures,0)
+            for(i in 0..11){
                 glBindTexture(GL_TEXTURE_2D,uiTextures[i])
                 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)
                 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST)
                 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)
                 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE)
-                if(i<2)glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,480,160,0,GL_RGBA,GL_UNSIGNED_BYTE,null)
+                if(i<11)glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,480,160,0,GL_RGBA,GL_UNSIGNED_BYTE,null)
             }
             bgWidth=0;bgHeight=0
         } catch (error: Throwable) { onError("OpenGL: ${error.message}") }
@@ -333,6 +348,7 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        videoPass.begin(screenWidth,screenHeight,videoOptions)
         glViewport(0,0,screenWidth,screenHeight)
         glClearColor(0.025f,0.035f,0.03f,1f); glClear(GL_COLOR_BUFFER_BIT)
         if (program == 0) return
@@ -351,14 +367,14 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
             pending.ui.let{ui->
                 ui.params.copyInto(uploadedUiParams)
                 val uiParams=uploadedUiParams
-                for(i in 0..1)if(uiParams[i*9+2]>0f){
+                for(i in 0..10)if(uiParams[i*9+2]>0f){
                     ui.pixels.position(i*480*160*4)
                     glBindTexture(GL_TEXTURE_2D,uiTextures[i])
                     glTexSubImage2D(GL_TEXTURE_2D,0,0,0,480,160,GL_RGBA,GL_UNSIGNED_BYTE,ui.pixels)
                 }
                 if(uiParams[17]>0f){
                     ui.background.position(0)
-                    glBindTexture(GL_TEXTURE_2D,uiTextures[2])
+                    glBindTexture(GL_TEXTURE_2D,uiTextures[11])
                     if(bgWidth!=config.width||bgHeight!=config.height){
                         glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,config.width,config.height,0,GL_RGBA,GL_UNSIGNED_BYTE,ui.background)
                         bgWidth=config.width;bgHeight=config.height
@@ -394,15 +410,17 @@ private class FrameRenderer(private val onError: (String) -> Unit) : GLSurfaceVi
             vertices.position(0);uv.position(0)
             glVertexAttribPointer(uiPosition,2,GL_FLOAT,false,0,vertices)
             glVertexAttribPointer(uiCoordinates,2,GL_FLOAT,false,0,uv)
-            for(i in 0..1)if(uiParams[i*9+2]>0f){
-                glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,if(uiParams[i*9+8]>0f)uiTextures[2]else texture)
+            for(i in 0..10)if(uiParams[i*9+2]>0f){
+                glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,if(uiParams[i*9+8]==1f)uiTextures[11]else texture)
                 glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_2D,uiTextures[i])
+                glUniform1f(glGetUniformLocation(uiProgram,"rawPreview"),uiParams[i*9+8])
                 glUniform4fv(glGetUniformLocation(uiProgram,"rect"),1,uiParams,i*9)
                 glUniform4fv(glGetUniformLocation(uiProgram,"clip"),1,uiParams,i*9+4)
                 glDrawArrays(GL_TRIANGLE_STRIP,0,4)
             }
             glActiveTexture(GL_TEXTURE0)
         }
+        videoPass.finish(screenWidth,screenHeight,view.width,view.height)
         displayedView=view
     }
     private fun shader(type: Int, source: String): Int {

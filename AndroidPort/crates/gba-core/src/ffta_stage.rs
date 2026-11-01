@@ -104,7 +104,8 @@ pub fn entry(mem: &MemMap, bg: usize, x: i32, y: i32) -> Option<u16> {
 /// A verified terrain plane follows its map assignment, not its BG slot.
 /// Menus may hide one plane or assign the terrain pair to BG0/BG1.
 pub fn layer(mem: &MemMap, bg: usize) -> Option<usize> {
-    if bg > 3 || !mem.ffta_stage.enabled || mem.io[0] & 7 != 0 {
+    let mode=mem.io[0]&7;
+    if bg > 3 || !mem.ffta_stage.enabled || mode!=0 && !(mode==1 && bg<2) {
         return None;
     }
     let off = 8 + bg * 2;

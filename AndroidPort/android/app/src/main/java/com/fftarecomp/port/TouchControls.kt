@@ -112,9 +112,8 @@ fun TouchscreenSettings(settings:GameSettings,onEdit:()->Unit){
     }
     Row(verticalAlignment=Alignment.CenterVertically){
         Switch(settings.touch.experimentalClicks,{settings.touch.experimentalClicks=it;settings.touch.save()})
-        Text("Experimental touch selection")
+        Text("Touch selection")
     }
-    Text("Very experimental on Android and still in development. This preview lets you try touch selection; the final version will be much more polished. On-screen controls do not trigger selection.",fontSize=12.sp)
     Text("Opacity")
     Slider(settings.opacity,{settings.opacity=it},valueRange=0.2f..1f,onValueChangeFinished={settings.save()})
     Text("Size")
@@ -180,7 +179,7 @@ fun TouchOverlay(settings:GameSettings,input:GameInput,editing:Boolean,onPause:(
                         .then(if(editing&&selected==control)Modifier.border(2.dp,TouchGold,RoundedCornerShape(12.dp))else Modifier)
                         .semantics{contentDescription=if(editing)"Move "+control.label else control.label}
                     val label=when(control){
-                        TouchControl.FAST_TOGGLE->if(settings.fastForward)settings.multiplier.toString()+"x ON" else ">>"
+                        TouchControl.FAST_TOGGLE->if(settings.fastForward)speedLabel(settings.multiplier)+" ON" else ">>"
                         TouchControl.FAST_HOLD->"Hold >>"
                         else->control.label
                     }
@@ -195,10 +194,10 @@ fun TouchOverlay(settings:GameSettings,input:GameInput,editing:Boolean,onPause:(
                                     TouchControl.PAUSE->onPause()
                                     TouchControl.FAST_TOGGLE->{
                                         if(!settings.fastForward)settings.fastForward=true
-                                        else when(settings.multiplier){
-                                            2->settings.multiplier=4
-                                            4->settings.multiplier=8
-                                            else->{settings.fastForward=false;settings.multiplier=2}
+                                        else {
+                                            val next=FAST_SPEEDS.indexOf(settings.multiplier)+1
+                                            if(next in FAST_SPEEDS.indices)settings.multiplier=FAST_SPEEDS[next]
+                                            else {settings.fastForward=false;settings.multiplier=FAST_SPEEDS.first()}
                                         }
                                         settings.save()
                                     }

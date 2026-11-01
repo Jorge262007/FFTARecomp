@@ -33,6 +33,6 @@ integration to make a modified compatible library work.
 `GBA_RECOMP_CC` explicitly selects an external compiler instead. Its cache
 is separate; the usual GCC shared libraries still load through the OS.
 
-Standalone notice texts are grouped in `../Licenses/TinyCC/`. Desktop bundles
-carry that folder as `payload/Licenses/TinyCC/`; the source archive retains its
-original upstream license files.
+Standalone notice texts are grouped in `../Licenses/TinyCC/`. Runtime-only desktop archives omit documentation; provide the notices and
+corresponding source separately alongside the binary release. The source
+archive retains its original upstream license files.

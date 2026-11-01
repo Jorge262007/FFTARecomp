@@ -29,6 +29,25 @@ fn name_profile(mem:&MemMap)->Option<(usize,u8)> {
         && mem.rom.get(0x12aab4..0x12aab8)==Some(&[0x20,0x83,0x3a,8]) {Some((0x3a8320,2))}
     else {None}
 }
+/// Original name-entry task, including its confirmation cursor. Read-only and
+/// independent of whether experimental mouse/touch input is enabled.
+pub fn name_entry_active(mem:&MemMap)->bool {
+    if mem.iwram.get(0x27d1)!=Some(&2) || half(&mem.io,0)!=Some(0x1f40)
+        || half(&mem.io,8)!=Some(0x4c03) || half(&mem.io,10)!=Some(0x4e02)
+        || name_profile(mem).is_none(){return false;}
+    // Cursor OAM changes during confirmation; the name frame stays allocated.
+    let frame=mem.oam.chunks_exact(8).any(|o|{
+        let a0=half(o,0).unwrap();let a2=half(o,4).unwrap();
+        a0&0x300!=0x200 && a2&0xfc00==0x5400 && a2&1023==0x2d0
+    });
+    frame || match half(&mem.oam,4){
+        Some(0x120)=>mem.ewram.get(0x166db)==Some(&3),
+        // Story questions reuse the same interpreter pointer and choice dot.
+        // Only the live name frame may classify a confirmation as name entry.
+        Some(0x125..=0x127)=>false,
+        _=>mem.ffta_dialogue.naming_phase==3 && half(&mem.io,24).is_some_and(|s|s&511!=0),
+    }
+}
 impl LanguageScene {
     fn read(mem: &MemMap) -> Option<Self> {
         Self::startup(mem)
@@ -89,7 +108,7 @@ impl LanguageScene {
         let (manager_expected,task,handler,selector,load,mode_offset)=if usa {
             (0xf3dc,0xf3bc,0x08136085,0x136a78,0x89072,0x8993)
         }else{(0xf3d4,0xf3b8,0x08139d29,0x13a734,0x8be72,0x8994)};
-        if mem.iwram.get(0x27d1) != Some(&1) && mem.iwram.get(0x27d1) != Some(&4) {
+        if !matches!(mem.iwram.get(0x27d1),Some(1|4|11)) {
             return None;
         }
         let word = |o| {
@@ -97,11 +116,18 @@ impl LanguageScene {
                 mem.ewram.get(o..o + 4)?.try_into().ok()?,
             ))
         };
-        let manager = word(0xf3b0)?.checked_sub(0x02000000)? as usize;
-        if manager != manager_expected {
-            return None;
-        }
-        if mem.iwram[0x27d1] == 4 {
+        let title_manager=word(0xf3b0)?.checked_sub(0x02000000).map(|v|v as usize);
+        if matches!(mem.iwram[0x27d1],4|11) {
+            // The shared save task owns its manager through IWRAM. On the
+            // world map f3b0 contains a BG address, not the title manager.
+            let task_pointer=u32::from_le_bytes(mem.iwram.get(0x2804..0x2808)?.try_into().ok()?);
+            let shared=task_pointer==0x0813dd75
+                && mem.rom.get(0x13dd74..0x13dd7c)==Some(&[0xf0,0xb5,0x57,0x46,0x4e,0x46,0x45,0x46]);
+            let manager=if shared {
+                u32::from_le_bytes(mem.iwram.get(0x27d8..0x27dc)?.try_into().ok()?)
+                    .checked_sub(0x02000000)? as usize
+            }else{title_manager.filter(|m|*m==manager_expected)?};
+            if manager&3!=0 || manager.checked_add(0x2270)?>mem.ewram.len(){return None;}
             if half(&mem.io, 0)? != 0x1f40
                 || half(&mem.io, 8)? != 0xad0b
                 || half(&mem.io, 10)? != 0xac09
@@ -118,16 +144,19 @@ impl LanguageScene {
             return Some(Self {
                 selected,
                 selection_offset: offset,
-                base: 56,
+                base: if mem.iwram[0x27d1]==11{60}else{56},
                 confirm_key: 0x3fe,
                 targets: (0..2)
                     .map(|i| Target {
-                        index: 56 + i,
-                        bounds: [64., 68. + 16. * i as f32, 169., 84. + 16. * i as f32],
+                        index: if mem.iwram[0x27d1]==11{60+i}else{56+i},
+                        bounds: if mem.iwram[0x27d1]==11 {
+                            [16.+112.*i as f32,48.,120.+112.*i as f32,148.]
+                        }else{[64.,68.+16.*i as f32,if shared{160.}else{169.},84.+16.*i as f32]},
                     })
                     .collect(),
             });
         }
+        let manager=title_manager.filter(|m|*m==manager_expected)?;
         if half(&mem.io, 0)? != 0xf740
             || half(&mem.io, 8)? != 0x3d83
             || half(&mem.io, 10)? != 0x3e0a
@@ -143,7 +172,7 @@ impl LanguageScene {
                 confirm_key: 0x3f7,
                 targets: vec![Target {
                     index: 64,
-                    bounds: [62., 102., 180., 124.],
+                    bounds: [62., 106., 180., 118.],
                 }],
             });
         }
@@ -172,7 +201,12 @@ impl LanguageScene {
                     index: base + i,
                     bounds: {
                         let top=y+step*i as f32+if usa && mode==0 && i==2{8.}else{0.};
-                        [x,top,x+width,top+step]
+                        // Target the eight-pixel label, not the entire row
+                        // spacing: empty space between options is not a hit.
+                        let label_width=if mode==0 {
+                            [64.,72.,72.,64.][i as usize]
+                        }else{(width as f32).min(64.)};
+                        [x+if mode==0{16.}else{0.},top+2.,x+label_width,top+10.]
                     },
                 })
                 .collect(),
@@ -219,7 +253,7 @@ impl LanguageScene {
             [9., 12., 43., 30.],
             [43., 12., 80., 30.],
             [80., 12., 115., 30.],
-            [195., 60., 230., 104.],
+            [190., 48., 234., 84.],
             [175., 8., 236., 30.],
         ]
         .into_iter()
@@ -240,7 +274,7 @@ impl LanguageScene {
         })
     }
     fn name_confirmation(mem: &MemMap) -> Option<Self> {
-        if mem.iwram.get(0x27d1) != Some(&2)
+        if !name_entry_active(mem) || mem.iwram.get(0x27d1) != Some(&2)
             || half(&mem.io, 0)? != 0x1f40
             || half(&mem.io, 8)? != 0x4c03
             || !(0x125..=0x127).contains(&half(&mem.oam, 4)?)
@@ -300,7 +334,7 @@ pub struct LanguageMouse {
     typing_ready: bool,
 }
 #[derive(Clone,Copy)]
-enum NameKey { Glyph{page:u8,cell:u8}, Delete, Accept }
+enum NameKey { Glyph{page:u8,cell:u8}, Page(u8), Delete, Accept }
 impl LanguageMouse {
     pub fn new(rom: &[u8], enabled: bool) -> Self {
         let version=ffta_rom::version(rom);
@@ -393,7 +427,7 @@ impl LanguageMouse {
         }
     }
     pub fn valid_target(index: u8) -> bool {
-        matches!(index,0..=4|32..=35|40..=42|48..=52|56..=57|64|80..=139|144..=148|152..=153)
+        matches!(index,0..=4|32..=35|40..=42|48..=52|56..=57|60..=61|64|80..=139|144..=148|152..=153)
     }
     pub fn grid_metrics(&self) -> (usize, u64) {
         (self.grid.cell_count(), self.grid.revision())
@@ -416,6 +450,22 @@ impl LanguageMouse {
         if event.context != LANGUAGE_CONTEXT {
             self.cancel_pending();
             return false;
+        }
+        if scene.base==80 && confirm {
+            let index=event.option as u8;
+            let action=match index {
+                80..=139=>Some(NameKey::Glyph{page:mem.ewram[0x166da],cell:index-80}),
+                144..=146=>Some(NameKey::Page(index-144)),
+                147=>Some(NameKey::Accept),148=>Some(NameKey::Delete),_=>None,
+            };
+            if let Some(action)=action {
+                if self.typing.len()<64 {
+                    if self.typing.is_empty(){self.typing_ready=matches!(action,NameKey::Glyph{cell,..} if cell==scene.selected);}
+                    self.typing.push_back(action);self.target=None;self.confirm=false;
+                    self.deadline=mem.frames+180+self.typing.len()as u64*20;
+                }
+                return true;
+            }
         }
         if update.entered.is_some() || update.clicked.is_some() {
             let index = event.option as u8;
@@ -452,6 +502,11 @@ impl LanguageMouse {
             return true;
         }
         if scene.selection_offset != usize::MAX && scene.selected != value {
+            if matches!(scene.base,56|60) {
+                self.active_base=Some(scene.base);self.target=Some(index);
+                self.deadline=mem.frames+180;
+                return true;
+            }
             mem.ewram[scene.selection_offset] = value;
             self.selection_event = Some(index);
         }
@@ -514,6 +569,12 @@ impl LanguageMouse {
                             self.typing.pop_front();self.typing_ready=false;0x3fe
                         }
                     }
+                    NameKey::Page(desired)=>{
+                        let current=mem.ewram[0x166da];
+                        let pages=name_profile(mem).map_or(3,|p|p.1);
+                        if desired==current {self.typing.pop_front();return physical;}
+                        if (current+1)%pages==desired {0x2ff}else{0x1ff}
+                    }
                     NameKey::Delete=>{self.typing.pop_front();0x3fd}
                     NameKey::Accept=>{self.typing.pop_front();0x3f7}
                 };
@@ -525,7 +586,7 @@ impl LanguageMouse {
         };
         if scene.base == 80 && target >= 144 {
             let key = match target {
-                144..=146 => {
+                144..=146 if self.confirm => {
                     let page = mem.ewram[0x166da];
                     let desired = target - 144;
                     if desired == page {
@@ -555,6 +616,16 @@ impl LanguageMouse {
             return key;
         }
         if scene.selected + scene.base != target {
+            if matches!(scene.base,56|60) {
+                // Two save cards: let the original publisher update index,
+                // border/title palette, cursor and card metadata together.
+                // One left/right edge reaches the other card directly.
+                self.key=match (scene.base,target>scene.selected+scene.base) {
+                    (56,true)=>0x37f,(56,false)=>0x3bf,(_,true)=>0x3ef,_=>0x3df,
+                };
+                self.pulse=3;self.release=4;
+                return self.key;
+            }
             if !self.select(mem, target) {
                 self.cancel();
                 return physical;
@@ -773,7 +844,7 @@ mod tests {
                 let mut mouse=LanguageMouse{enabled:true,usa:true,..Default::default()};
                 let scene=mouse.scene(&m).unwrap();
                 assert_eq!(scene.targets.len(),3);
-                if mode==0 {assert_eq!(scene.targets[2].bounds,[8.,112.,112.,128.]);}
+                if mode==0 {assert_eq!(scene.targets[2].bounds,[24.,114.,80.,122.]);}
                 let target=scene.targets[to as usize];
                 let before=m.ewram.clone();
                 assert!(mouse.aim(&m,(target.bounds[0]+target.bounds[2])/2.,(target.bounds[1]+target.bounds[3])/2.,false));
@@ -789,6 +860,61 @@ mod tests {
                 m.rom[0x136084]^=1;
                 assert!(mouse.scene(&m).is_none());
             }}
+        }
+    }
+    #[test]
+    fn save_card_hover_uses_original_redraw_without_partial_selector_write(){
+        for from in 0..2 {
+            let mut m=frontend(0);
+            m.iwram[0x27d1]=11;
+            for(o,v)in [(0,0x1f40u16),(8,0xad0b),(10,0xac09)]{
+                m.io[o..o+2].copy_from_slice(&v.to_le_bytes());
+            }
+            m.rom[0x8be72..0x8be76].copy_from_slice(&[0x28,0x40,0x30,0x70]);
+            m.ewram[0xf3d4+0x2158+0x104]=2;
+            let offset=0xf3d4+0x2158+0x105;
+            m.ewram[offset]=from;
+            let before=m.ewram.clone();
+            let mut mouse=LanguageMouse{enabled:true,..Default::default()};
+            let target=mouse.scene(&m).unwrap().targets[(1-from)as usize];
+            assert!(mouse.aim(&m,(target.bounds[0]+target.bounds[2])*0.5,90.,false));
+            assert_eq!(mouse.keys(&mut m,RELEASED),if from==0{0x3ef}else{0x3df});
+            assert_eq!(m.ewram,before,"the guest handler must redraw border, title and cursor together");
+        }
+    }
+    #[test]
+    fn map_system_load_uses_the_shared_task_manager_not_title_globals(){
+        for state in [4,11] {
+            let mut m=frontend(0);m.iwram[0x27d1]=state;
+            for(o,v)in [(0,0x1f40u16),(8,0xad0b),(10,0xac09)]{m.io[o..o+2].copy_from_slice(&v.to_le_bytes());}
+            m.ewram[0xf3b0..0xf3b4].copy_from_slice(&0x06006800u32.to_le_bytes());
+            m.iwram[0x27d8..0x27dc].copy_from_slice(&0x0200f3a4u32.to_le_bytes());
+            m.iwram[0x2804..0x2808].copy_from_slice(&0x0813dd75u32.to_le_bytes());
+            m.rom[0x13dd74..0x13dd7c].copy_from_slice(&[0xf0,0xb5,0x57,0x46,0x4e,0x46,0x45,0x46]);
+            m.rom[0x8be72..0x8be76].copy_from_slice(&[0x28,0x40,0x30,0x70]);
+            let offset=0xf3a4+0x2158+0x105;m.ewram[offset-1]=2;
+            let mut mouse=LanguageMouse{enabled:true,..Default::default()};
+            let scene=mouse.scene(&m).unwrap();assert_eq!(scene.selection_offset,offset);
+            let t=scene.targets[1];assert!(mouse.aim(&m,(t.bounds[0]+t.bounds[2])*0.5,(t.bounds[1]+t.bounds[3])*0.5,false));
+            let before=m.ewram.clone();assert_eq!(mouse.keys(&mut m,RELEASED),if state==4{0x37f}else{0x3ef});assert_eq!(m.ewram,before);
+            m.iwram[0x2804..0x2808].fill(0);assert!(mouse.scene(&m).is_none());
+            m.iwram[0x2804..0x2808].copy_from_slice(&0x0813dd75u32.to_le_bytes());
+            m.iwram[0x27d8..0x27dc].copy_from_slice(&0x0203fffcu32.to_le_bytes());assert!(mouse.scene(&m).is_none());
+        }
+    }
+    #[test]
+    fn frontend_targets_leave_horizontal_margins_and_vertical_gaps(){
+        for mode in 0..3 {
+            let mem=frontend(mode);
+            let scene=LanguageScene::frontend(&mem).unwrap();
+            for t in &scene.targets {
+                let [l,top,r,bottom]=t.bounds;let y=(top+bottom)*0.5;
+                assert_eq!(scene.hit((l+r)*0.5,y),Some(t.index));
+                assert_eq!(scene.hit(l-1.,y),None);
+                assert_eq!(scene.hit(r+1.,y),None);
+                assert_eq!(scene.hit((l+r)*0.5,bottom+1.),None);
+                assert!(r-l<=72.);
+            }
         }
     }
     #[test]
@@ -889,6 +1015,56 @@ mod tests {
         m.rom[check..check+4].copy_from_slice(&[1,0x30,0x20,0x70]);
         m.rom[table..table+18].fill(10);
         let mouse=LanguageMouse{enabled:true,usa,..Default::default()};(m,mouse)
+    }
+    #[test]
+    fn naming_tabs_require_click_and_repeated_glyph_clicks_remain_independent(){
+        let(mut m,mut mouse)=typing_fixture(false);
+        assert!(mouse.aim(&m,60.,20.,false));
+        assert_eq!(mouse.keys(&mut m,RELEASED),RELEASED);
+        assert!(mouse.aim(&m,60.,20.,true));
+        assert_eq!(mouse.keys(&mut m,RELEASED),0x2ff);
+        mouse.cancel();
+        for _ in 0..2 {
+            assert!(mouse.aim(&m,14.,38.,true));
+            assert_eq!(mouse.keys(&mut m,RELEASED),0x3fe);
+            for _ in 0..9 {m.frames+=1;mouse.keys(&mut m,RELEASED);}
+        }
+    }
+    #[test]fn keyboard_click_queue_keeps_letters_and_start_in_order(){
+        let(mut m,mut mouse)=typing_fixture(false);
+        assert!(mouse.aim(&m,14.,38.,true));
+        assert!(mouse.aim(&m,30.,38.,true));
+        assert!(mouse.aim(&m,208.,55.,true));
+        assert_eq!(mouse.typing.len(),3);
+        assert!(matches!(mouse.typing[0],NameKey::Glyph{cell:0,..}));
+        assert!(matches!(mouse.typing[1],NameKey::Glyph{cell:1,..}));
+        assert!(matches!(mouse.typing[2],NameKey::Accept));
+        let mut edges=Vec::new();let mut last=RELEASED;
+        for _ in 0..80 {m.frames+=1;let k=mouse.keys(&mut m,RELEASED);
+            if k!=RELEASED && last==RELEASED{edges.push(k);}last=k;}
+        assert_eq!(edges,vec![0x3fe,0x3fe,0x3f7]);
+    }
+    #[test]fn story_question_is_not_the_name_keyboard(){
+        let(mut m,mouse)=typing_fixture(false);
+        m.oam[4..6].copy_from_slice(&0x125u16.to_le_bytes());
+        m.ewram[0x918c..0x9190].copy_from_slice(&0x02017370u32.to_le_bytes());
+        m.rom[0x11bf8..0x11bfc].copy_from_slice(&[0x51,0x40,1,0x70]);
+        m.ewram[0x173b1]=0;
+        assert!(!name_entry_active(&m));
+        assert!(mouse.scene(&m).is_none(),"a tutorial question must use dialogue coordinates, not the name-confirmation hitboxes");
+        m.oam[8..10].copy_from_slice(&0x80u16.to_le_bytes());
+        m.oam[12..14].copy_from_slice(&0x56d0u16.to_le_bytes());
+        assert!(name_entry_active(&m));
+        assert!(LanguageScene::name_confirmation(&m).is_some());
+    }
+    #[test]fn name_frame_owns_transition_even_when_cursor_is_temporarily_absent(){
+        let(mut m,_)=typing_fixture(false);
+        m.oam[4..6].copy_from_slice(&0x9334u16.to_le_bytes());
+        m.oam[8..10].copy_from_slice(&0x0080u16.to_le_bytes());
+        m.oam[12..14].copy_from_slice(&0x56d0u16.to_le_bytes());
+        assert!(name_entry_active(&m));
+        m.oam[8..10].copy_from_slice(&0x0200u16.to_le_bytes());
+        assert!(!name_entry_active(&m));
     }
     #[test]
     fn typed_names_select_case_and_numeric_page_then_emit_one_a_per_character(){

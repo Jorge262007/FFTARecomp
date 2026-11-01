@@ -15,6 +15,9 @@ enum class AspectMode(val label: String, val baseExtra: Int, val baseHeight: Int
     PHONE("20:9", 58), ULTRAWIDE("21:9", 66), SUPERWIDE("32:9", 164),
     SQUARE("1:1",8,256), NOTE10("19:9",49), DEVICE("Full screen",49)
 }
+val FAST_SPEEDS=listOf(1.5f,2f,3f,4f)
+fun speedLabel(value:Float)=if(value==value.toInt().toFloat()) "${value.toInt()}x" else "${value}x"
+
 enum class FastAudio(val label:String) { NORMAL("Normal"), SILENT("Silent"), FAST("Fast audio") }
 
 data class ViewRequest(val aspect:AspectMode,val zoom:Int)
@@ -34,6 +37,12 @@ data class ViewConfig(val extraX: Int, val extraY: Int,val fillScreen:Boolean=fa
             val limit = minOf(1536.0 / width, 800.0 / height)
             return floor(ln(limit) / ln(2.0.pow(1.0 / 6))).toInt().coerceIn(0, 6)
         }
+        /** Extend only the menu canvas, retaining the native foreground scale. */
+        fun menu(screenWidth:Int,screenHeight:Int):ViewConfig {
+            val scale=minOf(screenWidth.coerceAtLeast(1)/240.0,screenHeight.coerceAtLeast(1)/160.0)
+            return ViewConfig(ceil((screenWidth/scale-240)/2).toInt().coerceIn(0,648),
+                ceil((screenHeight/scale-160)/2).toInt().coerceIn(0,320),true)
+        }
         fun create(aspect: AspectMode, zoom: Int,screenWidth:Int=2280,screenHeight:Int=1080): ViewConfig {
             val (width,height)=base(aspect,screenWidth,screenHeight)
             val scale = 2.0.pow(zoom.coerceIn(0, maxZoom(aspect,screenWidth,screenHeight)) / 6.0)
@@ -45,6 +54,11 @@ data class ViewConfig(val extraX: Int, val extraY: Int,val fillScreen:Boolean=fa
 }
 
 object NativeBridge {
+    external fun gbaBenchmarkSnapshot(load:Boolean):Int
+    external fun gbaNameEntry():Boolean
+    external fun gbaVideoPalette(out: java.nio.ByteBuffer, screen: Int, darken: Float, brightness: Float): Int
+    external fun gbaSaveScreen(): Boolean
+    external fun gbaMenuBackground(): Boolean
     val loadError: String?
     @Volatile var romVerified = false
         private set
@@ -54,7 +68,7 @@ object NativeBridge {
 
     external fun gbaLoadRom(bytes: ByteArray, savePath: String): Int
     external fun gbaPrepare(): Int
-    external fun gbaFrame(keys: Int, extraX: Int, extraY: Int, frames: Int,
+    external fun gbaFrame(keys: Int, extraX: Int, extraY: Int, speed: Float,
                           sound: Boolean, audioMode: Int, pixels: ByteBuffer, audio: ShortArray,
                           touch:Boolean,baseWidth:Float,uiSize:Float,uiLength:Float,
                           screenWidth:Int,screenHeight:Int,fill:Boolean,ui:ByteBuffer,uiParams:FloatArray,uiBackground:ByteBuffer): Int
@@ -68,6 +82,7 @@ object NativeBridge {
     external fun gbaPullNormalAudio(audio:ShortArray):Int
     external fun gbaCharacterMetrics(enabled:Boolean)
     external fun gbaCharacters():String
+    external fun gbaZoomWorkers(limit:Int)
     external fun gbaParallelZoom(enabled:Boolean)
     external fun gbaCamera():Long
     external fun gbaSave(): Int
