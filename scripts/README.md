@@ -146,12 +146,12 @@ clock/images/OAM/dispatch/fiveaudio. All seven road counts match CLI, including
 positive count/pointer/sample bytes. See [the scoped result](../docs/rom_data_maps.md#ordinary-sampled-road-travel-equivalence).
 Linux/USA/nativeWindows and broader coverage remain pending; no measurements.
 
-I launcher ROM coverage accettano audit DBG-06 ripetibili (`--audit FILE` su Bash,
-`-AuditPath @('a.json','b.json')` su PowerShell) e una fotografia precedente
-(`--compare FILE` / `-ComparePath FILE`). Importano soltanto metadati locali,
-con mount in sola lettura; nessun replay. La mappa distingue unioni osservate,
-servizio Typed/Raw e intere famiglie positive, con filtri e limiti espliciti.
-Vedi [istruzioni ed esempi](../docs/development/ROM_COVERAGE.md#scene-letture-e-confronto-dbg-07).
+ROM coverage launchers accept repeatable DBG-06 audits (`--audit FILE` on Bash,
+`-AuditPath @('a.json','b.json')` on PowerShell) and a previous snapshot
+(`--compare FILE` / `-ComparePath FILE`). They import only local metadata through
+read-only mounts, without replay. The map distinguishes observed unions,
+Typed/Raw service and entire positive families, with explicit filters and limits.
+See [instructions and examples](../docs/development/ROM_COVERAGE.md#scene-letture-e-confronto-dbg-07).
 
 
 EUR e80-d79 extraction publishes `encounter-headers.json`
@@ -162,12 +162,12 @@ four-byte pointer. The reduced Wine integration result is documented under
 Actual CLI/ordinary coverage and Linux/USA/nativeWindows remain pending; no
 performance measurement is included.
 
-Il comando runtime `debug-capture create/run/cancel` e Debug > Capture on trigger
-producono punti derivati da replay isolati: prima lettura di una risorsa,
-ingresso interprete in un PC ROM verificato, oppure N frame completati.
-Richiedono `rom-data-read-audit`, input registrato e limite esplicito; il risultato
-è un bundle/catalogo privato o `not-reached` senza snapshot. Vedi
-[uso, provenienza e limiti](../docs/debug_captures.md).
+Runtime command `debug-capture create/run/cancel` and Debug > Capture on trigger
+produce points derived from isolated replays: first resource read, interpreter
+entry at a verified ROM PC, or N completed frames. They require
+`rom-data-read-audit`, recorded input and an explicit limit; the result is a
+private bundle/catalog or `not-reached` without a snapshot. See
+[usage, provenance and limits](../docs/debug_captures.md).
 
 
 EUR e81-d80 extraction adds `encounter-unit-templates.json`
@@ -176,18 +176,18 @@ metadata14/job dependencies. Two source fragments skip the192 bytes already
 owned by constructor alternates; strict coherence and typed reads preserve
 original live initialization. [Contract and checks](../docs/rom_data_gameplay.md#managed-encounter-unit-templates-and-typed-guest-reads).
 
-`recomp debug-compare create/run/cancel` e Debug > Compare first difference
-confrontano ogni frame dal medesimo snapshot/input: interprete/raw come
-riferimento e interprete/native con dataset opzionale come candidato. Il primo
-confine diverso produce un report HTML/JSON privato con campi CPU/Bus esatti,
-immagini affiancate e stream; un prefisso uguale conserva solo metadati.
-Non richiede la feature audit. Vedi [uso, ambito e verifiche](../docs/debug_comparisons.md).
+`recomp debug-compare create/run/cancel` and Debug > Compare first difference
+compare every frame from the same snapshot/input: interpreter/raw as reference,
+and interpreter/native with optional dataset as candidate. The first differing
+boundary produces a private HTML/JSON report with exact CPU/Bus fields,
+side-by-side images and streams; an equal prefix retains only metadata.
+The audit feature is not required. See [usage, scope and checks](../docs/debug_comparisons.md).
 
-`recomp debug-control status/pause/step/resume SESSION` controlla la finestra
-di una copia isolata. `step SESSION N [--keys HEX]` avanza esattamente 1–600 frame
-e rimane in pausa; menu e F6/F7/F8 condividono le stesse azioni.
-`debug-session open SESSION --paused` evita frame prima della prima richiesta.
-Vedi [DBG-10: procedura, audio e limiti](../docs/debug_control.md).
+`recomp debug-control status/pause/step/resume SESSION` controls an isolated
+copy's window. `step SESSION N [--keys HEX]` advances exactly 1–600 frames
+and remains paused; the menu and F6/F7/F8 share the same actions.
+`debug-session open SESSION --paused` prevents frames before the first request.
+See [DBG-10: procedure, audio and limits](../docs/debug_control.md).
 
 
 EUR e82-d81 extraction adds `encounter-coordinates.json`
@@ -195,79 +195,79 @@ EUR e82-d81 extraction adds `encounter-coordinates.json`
 Its691 spans retain raw XY bytes and original signed/unsigned placement/RNG
 logic. [Managed resource and checks](../docs/rom_data_maps.md#managed-encounter-coordinates-and-typed-guest-reads).
 
-`recomp debug-control inspect SESSION ADDRESS LENGTH` legge buffer e registri
-senza effettuare accessi I/O. `break SESSION PC arm|thumb` e `watch SESSION
-read|write START END` cercano un punto nell'interprete con limiti di passi/frame;
-watch richiede `rom-data-read-audit`. Vedi [DBG-11 e granularità](../docs/debug_probes.md).
+`recomp debug-control inspect SESSION ADDRESS LENGTH` reads buffers and registers
+without performing I/O accesses. `break SESSION PC arm|thumb` and `watch SESSION
+read|write START END` search for a point in the interpreter with step/frame limits;
+watch requires `rom-data-read-audit`. See [DBG-11 and granularity](../docs/debug_probes.md).
 
-`recomp debug-control graphics SESSION [--compare-last]` cattura dalla copia
-in pausa un [report grafico DBG-12](../docs/debug_graphics.md), con PNG/JSON e
-buffer PPU privati, proiezioni readonly e confronto con l'ultimo report.
-Non richiede audit e non genera un nuovo snapshot.
+`recomp debug-control graphics SESSION [--compare-last]` captures a
+[DBG-12 graphics report](../docs/debug_graphics.md) from the paused copy, with
+private PNG/JSON/PPU buffers, readonly projections and comparison to the latest
+report. It requires no audit and creates no new snapshot.
 
-`report_home.py` genera `index.html` nella root, con tutti gli indici HTML locali,
-ricerca e filtri. `windows/report_home.ps1 -OpenReport` e
-`bash scripts/linux/report_home.sh` usano l'immagine Docker coverage già esistente,
-con rete disabilitata e checkout readonly; non eseguono estrazione o runtime.
-Il solo catalogo generato resta ignorato. [Uso e verifiche](../docs/report_home.md).
+`report_home.py` generates root `index.html` with all local HTML indexes,
+search and filters. `windows/report_home.ps1 -OpenReport` and
+`bash scripts/linux/report_home.sh` use the existing coverage Docker image,
+with networking disabled and readonly checkout; no extraction or runtime.
+Only the generated catalog is ignored. [Usage and checks](../docs/report_home.md).
 
-`recomp debug-control ui-start SESSION` / `ui-report SESSION` e le voci Debug
-Start UI / input trace / Save UI / input report raccolgono osservazioni limitate
-di focus, font, input/rimappatura e dispatch host/guest nella copia isolata.
-`status.host_menu` espone il focus reale prima di automatizzare la navigazione.
-I report privati sono riconosciuti dalla homepage. [DBG-13](../docs/debug_ui.md).
+`recomp debug-control ui-start SESSION` / `ui-report SESSION` and Debug entries
+Start UI / input trace / Save UI / input report collect bounded observations of
+focus, fonts, input/remapping and host/guest dispatch in the isolated copy.
+`status.host_menu` exposes actual focus before automating navigation.
+Private reports are recognized by the homepage. [DBG-13](../docs/debug_ui.md).
 
 `recomp debug-control audio-start SESSION [--frames 1..180] [--streams LIST]` /
-`audio-report SESSION` e le voci Start audio capture / Save audio report raccolgono
-buffer guest e callback con contesto mute/Fast/reset nella copia isolata.
-`debug-audio states --rom ROM --left STATE --right STATE --dir NEW` confronta
-buffer già conservati senza eseguire il gioco; exit0equal/2diverged/3incompatible.
-WAV/raw/report privati sono indicizzati dalla homepage. [DBG-14](../docs/debug_audio.md).
+`audio-report SESSION` and Start audio capture / Save audio report collect guest
+buffers and callbacks with mute/Fast/reset context in the isolated copy.
+`debug-audio states --rom ROM --left STATE --right STATE --dir NEW` compares
+retained buffers without running the game; exits 0 equal / 2 diverged / 3 incompatible.
+Private WAV/raw/reports are indexed by the homepage. [DBG-14](../docs/debug_audio.md).
 
-`recomp debug-control code-start SESSION` / `code-report SESSION` osservano
-un prefisso PC/modo, istruzione al punto, label statiche e scelta dispatch
-native/missing/system/hook/interpreter nella copia isolata. Filtri e limiti
-espliciti, nessun nuovo snapshot o percentuale di codice dedotta dai conti.
+`recomp debug-control code-start SESSION` / `code-report SESSION` observe a
+PC/mode prefix, the current instruction, static labels and
+native/missing/system/hook/interpreter dispatch in the isolated copy. Filters
+and limits are explicit; no new snapshot or code percentage inferred from counts.
 [DBG-15](../docs/debug_code.md).
 
-`recomp debug-report create PROFILO/replay.json --symptom TESTO` e il menu
-Create issue report riuniscono contesto, input/identità ed evidenza conservata
-in un HTML/JSON locale con launcher relativi, senza avviare il caso o inviare dati.
-`debug-control issue-report SESSION` è l’equivalente sulla finestra aperta.
-[DBG-16 e privacy](../docs/debug_issues.md).
+`recomp debug-report create PROFILE/replay.json --symptom TEXT` and the
+Create issue report menu entry gather context, input/identity and retained
+evidence in local HTML/JSON with relative launchers, without starting the case
+or sending data. `debug-control issue-report SESSION` is the equivalent for an
+open window. [DBG-16 and privacy](../docs/debug_issues.md).
 
-`recomp debug-control gameplay-start SESSION [--frames N --events N --family FAMIGLIA --context HEX]` /
-`gameplay-report SESSION` e Start task / script trace / Save gameplay report
-osservano campi verificati di task, script e unità con provenienza RAM/ROM/registri,
-filtri e limiti espliciti. Link alle risorse e campi sconosciuti rimangono distinti
-dalle identità persistenti degli attori. [DBG-17](../docs/debug_gameplay.md).
+`recomp debug-control gameplay-start SESSION [--frames N --events N --family FAMILY --context HEX]` /
+`gameplay-report SESSION` and Start task / script trace / Save gameplay report
+observe verified task/script/unit fields with RAM/ROM/register provenance,
+explicit filters and limits. Resource links and unknown fields remain distinct
+from persistent actor identities. [DBG-17](../docs/debug_gameplay.md).
 
-`debug_artifacts.py preview --session DIR --keep DIR --unit target/rom-data-NOME --out NEW`
-produce un piano HTML/JSON; `apply PLAN --receipt NEW.json` lo verifica sotto
-coordinamento e registra ogni rimozione. Input/report/errori e sessioni tenute
-restano conservati. Launcher `windows/debug_artifacts.ps1` e
-`linux/debug_artifacts.sh [--docker]` salvano i log. Docker usa la derivata
-`Dockerfile.debug-tools` con Git, senza build runtime. [DBG-18](../docs/debug_artifacts.md).
+`debug_artifacts.py preview --session DIR --keep DIR --unit target/rom-data-NAME --out NEW`
+produces an HTML/JSON plan; `apply PLAN --receipt NEW.json` verifies it under
+coordination and records each removal. Inputs/reports/errors and retained
+sessions are preserved. Launchers `windows/debug_artifacts.ps1` and
+`linux/debug_artifacts.sh [--docker]` retain logs. Docker uses the derived
+`Dockerfile.debug-tools` with Git, without a runtime build. [DBG-18](../docs/debug_artifacts.md).
 
 **recomp debug-control recent-start SESSION** / **recent-freeze SESSION** /
-**recent-report SESSION** e Start recent events / Freeze / save recent events
-mantengono una finestra mobile1.024eventi/256KiB. Il trigger errore osservato salva
-contesto utile; disponibilità delle letture, espulsioni e limiti restano espliciti.
-Nessun nuovo snapshot. [DBG-19](../docs/debug_recent.md).
+**recent-report SESSION** and Start recent events / Freeze / save recent events
+retain a rolling 1,024-event/256-KiB window. An observed-error trigger saves
+useful context; read availability, evictions and limits remain explicit.
+No new snapshot. [DBG-19](../docs/debug_recent.md).
 
-**recomp debug-control status SESSION** funziona anche mentre un comando attende.
-**cancel SESSION --request ID** annulla quel budget al prossimo rientro frontend;
-**--timeout-ms N** (20–120000) aggiunge attesa limitata e scadenza server.
-JSON distingue timeout non confermato, stato server e identità manifest/run/ID.
-Nessun servizio di rete. [DBG-20](../docs/debug_control.md#richieste-cancellazione-e-scadenza--dbg-20).
+**recomp debug-control status SESSION** also works while a command waits.
+**cancel SESSION --request ID** cancels that budget at the next frontend return;
+**--timeout-ms N** (20–120000) adds bounded waiting and a server deadline.
+JSON distinguishes unconfirmed timeout, server state and manifest/run/ID identity.
+No network service. [DBG-20](../docs/debug_control.md#richieste-cancellazione-e-scadenza--dbg-20).
 
-**debug_campaign.py report MANIFEST --case ID --out NEW** seleziona DS/famiglie/
-transizioni e riusa prove JSON con pin, senza replay automatici. Esiti positivo/
-negativo/incompatibile/non eseguito e zero letture nella sola finestra restano
-espliciti. **run-case MANIFEST ID --reason TEXT --out NEW** delega un solo profilo
-al replay esistente; una prova precedente richiede --reopen-reason. Launcher
-**windows/debug_campaign.ps1** e **linux/debug_campaign.sh [--docker]** conservano
-log; Docker offre solo report/help. [DBG-21](../docs/debug_campaigns.md).
+**debug_campaign.py report MANIFEST --case ID --out NEW** selects DS/families/
+transitions and reuses pinned JSON evidence without automatic replay.
+Positive/negative/incompatible/not-run outcomes and zero reads in the observed
+window remain explicit. **run-case MANIFEST ID --reason TEXT --out NEW** delegates
+one profile to the existing replay; previous evidence requires --reopen-reason.
+Launchers **windows/debug_campaign.ps1** and **linux/debug_campaign.sh [--docker]**
+retain logs; Docker provides report/help only. [DBG-21](../docs/debug_campaigns.md).
 
 
 The [shared debug guide](../docs/debug_tools.md) covers recording, bug reports,

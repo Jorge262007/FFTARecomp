@@ -1,11 +1,13 @@
-# Esportazione privata degli asset di debug
+<a id="esportazione-privata-degli-asset-di-debug"></a>
 
-Lo script prepara uno ZIP **locale e privato** con una cartella portable Windows
-separata. Contiene copie di salvataggi, snapshot e registrazioni: non è il
-pacchetto di distribuzione e non va pubblicato o aggiunto a Git. La ROM e il BIOS
-non sono inclusi. Occorre usare la propria ROM EUR compatibile al primo avvio.
+# Private debug asset export
 
-Dal checkout, con Python 3 disponibile:
+The script prepares a **local, private ZIP** containing a separate portable
+Windows folder. It contains copies of saves, snapshots and recordings: it is
+not the distribution package and must not be published or added to Git.
+ROM and BIOS files are excluded. Supply your own compatible EUR ROM at first launch.
+
+From the checkout, with Python 3 available:
 
 ```bash
 bash scripts/linux/export_debug_assets.sh
@@ -15,55 +17,55 @@ bash scripts/linux/export_debug_assets.sh
 .\scripts\windows\export_debug_assets.ps1
 ```
 
-Oppure `python3 scripts/export_debug_assets.py` (su Windows anche `py -3`).
-Lo script stampa il nome dello ZIP sotto `dist/debug-assets/`, con data e ora.
-Estraendolo nella root del progetto si ottiene `FFTARecomp-debug-EUR/`; avviare
-`FFTARecomp.exe` da quella cartella e selezionare la propria ROM EUR. Se esiste
-una cartella con lo stesso nome, estrarre in una posizione nuova per conservare
-la copia precedente. La cartella estratta è ignorata da Git nella root e
-contiene anche un `.gitignore` protettivo. Il gioco scrive nella propria cartella portable;
-Debug e Extended saves sono già abilitati nella configurazione iniziale.
+Alternatively, run `python3 scripts/export_debug_assets.py` (`py -3` also works
+on Windows). The script prints the timestamped ZIP path under `dist/debug-assets/`.
+Extracting it into the project root creates `FFTARecomp-debug-EUR/`; launch
+`FFTARecomp.exe` from that folder and select your own EUR ROM. If that folder
+already exists, extract elsewhere to preserve the previous copy. The extracted
+folder is ignored by Git at the root and contains its own protective `.gitignore`.
+The game writes to its portable folder; Debug and Extended saves are already
+enabled in the initial configuration.
 
-Lo ZIP include:
+The ZIP includes:
 
-- Il pacchetto Windows debug-tools selezionato, con launcher e runtime Windows
-  selezionati separatamente. `PACKAGE-MANIFEST.json` descrive il solo pacchetto
-  base; `DEBUG-ASSETS-MANIFEST.json` elenca tutti i file dell'esportazione.
-- La raccolta `debug_saves/ready/` sotto `Data/config/debug-catalog/`, con
-  catalogo, salvataggi e snapshot EUR/USA. Le voci USA sono conservate come
-  raccolta preesistente; questa esportazione non ne verifica la giocabilità.
-- Copie di lavoro degli slot EUR e di `ffta.sav` sotto `Data/saves/`, così
-  **Gioco > Salvataggi** le trova direttamente. Il catalogo conserva copie
-  distinte da selezionare sotto **Debug > Sessioni e casi > Debug catalog**.
-- I restanti file di `debug_saves/`, la raccolta `saves/debug-cases/`, le fonti
-  indicate dal manifest locale degli snapshot quando disponibile, le
-  registrazioni complete della prova dedicata e la coppia di replay F-09 quando
-  disponibile, in `DebugAssets/` o `Data/config/recordings/` come indicato da
-  `LEGGIMI-DEBUG.txt` nello ZIP.
+- The selected Windows debug-tools package, with separately selected Windows
+  launcher and runtime. `PACKAGE-MANIFEST.json` describes only the base package;
+  `DEBUG-ASSETS-MANIFEST.json` lists every file in the export.
+- The `debug_saves/ready/` collection under `Data/config/debug-catalog/`, including
+  the catalog and EUR/USA saves and snapshots. USA entries are retained as an
+  existing collection; this export does not verify their playability.
+- Working copies of the EUR slots and `ffta.sav` under `Data/saves/`, so
+  **Game > Saves** finds them directly. The catalog keeps separate copies
+  selectable through **Debug > Sessions and cases > Debug catalog**.
+- Remaining `debug_saves/` files, the `saves/debug-cases/` collection, sources
+  named by the local snapshot manifest when available, complete recordings
+  from the dedicated check and the F-09 replay pair when available, in
+  `DebugAssets/` or `Data/config/recordings/` as described by
+  `LEGGIMI-DEBUG.txt` in the ZIP.
 
-Queste sorgenti sono selezionate esplicitamente: lo script non copia l'intero
-`target/`, dataset ROM, cache, prefissi Wine, sessioni incomplete o file
-personali non presenti nelle raccolte indicate. Per un'altra raccolta usare
-`--assets`, `--legacy`, `--source-manifest`, `--recordings` e `--replay`;
-`--help` mostra i valori predefiniti. I file di una registrazione completa e
-le voci del catalogo vengono confrontati con i rispettivi SHA-256. Snapshot e
-registrazioni conservano i vincoli originali su ROM, BIOS, runtime e provenienza;
-la presenza nel pacchetto non sostituisce le verifiche di compatibilità.
+These sources are selected explicitly: the script does not copy all of
+`target/`, ROM datasets, caches, Wine prefixes, incomplete sessions or personal
+files outside the named collections. Select another collection with
+`--assets`, `--legacy`, `--source-manifest`, `--recordings` and `--replay`;
+`--help` shows the defaults. Complete recordings and catalog entries are
+checked against their SHA-256 values. Snapshots and recordings retain their
+original ROM, BIOS, runtime and provenance constraints; inclusion in the
+package does not replace compatibility checks.
 
-Gli input predefiniti necessari sono `dist/debug-tools/FFTARecomp-windows-debug-tools.zip`,
-`target/x86_64-pc-windows-gnu/release/recomp.exe` e `ffta-play.exe` nella stessa
-cartella. Costruire prima un pacchetto debug-tools e i binari Windows, oppure
-selezionare input esistenti con `--base`, `--runtime` e `--launcher`. Lo script
-controlla architettura PE, manifest e hash del pacchetto base, collegamenti
-simbolici, percorsi, ROM/BIOS e CRC/hash dello ZIP prima di pubblicarlo. Una
-posizione esplicita si passa con `--output`; un file già esistente non viene
-sovrascritto. Non vengono eseguite build, emulazione o operazioni sui sorgenti.
+Required default inputs are `dist/debug-tools/FFTARecomp-windows-debug-tools.zip`,
+`target/x86_64-pc-windows-gnu/release/recomp.exe` and `ffta-play.exe` in the same
+folder. First build a debug-tools package and the Windows binaries, or select
+existing inputs with `--base`, `--runtime` and `--launcher`. Before publishing
+the ZIP locally, the script checks PE architecture, the base package manifest
+and hashes, symbolic links, paths, ROM/BIOS exclusions and ZIP CRC/hash values.
+Use `--output` for an explicit destination; an existing file is not overwritten.
+No build, emulation or source modification is performed.
 
-La verifica locale del 31 ottobre 2026 ha controllato 104 file del catalogo,
-10 fonti originali, due registrazioni e il replay F-09. Su Wine il runtime
-Windows estratto ha elencato il catalogo EUR e creato una copia isolata DS-20;
-la GUI della copia ha aperto il catalogo in pausa, con stato e clock invariati.
-La copia finale aggiunge le fonti verificate e aggiorna istruzioni e protezione Git rispetto
-allo ZIP usato nella GUI; runtime, configurazione, catalogo e salvataggi sono
-identici. Linux nativo, Windows nativo, pad fisici e giocabilità USA restano
-da verificare. Evidenze locali: `target/private-debug-assets-validation/`.
+Local validation on 2026-10-31 checked 104 catalog files, 10 original sources,
+two recordings and the F-09 replay. Through Wine, the extracted Windows runtime
+listed the EUR catalog and created an isolated DS-20 copy; the copy's GUI opened
+the catalog while paused, preserving state and clock. The final copy adds the
+verified sources and updates instructions/Git protection compared with the ZIP
+used in the GUI; runtime, configuration, catalog and saves are identical.
+Native Linux, native Windows, physical controllers and USA playability remain
+unverified. Local evidence: `target/private-debug-assets-validation/`.

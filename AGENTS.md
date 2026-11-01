@@ -1,7 +1,20 @@
 # FFTARecomp project guidance
 
+## English-first project
+
+Use English as the primary language for maintained documentation, source
+comments, user-facing default UI, CLI messages, reports and development tools
+in both the root workspace and `AndroidPort/`. Keep optional translations in
+explicit locale catalogs; English is the default and fallback. New message
+keys and identifiers should be English. Preserve compatibility for existing
+machine tokens, paths and schemas when migrating older text.
+Preserve upstream license wording, original game/imported data and immutable
+historical evidence verbatim; explain them in English where needed. These
+preservation exceptions do not exempt maintained guides or current UI from
+translation. See [the project language policy](docs/development/ENGLISH_FIRST.md).
+
 Start with the short [operational handoff](docs/development/TASK_HANDOFF.md),
-including its final **PASSAGGIO DI TESTIMONE**, and `git status --short`.
+including its final **Final handover**, and `git status --short`.
 Read only task-relevant source, evidence and PROJECT_STATE sections before
 changing code. Existing uncommitted work belongs to the user; preserve it and
 inspect the diff before attributing changes. Do not automatically load the
@@ -28,7 +41,7 @@ reopening reason. Validate already implemented requests rather than redo them.
 Check linked terminal results before trusting an old next-action line. Close a
 completed/rejected selection immediately, before choosing the next unit.
 Update the handoff before ending a work unit or a known context handoff.
-Keep its five ordered sections and 10–20 KiB target; **PASSAGGIO DI TESTIMONE
+Keep its five ordered sections and 10–20 KiB target; **Final handover
 must always be last**, with only task, verified result, remaining work, errors,
 next action and references. Never append chronology after it. On completion,
 verify acceptance, record evidence/limits, append the closed outcome to the

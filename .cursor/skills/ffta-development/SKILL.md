@@ -6,7 +6,7 @@ description: Develop FFTARecomp runtime, UI, input, rendering and recompiler fea
 # FFTARecomp development
 
 Read `AGENTS.md`, the short `docs/development/TASK_HANDOFF.md` including its
-final PASSAGGIO DI TESTIMONE, Git status and only relevant PROJECT_STATE sections.
+final **Final handover** section, Git status and only relevant PROJECT_STATE sections.
 Do not preload archive, full CHANGELOG/PROJECT_STATE or unrelated TODOs.
 Inspect current code and Git state; historical docs include old build
 flags and paths, so manifests and implementations resolve disagreements.

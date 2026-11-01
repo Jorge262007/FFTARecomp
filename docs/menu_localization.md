@@ -1,117 +1,119 @@
-# Lingua del menu desktop
+<a id="lingua-del-menu-desktop"></a>
 
-Il menu usa **English** come lingua iniziale, indipendentemente dalla lingua
-del sistema e della ROM. Da **Game > System > Language** si può scegliere
-**English** oppure **Italiano**. In italiano il percorso è
-**Gioco > Sistema > Lingua**.
+# Desktop menu language
 
-Conferma apre l'elenco; le frecce selezionano una lingua e una seconda conferma
-applica la scelta immediatamente. Annulla chiude l'elenco senza cambiare la
-preferenza. Il mouse usa lo stesso elenco e lo stesso percorso di conferma.
-La scelta viene salvata tramite il normale handler delle opzioni in `av.cfg`:
+The menu starts in **English**, independently of the system and ROM language.
+Use **Game > System > Language** to choose **English** or **Italiano**.
+With Italian selected, the same route is **Gioco > Sistema > Lingua**.
+
+Confirm opens the list; arrows select a language and a second confirmation
+applies the choice immediately. Cancel closes the list without changing the
+preference. The mouse uses the same list and confirmation path.
+The normal settings handler saves the choice in `av.cfg`:
 
 ```ini
 menu.language = en
 ```
 
-`it` seleziona l'italiano. Una configurazione precedente senza questa chiave,
-una chiave vuota o una lingua non supportata usa l'inglese. Le altre preferenze
-restano conservate. In modalità portable la chiave si trova nello stesso
-`Data/config/av.cfg` delle altre opzioni. La preferenza riguarda l'interfaccia
-desktop: non cambia il testo del gioco o i dati della ROM. `AndroidPort/` è
-un albero separato e non riceve questa implementazione.
+`it` selects Italian. An older configuration without this key, an empty key
+or an unsupported language uses English. Other preferences are retained.
+In portable mode, the key lives in the same `Data/config/av.cfg` as the other
+options. This preference controls the desktop interface: it does not change
+game text or ROM data. `AndroidPort/` is a separate tree and does not receive
+this implementation automatically.
 
-Il catalogo copre cornice, navigazione, titoli, etichette e scelte delle opzioni,
-istruzioni tastiera/controller, forme di salvataggio e conferma, dettagli e
-controlli dei selettori/strumenti. Data del salvataggio standard e descrizione
-dell'ultima operazione annullabile conservano i propri dati e si ridisegnano
-nella lingua corrente. I messaggi dinamici delle normali operazioni di
-salvataggio usano la lingua selezionata quando vengono prodotti.
+The catalog covers the shell, navigation, titles, option labels/choices,
+keyboard/controller instructions, save and confirmation forms, details and
+selector/tool controls. The standard-save timestamp and last undoable-operation
+description retain their data and redraw in the current language. Dynamic
+messages from normal save operations use the language selected when produced.
 
-Nomi e percorsi dei file, binding, token di configurazione, sintassi dei comandi,
-valori inseriti, descrizioni importate, riferimenti tecnici e payload diagnostici
-conservano il testo originale. I risultati di operazioni già eseguite non sono
-ritradotti retroattivamente. Tradurre la presentazione di una scelta non cambia
-il valore salvato: per esempio **INTERNO** corrisponde sempre a
+File names and paths, bindings, configuration tokens, command syntax, entered
+values, imported descriptions, technical references and diagnostic payloads
+retain their original text. Results of operations already performed are not
+translated retroactively. Translating a choice's presentation does not change
+its stored value: for example, Italian **INTERNO** still corresponds to
 `video.fps = internal`.
 
-## File delle lingue e aggiunta di una lingua
+<a id="file-delle-lingue-e-aggiunta-di-una-lingua"></a>
 
-Ogni lingua è **un singolo file JSON** nella cartella
+## Language files and adding a language
+
+Each language is **one JSON file** in
 [`crates/input-config/languages/`](../crates/input-config/languages/):
 
-- [`en.json`](../crates/input-config/languages/en.json): catalogo inglese di base.
-- [`it.json`](../crates/input-config/languages/it.json): traduzioni italiane.
+- [`en.json`](../crates/input-config/languages/en.json): base English catalog.
+- [`it.json`](../crates/input-config/languages/it.json): Italian translations.
 
-Il file contiene `code` (token salvato nelle opzioni), `name` (nome nativo
-mostrato nel selettore) e `messages` (chiavi e relativi testi). Il nome del file
-corrisponde al codice: `fr.json`, `pt-br.json`, ecc.
+Each file contains `code` (the token saved in settings), `name` (the native
+language name shown in the selector) and `messages` (keys and their text).
+Its filename matches the code: `fr.json`, `pt-br.json`, and so on.
 
-Per esempio, per aggiungere il francese:
+For example, to add French:
 
-1. Creare il file copiando automaticamente tutte le voci inglesi:
+1. Create the file by automatically copying all English entries:
 
    ```sh
    python3 scripts/menu_language.py create fr --name "Français"
    ```
 
-2. Aprire `crates/input-config/languages/fr.json` e tradurre soltanto i valori
-   di `messages`. Lasciare invariate le chiavi e i segnaposto come `{slot}`,
-   `{value}` e `{0}`. Salvare il JSON in UTF-8. Alcune chiavi derivano dai vecchi
-   testi italiani: sono identificatori stabili e non vanno tradotti.
+2. Open `crates/input-config/languages/fr.json` and translate only the values
+   in `messages`. Keep keys and placeholders such as `{slot}`, `{value}` and
+   `{0}` unchanged. Save the JSON as UTF-8. Some existing keys come from older
+   Italian text: they are stable identifiers and must not be translated.
 
-3. Controllare i file e ricompilare con la normale procedura del progetto:
+3. Check the files and rebuild using the project's normal build procedure:
 
    ```sh
    python3 scripts/menu_language.py check
    cargo build --locked --release -p recomp -p ffta-play
    ```
 
-**Non servono modifiche a Rust, elenchi di lingue o registrazioni manuali.**
-La compilazione scopre automaticamente ogni `languages/*.json`, controlla i
-file e incorpora il registro nel programma. La nuova lingua compare nelle
-opzioni dopo la ricompilazione. Gli eseguibili distribuiti contengono già le
-traduzioni: non richiedono Python o JSON esterni durante l'esecuzione.
+**No Rust edits, language lists or manual registration are needed.**
+The build automatically discovers every `languages/*.json`, validates the
+files and embeds the registry in the program. The new language appears in
+settings after rebuilding. Distributed executables already contain their
+translations: Python and external JSON files are not needed at runtime.
 
-Si possono anche aggiungere i JSON a mano, copiando `en.json` e cambiando
-`code`, `name` e i testi. Il comando `create` è una comodità e rifiuta di
-sovrascrivere file esistenti. Il controllo e la compilazione rifiutano JSON
-malformati, chiavi duplicate/sconosciute, nomi duplicati, traduzioni vuote e
-segnaposto diversi dall'inglese, indicando il file da correggere.
+You can also add JSON files manually by copying `en.json` and changing
+`code`, `name` and the text. `create` is a convenience command and refuses
+to overwrite existing files. Both the checker and the build reject malformed
+JSON, duplicate/unknown keys, duplicate names, empty translations and
+placeholders that differ from English, identifying the file to correct.
 
-Una lingua può essere parziale: le chiavi assenti usano il testo di `en.json`.
-Aggiungere nuove voci inglesi non obbliga a completare subito tutte le altre
-lingue. Se manca anche la chiave inglese, il renderer mostra la chiave sorgente.
-Le voci uguali all'inglese sono ammesse, per esempio Audio, Video o ROM.
+A language can be partial: missing keys use the text from `en.json`.
+Adding new English entries does not require completing every other language
+immediately. If the English key is also missing, the renderer shows the source
+key. Values identical to English are allowed, such as Audio, Video or ROM.
 
-`menu::i18n::format` sostituisce i segnaposto senza reinterpretare i valori
-inseriti. I renderer risolvono le traduzioni prima della misura o dell'andata
-a capo; la lingua appartiene a ciascuna istanza del menu.
+`menu::i18n::format` substitutes placeholders without reinterpreting inserted
+values. Renderers resolve translations before measurement or wrapping;
+the language belongs to each menu instance.
 
-L'esempio `menu --example preview` accetta qualsiasi codice incorporato come
-ultimo argomento, dopo il percorso facoltativo dello sfondo (stringa vuota per
-ometterlo). Le pagine `system` e `language` mostrano il selettore senza caricare
-ROM o salvataggi.
+The `menu --example preview` example accepts any embedded code as its last
+argument, after the optional background path (an empty string omits it).
+The `system` and `language` pages show the selector without loading ROMs or saves.
 
-## Verifica
+<a id="verifica"></a>
 
-I test mirati controllano default e compatibilità delle vecchie configurazioni,
-roundtrip delle due lingue, annullamento/conferma, selezione con mouse, cambio
-immediato, riapertura e conservazione dei token tecnici. Il rendering osservato
-copre entrambe le lingue a 480×640, 854×480 e 1280×720, istruzioni controller,
-timestamp e descrizione Undo conservata. La compilazione e il comando check verificano chiavi uniche e
-parità dei segnaposto; i valori con parentesi graffe rimangono letterali.
+## Validation
 
-Le prove Windows GNU/Wine, le anteprime senza ROM e il controllo di compilazione
-di `recomp`/`ffta-play` sono registrati nel record del 2026-11-01. Non equivalgono
-a una sessione Windows nativa o a una prova con controller fisico. La suite
-menu contiene inoltre un'incongruenza preesistente e separata fra
-`ContentSlot::ALL` e le righe `Page::ToolInputs`: il riferimento CheatCatalog
-è enumerato ma non presente nella pagina.
+Focused tests cover defaults and older configurations, roundtrips for both
+languages, cancel/confirm behavior, mouse selection, immediate switching,
+reopening and preservation of technical tokens. Observed rendering covers
+both languages at 480×640, 854×480 and 1280×720, controller hints, timestamps
+and retained Undo descriptions. The build and checker validate unique keys
+and matching placeholders; inserted values containing braces remain literal.
 
-Il registro generato è inoltre verificato con una terza lingua sintetica in una
-cartella temporanea, compilando la vera implementazione di Language senza
-modificare Rust né aggiungere lingue di prova alla distribuzione. Il comando
-create/check ha test su file esistenti, Unicode, traduzioni parziali e rifiuti
-per metadati, chiavi e segnaposto non validi. I cataloghi inglese e italiano
-sono stati migrati conservando esattamente le 378 voci precedenti.
+Windows GNU/Wine checks, previews without a ROM and the `recomp`/`ffta-play`
+compilation check are recorded in the 2026-11-01 change records. These do not
+establish native Windows or physical-controller coverage. The earlier,
+separate `ContentSlot::ALL` / `Page::ToolInputs` mismatch was subsequently
+fixed by [exposing the cheat catalog in tool inputs](changes/2026-11-01-expose-cheat-catalog-in-tool-inputs.json).
+
+The generated registry is also tested with a third synthetic language in a
+temporary directory, compiling the real Language implementation without
+editing Rust or adding test languages to the distribution. `create`/`check`
+tests cover existing files, Unicode, partial translations and refusal of
+invalid metadata, keys and placeholders. The English and Italian catalogs
+were migrated while preserving all 378 previous entries exactly.

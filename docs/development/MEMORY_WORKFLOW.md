@@ -26,7 +26,7 @@ At session start, after compaction, and on automatic goal continuation:
    resume unrelated implementation. An explicit pause/interruption selects no
    replacement task and no speculative ROM exploration.
 2. Read only the short [TASK_HANDOFF.md](TASK_HANDOFF.md), including the final
-   **PASSAGGIO DI TESTIMONE**, and `git status --short`. Inspect the relevant diff
+   **Final handover**, and `git status --short`. Inspect the relevant diff
    before attributing changes. Then read only the selected task's source,
    relevant PROJECT_STATE/feature/TODO sections and linked terminal results.
    Never automatically load TASK_COMPLETED_ARCHIVE, full CHANGELOG, full
@@ -37,7 +37,7 @@ At session start, after compaction, and on automatic goal continuation:
    missing acceptance criterion and concrete deliverable within the request.
    Partial tasks retain original IDs, accepted results and exact missing scope.
    An unchecked parent never reopens accepted children or rejected experiments.
-   Reopening a closed ID also requires a concrete `Riapertura` field; the checker
+   Reopening a closed ID also requires a concrete `Reopening` field; the checker
    rejects a closed ID returning to the queue without that reason.
 4. Check recorded async handles, owner, source/input pins and current artifacts
    before restarting anything. A timeout, lost handle or no immediate result
@@ -59,24 +59,24 @@ At session start, after compaction, and on automatic goal continuation:
 ### Operational structure and task states
 
 The operational handoff targets 10–20 KiB (checker maximum 20 KiB), in this order:
-`Stato operativo`; `Task in esecuzione o sospesi`; `Task incompleti e criteri aperti`;
-`Blocchi, dipendenze e risorse condivise`; **`PASSAGGIO DI TESTIMONE` last**.
+`Operational status`; `Running or suspended tasks`; `Incomplete tasks and open criteria`;
+`Blockers, dependencies and shared resources`; **`Final handover` last**.
 Nothing may append a new section or chronology after the handover. Its six fields
 are only task, last verified result, remaining work, errors/blockers, concrete
 next action and required references, one Markdown source line per field (the
 renderer wraps them). A completed final selection may remain as
 this brief stopping instruction; its detailed outcome belongs in the archive.
 
-Use `### ORIGINAL-TASK-ID` with `Stato`, `Esito`, `Verificato`, `Manca`, `Ripresa`:
+Use `### ORIGINAL-TASK-ID` with `State`, `Outcome`, `Verified`, `Missing`, `Resume`:
 
-- `attivo`: selected work with owner and current process/output locators if any.
-- `sospeso`: preserved but outside current selection or explicitly paused;
+- `active`: selected work with owner and current process/output locators if any.
+- `suspended`: preserved but outside current selection or explicitly paused;
   record the reason and what authorizes resumption. This does not change another
   thread's goal state or authorize stopping its already running jobs.
-- `interrotto` / `fallito`: interrupted execution or observed failure; retain
+- `interrupted` / `failed`: interrupted execution or observed failure; retain
   diagnostics and exact incomplete criterion. Neither state implies completion.
-- `in_attesa`: dependency/input/ownership prerequisite missing; name it.
-- `Esito: parziale`, `integrato_non_verificato` or `non_iniziato` records acceptance
+- `waiting`: dependency/input/ownership prerequisite missing; name it.
+- `Outcome: partial`, `integrated_unverified` or `not_started` records acceptance
   separately from execution. Do not infer it from a symbol's existence in code.
 
 Completed, rejected and definitively closed units leave the operational queue.
@@ -121,9 +121,12 @@ when their updates are detected. Apply the same coordination to shared change
 records/CHANGELOG and re-render after merging another record.
 
 Archive updates must append to its exact existing bytes. Removing an operational
-ID requires a matching appended `### ID` entry with `Esito: completato`, `respinto`
-or `chiuso`, and `Criteri verificati`, `Prove`, `Limiti`. The writer assesses the
-criteria; the helper cannot certify runtime acceptance. Partial histories stay
+ID requires a matching appended `### ID` entry with `Outcome: completed`, `rejected`
+or `closed`, and `Verified criteria`, `Evidence`, `Limits`. The writer assesses the
+criteria; the helper cannot certify runtime acceptance. New publications use the English
+headings and fields above. The checker also reads legacy Italian headings,
+fields and state/outcome tokens, allowing lossless migration and historical
+compatibility. Mixed duplicate aliases are rejected; snapshot bytes stay unchanged. Partial histories stay
 linked from their original open ID. Publication writes archive first, then
 atomically replaces handoff. A crash between them may duplicate context, but
 cannot discard it from both. Re-read both before recovery; never blindly retry

@@ -1,109 +1,122 @@
-# Homepage dei report locali
+<a id="homepage-dei-report-locali"></a>
 
-Aprire `index.html` nella root del progetto: riunisce tutti i file `index.html`
-e `index.htm` trovati nella copia locale, comprese le fotografie storiche e i
-report privati sotto `target/`. Ricerca per nome/titolo/percorso e filtri separano
-coverage ROM, ispettore grafico, menu/testo/input, diagnostica audio, codice/fallback, task/script/unità, eventi recenti, campagne mirate, sessioni/artefatti, report dei problemi, confronti e altri indici. I collegamenti
-funzionano anche con JavaScript disattivato; ricerca e filtri lo richiedono.
+# Local report homepage
 
-I tre accessi rapidi aprono la coverage nel percorso principale e i file grafico/
-confronto modificati più recentemente. La data mostrata è il **mtime del file**,
-non la data di una nuova validazione. Il gruppo viene riconosciuto dai nomi dei
-JSON affiancati; il catalogo non verifica né modifica i risultati dei report.
-I link alla documentazione aprono i Markdown locali nel browser o nell'editor
-configurato, senza convertirli in un sito.
+Open `index.html` at the project root: it gathers every `index.html` and
+`index.htm` found in the local copy, including historical snapshots and private
+reports under `target/`. Search by name/title/path and filters separate ROM
+coverage, graphics inspector, menu/text/input, audio diagnostics, code/fallback,
+tasks/scripts/units, recent events, targeted campaigns, sessions/artifacts, issue
+reports, comparisons and other indexes. Links work with JavaScript disabled;
+search and filters require it. The maintained template and generated labels use
+English, including search feedback and date formatting. Discovered report titles
+and paths retain their original text.
 
-## Aggiornare l'elenco
+The three quick links open coverage at its main path and the most recently
+modified graphics/comparison files. The displayed date is the **file mtime**,
+not a new validation date. Groups are recognized by adjacent JSON filenames;
+the catalog neither verifies nor changes report results. Documentation links
+open local Markdown in the browser or configured editor without converting it
+into a website.
 
-La pagina è statica, offline e senza server. Il browser non può enumerare da
-solo la cartella del progetto: dopo aver generato/spostato/eliminato report,
-rigenerare l'indice e ricaricare la pagina.
+<a id="aggiornare-lelenco"></a>
 
-Su Windows, da PowerShell, con Docker Desktop e l'immagine già usata dalla
-[coverage](development/ROM_COVERAGE.md):
+## Refreshing the list
+
+The page is static, offline and serverless. A browser cannot enumerate the
+project directory itself: after generating/moving/deleting reports, regenerate
+the index and reload the page.
+
+On Windows, from PowerShell, with Docker Desktop and the image already used
+for [coverage](development/ROM_COVERAGE.md):
 
 ```powershell
 .\scripts\windows\report_home.ps1 -OpenReport
 ```
 
-Su Linux:
+On Linux:
 
 ```bash
 bash scripts/linux/report_home.sh
 ```
 
-Entrambi riusano `ffta-rom-coverage:local`, disabilitano la rete e montano il
-progetto in sola lettura nel container. Il processo host pubblica soltanto
-`index.html`. Non compilano runtime, non estraggono dati, non rigenerano la mappa
-e non eseguono il gioco. L'immagine deve già esistere: non viene scaricata o
-costruita automaticamente. PowerShell accetta `-Image NOME` per un'altra immagine
-locale compatibile con Python 3.9+. I percorsi partono dalla root del progetto,
-anche se il launcher viene eseguito da un'altra directory.
+Both reuse `ffta-rom-coverage:local`, disable networking and mount the project
+read-only in the container. The host process publishes only `index.html`.
+They do not compile runtimes, extract data, regenerate the map or run the game.
+The image must already exist: it is not downloaded or built automatically.
+PowerShell accepts `-Image NAME` for another local image compatible with
+Python 3.9+. Paths start at the project root even when the launcher is run
+from another directory.
 
-Se Python 3.9+ è già disponibile, senza Docker:
+With Python 3.9+ already available, without Docker:
 
 ```bash
 python3 scripts/report_home.py
 ```
 
-Il generatore usa solo la libreria standard. `--stdout` restituisce l'HTML per
-un mount readonly; `--root CARTELLA` seleziona un'altra root. La pubblicazione
-prepara un file temporaneo e sostituisce l'indice solo dopo la generazione
-riuscita, conservando la pagina precedente in caso di errore.
+The generator uses only the standard library. `--stdout` returns HTML for a
+readonly mount; `--root DIRECTORY` selects another root. Publication prepares
+a temporary file and replaces the index only after successful generation,
+preserving the previous page on error.
 
-## Ambito e conservazione
+<a id="ambito-e-conservazione"></a>
 
-La scansione non segue symlink e salta soltanto directory di servizio note:
-`.git`, `.hg`, `.svn`, `node_modules`, `__pycache__`, `.gradle`, `.cxx`. Include
-anche gli output di vecchie verifiche: la loro presenza non significa che siano
-attuali o accettati. Limiti: un milione di entry, cinquemila indici, primi 64 KiB
-per il titolo di ogni HTML. Il superamento di un limite interrompe la generazione
-senza pubblicare un catalogo parziale. ROM, salvataggi e JSON dei report non
-vengono aperti: si leggono titolo HTML, nomi affiancati e mtime.
+## Scope and retention
 
-I collegamenti sono relativi e codificano spazi, caratteri Unicode, `#` e `%`.
-Spostare l'intera cartella del progetto conserva la navigazione; per spostare
-singoli report occorre rigenerare la pagina. I titoli/percorso vengono trattati
-come testo e non eseguiti come HTML. Non ci sono font, script o servizi esterni.
+Scanning does not follow symlinks and skips only known service directories:
+`.git`, `.hg`, `.svn`, `node_modules`, `__pycache__`, `.gradle`, `.cxx`. It also
+includes outputs of older checks: presence does not mean they are current or
+accepted. Limits: one million entries, five thousand indexes, first 64 KiB for
+each HTML title. Exceeding a limit stops generation without publishing a partial
+catalog. ROMs, saves and report JSON payloads are not opened: only HTML titles,
+adjacent filenames and mtime are read.
 
-`/index.html` è ignorato da Git: il catalogo contiene nomi e percorsi privati.
-Template, generatore e launcher restano versionati. In un checkout nuovo basta
-eseguire uno dei comandi per creare la pagina. Ogni aggiornamento sostituisce
-un solo file; non produce copie di ROM, snapshot, immagini o report.
+Links are relative and encode spaces, Unicode, `#` and `%`. Moving the entire
+project directory preserves navigation; moving individual reports requires
+regeneration. Titles/paths are treated as text, not executed as HTML. No external
+fonts, scripts or services are used.
 
-## Verifica del 28 ottobre 2026
+`/index.html` is Git-ignored: the catalog contains private names and paths.
+Template, generator and launchers remain versioned. In a new checkout, run one
+of the commands to create the page. Each refresh replaces one file; it creates
+no copies of ROMs, snapshots, images or reports.
 
-Generazione reale con l'immagine Docker coverage esistente, checkout readonly e
-rete disabilitata. Tutti i **23 indici** corrispondono all'inventario indipendente
-`rg`: 8 coverage, 5 grafici, 10 confronti. Verificati **35 collegamenti locali**;
-tutti i 23 HTML preesistenti mantengono SHA256 e mtime.
+<a id="verifica-del-28-ottobre-2026"></a>
 
-Chrome headless desktop e layout stretto verificano conteggi, tre accessi rapidi,
-filtri, ricerca senza distinzione maiuscole/minuscole, nessun risultato/reset,
-focus, date e assenza di overflow. Screenshot ispezionati. Fixture temporanee
-verificano nomi Unicode/caratteri riservati, titoli HTML, token letterali,
-esclusione symlink e limite di scansione senza alterare la pagina precedente.
-I due primi tentativi del launcher nel sandbox non raggiungevano Docker;
-l'esecuzione autorizzata passa, senza build o estrazioni.
+## October 28, 2026 validation
 
-Il launcher PowerShell non è stato eseguito: questo host Linux non dispone di
-PowerShell. Windows nativo e altri browser restano da verificare. Evidenze locali
-sotto `target/report-home-validation/`.
+Actual generation used the existing coverage Docker image, read-only checkout
+and disabled networking. All **23 indexes** matched the independent `rg`
+inventory: 8 coverage, 5 graphics, 10 comparisons. **35 local links** checked;
+all 23 pre-existing HTML files retained SHA256 and mtime.
 
+Headless Chrome at desktop and narrow layouts checked counts, three quick links,
+filters, case-insensitive search, no-results/reset, focus, dates and absence of
+overflow. Screenshots inspected. Temporary fixtures checked Unicode/reserved
+names, HTML titles, literal tokens, symlink exclusion and scan-limit failure
+without changing the previous page. The first two sandbox launcher attempts
+could not reach Docker; the authorized run passed, without builds or extraction.
 
-## Launcher e distribuzione aggiornata — DBG-22
+The PowerShell launcher was not run in this validation: that Linux host had no
+PowerShell. Native Windows and other browsers were unverified by these checks.
+Local evidence: `target/report-home-validation/`.
 
-Con Python host: PowerShell report_home.ps1 -Python [-OpenReport] oppure
-Bash report_home.sh --python. Senza flag si riusa l'immagine Docker già presente.
-Entrambi risolvono la propria root e mostrano il log persistente in
-target/build-logs; un errore preserva la pagina precedente e ritira soltanto
-il temporaneo della pubblicazione. PowerShell usa un nullo tipizzato per Replace,
-senza convertirlo in nome di backup vuoto.
+<a id="launcher-e-distribuzione-aggiornata--dbg-22"></a>
 
-Il catalogo distribuito mostra link di guida soltanto se il documento esiste:
-non introduce collegamenti a stato/prove private del checkout assenti dal bundle.
-La [guida comune](debug_tools.md) raccoglie cinque procedure complete.
-La verifica del bundle spostato copre host Python/Docker, errore con vecchia
-pagina intatta e browser1400/620con6report nuovi; non riaccetta gli altri output.
-PowerShell7.4.6 è verificato con fixture pubbliche su Linux, Windows nativo resta
-non verificato. Dettagli nel [record](changes/2026-10-29-distribute-shared-debug-tools.json).
+## Updated launchers and distribution — DBG-22
+
+With host Python: PowerShell report_home.ps1 -Python [-OpenReport] or Bash
+report_home.sh --python. Without the flag, the existing Docker image is reused.
+Both resolve their own root and show the persistent log in target/build-logs;
+an error preserves the previous page and removes only the publication temporary.
+PowerShell uses a typed null for Replace, without converting it into an empty
+backup filename.
+
+The distributed catalog shows guide links only when the document exists:
+it adds no links to private checkout state/evidence missing from the bundle.
+The [shared guide](debug_tools.md) covers five complete procedures.
+Moved-bundle validation covers host Python/Docker, failure with the old page
+intact, and browser widths 1400/620 with 6 new reports; it does not reaccept
+other outputs. PowerShell 7.4.6 was checked with public fixtures on Linux;
+native Windows remains unverified by that validation. Details in the
+[record](changes/2026-10-29-distribute-shared-debug-tools.json).

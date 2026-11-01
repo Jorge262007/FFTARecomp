@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>FFTARecomp — Report locali</title>
+<title>FFTARecomp — Local reports</title>
 <style>
 :root{color-scheme:light;--paper:#f6f5f1;--panel:#fff;--ink:#222b33;--muted:#616b74;--line:#d8dcd9;--accent:#285d59;--soft:#e6eeea}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -22,13 +22,13 @@ h2{font-size:21px;font-weight:650;letter-spacing:-.5px;margin:0 0 5px}.section-h
 </style>
 </head>
 <body>
-<header><div class="shell topbar"><a class="brand" href="index.html">FFTA<span>Recomp</span></a><span class="local">REPORT LOCALI · OFFLINE</span><nav aria-label="Navigazione principale"><a href="#report">Report</a><a href="#guide">Documentazione</a><a href="#aggiornamento">Aggiornamento</a></nav></div></header>
+<header><div class="shell topbar"><a class="brand" href="index.html">FFTA<span>Recomp</span></a><span class="local">LOCAL REPORTS · OFFLINE</span><nav aria-label="Main navigation"><a href="#report">Reports</a><a href="#guide">Documentation</a><a href="#aggiornamento">Refresh</a></nav></div></header>
 <main class="shell">
-<section class="intro" aria-labelledby="title"><div><p class="eyebrow">Il progetto, a portata di mano</p><h1 id="title">Tutti i report.<br>Un solo punto di partenza.</h1><p class="lead">Copertura della ROM, confronti e viste di debug raccolti nella tua copia del progetto.</p></div><div class="inventory"><strong>@@COUNT@@</strong><span>indici disponibili</span></div></section>
-<div class="shortcuts" aria-label="Accessi rapidi">@@SHORTCUTS@@</div>
-<section id="report" aria-labelledby="report-title"><div class="section-head"><div><h2 id="report-title">Esplora i report</h2><p>Tutti gli index trovati, inclusi quelli storici. Più recenti in alto in ogni gruppo.</p></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Cerca nei report" placeholder="Cerca nome, tipo o percorso…" autocomplete="off"></label></div><div class="filters" aria-label="Tipo di report">@@FILTERS@@</div><p id="visible-count" role="status" aria-live="polite"></p><div id="reports">@@REPORTS@@</div><p id="no-match" class="empty" hidden>Nessun report corrisponde alla ricerca. Prova un altro nome o seleziona Tutti.</p><noscript><p>JavaScript disattivato: tutti i collegamenti sono disponibili; ricerca e filtri richiedono JavaScript.</p></noscript></section>
-<div class="bottom"><section id="guide"><h2>Documentazione</h2><div class="guides"><a href="docs/debug_tools.md">Guida comune debug</a><a href="docs/development/ROM_COVERAGE.md">Leggere la coverage ROM</a><a href="docs/debug_graphics.md">Ispettore grafico</a><a href="docs/debug_ui.md">Menu, testo e input</a><a href="docs/debug_audio.md">Diagnostica audio</a><a href="docs/debug_gameplay.md">Task, script e unità</a><a href="docs/debug_code.md">Codice e fallback</a><a href="docs/debug_recent.md">Eventi recenti</a><a href="docs/debug_campaigns.md">Campagne mirate</a><a href="docs/debug_artifacts.md">Sessioni e artefatti</a><a href="docs/debug_issues.md">Report del problema</a><a href="docs/debug_comparisons.md">Confronti tra esecuzioni</a><a href="docs/debug_control.md">Pausa e avanzamento</a><a href="docs/development/DEBUG_TOOLS_TODO.md">Checklist strumenti</a><a href="docs/development/debug%20saves.md">Casi e salvataggi DS</a><a href="docs/development/ROM_DATA_TODO.md">Estrazione ROM</a><a href="docs/development/PROJECT_STATE.md">Stato del progetto</a></div></section><section id="aggiornamento"><h2>Aggiornare questa pagina</h2><p>L’elenco è una fotografia dei file presenti. Dopo aver creato o spostato un report, rigenera la homepage e ricaricala nel browser.</p><details><summary>Mostra i comandi</summary><p>Windows, con Docker Desktop già usato per la coverage:</p><code class="command">.\scripts\windows\report_home.ps1 -OpenReport</code><p>Linux, con la stessa immagine Docker:</p><code class="command">bash scripts/linux/report_home.sh</code><p>In alternativa, con Python 3 già installato:</p><code class="command">python3 scripts/report_home.py</code></details><p class="note">I comandi aggiornano solo questo indice. Non rigenerano la coverage e non eseguono il gioco. I link ai file rimangono relativi; dopo aver spostato singoli report, rigenera l’elenco.</p></section></div>
-<footer><span>Indice generato <time id="generated" datetime="@@UPDATED@@"></time></span><span>Solo file locali · nessuna connessione esterna</span></footer>
+<section class="intro" aria-labelledby="title"><div><p class="eyebrow">Your project at a glance</p><h1 id="title">All your reports.<br>One place to start.</h1><p class="lead">ROM coverage, comparisons and debug views collected in your local project copy.</p></div><div class="inventory"><strong>@@COUNT@@</strong><span>indexes available</span></div></section>
+<div class="shortcuts" aria-label="Quick links">@@SHORTCUTS@@</div>
+<section id="report" aria-labelledby="report-title"><div class="section-head"><div><h2 id="report-title">Browse reports</h2><p>All discovered indexes, including historical reports. Newest first in each group.</p></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Search reports" placeholder="Search name, type or path…" autocomplete="off"></label></div><div class="filters" aria-label="Report type">@@FILTERS@@</div><p id="visible-count" role="status" aria-live="polite"></p><div id="reports">@@REPORTS@@</div><p id="no-match" class="empty" hidden>No reports match your search. Try another name or select All.</p><noscript><p>JavaScript is disabled: all links are available; search and filters require JavaScript.</p></noscript></section>
+<div class="bottom"><section id="guide"><h2>Documentation</h2><div class="guides"><a href="docs/debug_tools.md">Shared debug guide</a><a href="docs/development/ROM_COVERAGE.md">Reading ROM coverage</a><a href="docs/debug_graphics.md">Graphics inspector</a><a href="docs/debug_ui.md">Menu, text and input</a><a href="docs/debug_audio.md">Audio diagnostics</a><a href="docs/debug_gameplay.md">Tasks, scripts and units</a><a href="docs/debug_code.md">Code and fallback</a><a href="docs/debug_recent.md">Recent events</a><a href="docs/debug_campaigns.md">Targeted campaigns</a><a href="docs/debug_artifacts.md">Sessions and artifacts</a><a href="docs/debug_issues.md">Issue report</a><a href="docs/debug_comparisons.md">Runtime comparisons</a><a href="docs/debug_control.md">Pause and stepping</a><a href="docs/development/DEBUG_TOOLS_TODO.md">Tool checklist</a><a href="docs/development/debug%20saves.md">DS cases and saves</a><a href="docs/development/ROM_DATA_TODO.md">ROM extraction</a><a href="docs/development/PROJECT_STATE.md">Project state</a></div></section><section id="aggiornamento"><h2>Refresh this page</h2><p>This list is a snapshot of existing files. After creating or moving a report, regenerate the homepage and reload it in your browser.</p><details><summary>Show commands</summary><p>Windows, with Docker Desktop already used for coverage:</p><code class="command">.\scripts\windows\report_home.ps1 -OpenReport</code><p>Linux, with the same Docker image:</p><code class="command">bash scripts/linux/report_home.sh</code><p>Alternatively, with Python 3 already installed:</p><code class="command">python3 scripts/report_home.py</code></details><p class="note">These commands update only this index. They do not regenerate coverage or run the game. File links remain relative; regenerate the list after moving individual reports.</p></section></div>
+<footer><span>Index generated <time id="generated" datetime="@@UPDATED@@"></time></span><span>Local files only · no external connections</span></footer>
 </main>
 <script>
 (() => {
@@ -37,7 +37,7 @@ h2{font-size:21px;font-weight:650;letter-spacing:-.5px;margin:0 0 5px}.section-h
   const groups = [...document.querySelectorAll('.report-group')];
   const rows = [...document.querySelectorAll('.report')];
   let filter = 'all';
-  const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
+  const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en');
   const text = new Map(rows.map(row => [row, normalize(row.textContent)]));
   function update() {
     const words = normalize(search.value).trim().split(/\s+/).filter(Boolean);
@@ -52,7 +52,7 @@ h2{font-size:21px;font-weight:650;letter-spacing:-.5px;margin:0 0 5px}.section-h
       group.querySelector('h3 span').textContent = groupVisible;
       visible += groupVisible;
     }
-    document.getElementById('visible-count').textContent = `${visible} di ${rows.length} report`;
+    document.getElementById('visible-count').textContent = `${visible} of ${rows.length} reports`;
     document.getElementById('no-match').hidden = visible !== 0 || rows.length === 0;
     for (const button of buttons) {
       const active = button.dataset.filter === filter;
@@ -64,7 +64,7 @@ h2{font-size:21px;font-weight:650;letter-spacing:-.5px;margin:0 0 5px}.section-h
   for (const button of buttons) button.addEventListener('click', () => { filter = button.dataset.filter; update(); });
   for (const time of document.querySelectorAll('time[datetime]')) {
     const date = new Date(time.dateTime);
-    time.textContent = new Intl.DateTimeFormat('it-IT', time.id === 'generated' ? {dateStyle:'medium', timeStyle:'short'} : {dateStyle:'medium'}).format(date);
+    time.textContent = new Intl.DateTimeFormat('en-GB', time.id === 'generated' ? {dateStyle:'medium', timeStyle:'short'} : {dateStyle:'medium'}).format(date);
   }
   update();
 })();

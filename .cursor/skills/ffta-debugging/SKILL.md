@@ -23,8 +23,7 @@ and return findings to Terra without spawning more agents.
 
 ## Terra: start with existing evidence
 
-Follow AGENTS and the short task handoff, including its final PASSAGGIO DI
-TESTIMONE, before choosing work. Read only the selected task's source/evidence
+Follow AGENTS and the short task handoff, including its final **Final handover** section, before choosing work. Read only the selected task's source/evidence
 and relevant PROJECT_STATE sections; never preload historical archive,
 CHANGELOG or unrelated TODOs. Read
 [ffta-development](../ffta-development/SKILL.md) for implementation and

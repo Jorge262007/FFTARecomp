@@ -1,130 +1,142 @@
-# Codice, label e fallback — DBG-15
+<a id="codice-label-e-fallback--dbg-15"></a>
 
-Nella copia isolata in pausa, **Debug > Start code trace** arma una raccolta di
-un frame e al più 512 eventi. Avanzare o riprodurre il breve passaggio, tornare in
-pausa e scegliere **Save code report**. Aprire `Data/config/code/<run>/index.html`:
-la sequenza collega PC/modo, backing ROM o RAM corrente, disassemblato al punto
-d'ingresso, label dichiarate e scelta effettiva del runtime. `code.json` contiene
-gli stessi dati. Non vengono creati snapshot né abilitate misure di prestazione.
+# Code, labels and fallback — DBG-15
 
-## CLI equivalente
+In a paused isolated copy, **Debug > Start code trace** arms collection for one
+frame and at most 512 events. Step through or replay the short sequence, pause
+again and choose **Save code report**. Open `Data/config/code/<run>/index.html`:
+the sequence connects PC/mode, current ROM or RAM backing, disassembly at entry,
+declared labels and actual runtime choice. `code.json` contains the same data.
+No snapshots are created and no performance measurements are enabled.
+The HTML interface uses English; captured labels and diagnostic payloads retain
+their source text.
 
-Aprire la [sessione isolata](debug_sessions.md) con il runtime contenente lo
-strumento. Copie precedenti conservano il proprio eseguibile autenticato.
+<a id="cli-equivalente"></a>
+
+## Equivalent CLI
+
+Open the [isolated session](debug_sessions.md) with the runtime containing the
+tool. Older copies keep their own authenticated executable.
 
 ```powershell
-.\recomp.exe debug-session open 'target\caso-codice' --paused
+.\recomp.exe debug-session open 'target\code-case' --paused
 ```
 
-Da un secondo terminale:
+From a second terminal:
 
 ```powershell
-.\recomp.exe debug-control code-start 'target\caso-codice' --frames 1 --events 128 --start 08000000 --end 0a000000 --mode thumb --kind all
-.\recomp.exe debug-control step 'target\caso-codice' 1
-.\recomp.exe debug-control code-report 'target\caso-codice'
+.\recomp.exe debug-control code-start 'target\code-case' --frames 1 --events 128 --start 08000000 --end 0a000000 --mode thumb --kind all
+.\recomp.exe debug-control step 'target\code-case' 1
+.\recomp.exe debug-control code-report 'target\code-case'
 ```
 
-Start e Save richiedono pausa, senza probe, passi pendenti o replay separati.
-`status.code_trace` mostra filtri, conteggi e stop; `code_report` indica l'ultimo
-HTML. Una raccolta non salvata impedisce un secondo Start e l'avvio di un replay
-separato. Load/Undo/Restart congelano il prefisso. Lo stato corrente del report
-può quindi appartenere alla timeline ripristinata, identificata separatamente.
-Chiudere senza Save perde la raccolta in memoria.
+Start and Save require pause, without probes, pending steps or separate replays.
+`status.code_trace` shows filters, counts and stop reason; `code_report` identifies
+the latest HTML. An unsaved collection prevents a second Start or a separate
+replay. Load/Undo/Restart freeze the prefix. The report's current state may
+therefore belong to the restored timeline, identified separately. Closing
+without Save loses the in-memory collection.
 
-Parametri: **1–60 frame**, **1–512 eventi**, 30 secondi host; `--start` incluso e
-`--end` escluso sono indirizzi esadecimali. Modo `arm`, `thumb` o `all`; tipo
-`all`, `native`, `missing`, `system`, `hook` o `interpreter`. I valori predefiniti
-coincidono con il menu. I filtri di cattura escludono eventi prima del dump;
-ricerca e filtro nel browser agiscono soltanto sul prefisso già conservato.
+Parameters: **1–60 frames**, **1–512 events**, 30 host seconds; `--start` inclusive
+and `--end` exclusive are hexadecimal addresses. Mode `arm`, `thumb` or `all`;
+kind `all`, `native`, `missing`, `system`, `hook` or `interpreter`. Defaults match
+the menu. Capture filters exclude events before dumping; browser search/filter
+acts only on the retained prefix.
 
-## Leggere il passaggio
+<a id="leggere-il-passaggio"></a>
 
-- `native`: la tabella ha selezionato un ingresso compilato per il PC/modo
-  esatto. Il report identifica la chiave, senza inventare corpo o lunghezza
-  del blocco. Non osserva le singole istruzioni interne alla funzione native.
-- `missing`: nessun ingresso compilato per quella chiave; il runner esegue il
-  normale passo interprete. ARM e Thumb sono chiavi differenti.
-- `system`: passo per Halt/risveglio, IRQ pendente o ritorno IRQ HLE. Può non
-  eseguire alcuna istruzione al PC mostrato; il disassemblato viene omesso.
-- `hook`: il runner ha scelto l'interprete per il normale hook mouse battaglia
-  o sprite, prima della ricerca di un blocco. Non è una mancanza della tabella.
-- `interpreter`: backend interprete selezionato, senza lookup native. La presenza
-  di una label statica non cambia questa scelta.
+## Reading the sequence
 
-Gli eventi precedono il dispatch/passo; il report conserva l'endpoint al confine
-osservato e il motivo del limite. I byte vengono letti dal backing immutabile o
-dalla RAM corrente, con offset fisico e distinzione dei mirror, senza simulare
-fetch o leggere protocolli I/O. Il disassemblato è quello di una word ARM o
-halfword Thumb all'ingresso, senza ricostruire una funzione o fondere BL Thumb.
-Il codice RAM può cambiare nel tempo; il dump conserva soltanto il punto letto.
+- `native`: the table selected a compiled entry for the exact PC/mode. The
+  report identifies the key without inventing the block body or length. It does
+  not observe individual instructions inside the native function.
+- `missing`: no compiled entry for that key; the runner performs the normal
+  interpreter step. ARM and Thumb are different keys.
+- `system`: Halt/wakeup, pending IRQ or HLE IRQ-return step. It may execute no
+  instruction at the displayed PC; disassembly is omitted.
+- `hook`: the runner selected the interpreter for the normal battle-mouse or
+  sprite hook before looking up a block. This is not a missing table entry.
+- `interpreter`: interpreter backend selected, without native lookup. A static
+  label does not change that choice.
 
-## Label per la ROM scelta
+Events precede dispatch/step; the report retains the endpoint at the observed
+boundary and limit reason. Bytes are read from immutable backing or current RAM,
+with physical offsets and mirror distinctions, without simulating fetches or
+reading I/O protocols. Disassembly covers one ARM word or Thumb halfword at
+entry, without reconstructing a function or merging Thumb BL. RAM code may
+change over time; the dump retains only the sampled point.
 
-Mettere una copia esplicita del proprio file di [label](labels.md) nella root
-della sessione come `debug-labels.toml`. Si riconoscono v1 testuale e v2 TOML dal
-contenuto. Start legge al più 1 MiB, autentica la ROM e fissa l'hash degli stessi
-byte che vengono analizzati. Una ROM diversa rifiuta l'avvio con errore leggibile
-e risposta CLI; non viene modificato il file sorgente o l'accumulatore normale.
-In assenza del file le label risultano non selezionate.
+<a id="label-per-la-rom-scelta"></a>
 
-I nomi e gli intervalli sono **dichiarazioni statiche**. La correlazione con un
-PC osservato non dimostra l'estensione di una funzione, la completezza del codice
-o una nuova risorsa ROM. Il report mostra al più 64 nomi statici e quattro match
-per evento, con prefissi di 128 caratteri e omissioni esplicite. Gli ingressi
-ROM, IWRAM e quelli riservati restano conteggi distinti. Non viene calcolata
-alcuna percentuale di codice estratto dai numeri di ingressi o dispatch.
+## Labels for the selected ROM
 
-## Identità e conservazione
+Place an explicit copy of your [labels](labels.md) file in the session root as
+`debug-labels.toml`. Text v1 and TOML v2 are recognized by content. Start reads
+at most 1 MiB, authenticates the ROM and pins the hash of the same parsed bytes.
+A different ROM refuses Start with a readable error and CLI response; neither
+the source file nor the normal accumulator is changed. Without the file, labels
+are reported as unselected.
 
-Il report fissa runtime/build, ROM/BIOS, seed e altri pin del manifest della
-sessione, stato iniziale/corrente, input/AV e dataset effettivo se presente.
-Per native conserva il percorso usato dal loader, la dimensione della tabella
-e l'hash del file letto all'avvio della traccia. Quest'ultima lettura **non
-autentica retroattivamente l'immagine di codice già caricata in memoria**;
-modifiche esterne del file fra load e Start non sono dimostrate assenti dal solo
-report. I puntatori host e le lunghezze delle funzioni native restano sconosciuti.
+Names and ranges are **static declarations**. Correlation with an observed PC
+does not prove function extent, code completeness or a new ROM resource. The
+report shows at most 64 static names and four matches per event, with
+128-character prefixes and explicit omissions. ROM, IWRAM and reserved entries
+remain separate counts. No extracted-code percentage is calculated from entry
+or dispatch counts.
 
-Al più otto cartelle, compresi tentativi incompleti, e 2 MiB JSON. Nessuna
-sovrascrittura o cancellazione automatica. Un errore di pubblicazione conserva
-la traccia per un altro Save. Dati, byte di codice e percorsi sono privati,
-ignorati da Git. La [homepage](report_home.md) li trova dopo rigenerazione.
+<a id="identità-e-conservazione"></a>
 
-L'osservazione è disabilitata normalmente. Il runner native con observer vuoto
-mantiene il percorso usuale; con raccolta attiva si aggiunge una lettura readonly
-prima del dispatch. Il loop interprete osservato mantiene la stessa successione
-di `Machine::step`, senza nuovi campi guest o cambi al formato degli stati/ABI.
-I limiti terminano la raccolta, senza interrompere a metà un frame normale.
-Gli eventi successivi allo stop sono sconosciuti, non pari a zero.
+## Identity and retention
 
-Le prove effettive e i limiti sono nel
-[record DBG-15](changes/2026-10-29-add-bounded-code-dispatch-diagnostics.json).
-Il confronto di un observer con il medesimo runtime native non riapre né
-certifica la parità interprete/native o vecchie accettazioni ROM/DS.
+The report pins runtime/build, ROM/BIOS, seed and other session-manifest pins,
+initial/current state, input/AV and actual dataset when present. For native code
+it retains the loader's path, table size and hash of the file read at trace
+startup. That read **does not retroactively authenticate the code image already
+loaded in memory**; the report alone does not prove absence of external file
+changes between load and Start. Host pointers and native-function lengths remain
+unknown.
 
+At most eight directories, including incomplete attempts, and 2 MiB JSON. No
+automatic overwrite or deletion. A publication error retains the trace for
+another Save. Data, code bytes and paths are private and Git-ignored. The
+[homepage](report_home.md) finds them after regeneration.
 
-## Verifiche del 29 ottobre 2026
+Observation is normally disabled. The native runner with an empty observer
+retains its usual path; active collection adds a readonly read before dispatch.
+The observed interpreter loop preserves the same `Machine::step` sequence,
+without new guest fields or state-format/ABI changes. Limits stop collection
+without interrupting a normal frame midway. Events after stopping are unknown,
+not zero.
 
-Build Windows feature/default bloccate e offline, senza warning. **74 test Wine**:
-73 ordinari (collector, controller, menu, frontend e wrapper cost) e una prova
-opzionale con ROM/seed/libreria locali espliciti. La prova sintetica ricostruisce
-sei ingressi compilati e sei mancanti con stato identico. Quella sulla libreria
-esistente confronta un solo frame osservato/non osservato, senza writer o nuovo
-snapshot: stato completo/clock e 6.547 blocchi / 14.991 passi sono identici.
-Il prefisso limitato conserva 41 native, 470 missing e un IRQ; eventi 17/18:
-`08145c10 Thumb` → `0801bde8 Thumb`, con motivo del fallback esplicito.
-Questa prova riguarda il nuovo observer e non certifica quella libreria contro
-l'interprete.
+Actual checks and limits are in the
+[DBG-15 record](changes/2026-10-29-add-bounded-code-dispatch-diagnostics.json).
+Comparing an observer with the same native runtime neither reopens nor certifies
+interpreter/native parity or earlier ROM/DS acceptance.
 
-La copia GUI default verifica Start/Save da menu e CLI, filtro IWRAM/ARM con
-label autentica e 16 eventi, prefisso default da 512 e regione senza match con
-106.554 dispatch esplicitamente esclusi. Una registrazione di due frame A/rilascio
-raggiunge l'endpoint completo esatto dopo Stop e chiusura; la copia termina con
-server inattivo. Passano label ROM diversa, parametri invalidi, doppio Start,
-otto cartelle, esecuzione libera e sessione chiusa. I sei input/runtime realmente
-selezionati conservano hash/mtime; nessun eseguibile normale viene sostituito.
+<a id="verifiche-del-29-ottobre-2026"></a>
 
-Chrome desktop e layout stretto verificano ricerca PC/label, filtri dispatch,
-dettaglio, prefisso vuoto e assenza di overflow della pagina. La homepage include
-41 indici, quattro di codice. Screenshot ispezionati; payload e prove restano
-in `target/debug-tools-code/`. Windows/Linux nativi, controller fisici, altre
-scene e cattura GUI native restano da verificare.
+## October 29, 2026 validation
+
+Windows feature/default builds locked and offline, without warnings. **74 Wine
+tests**: 73 ordinary (collector, controller, menu, frontend and wrapper cost) and
+one optional check with explicit local ROM/seed/library. The synthetic test
+reconstructs six compiled and six missing entries with identical state. The
+existing-library check compares one observed/unobserved frame without a writer
+or new snapshot: complete state/clock and 6,547 blocks / 14,991 steps are identical.
+The bounded prefix retains 41 native, 470 missing and one IRQ; events 17/18:
+`08145c10 Thumb` → `0801bde8 Thumb`, with explicit fallback reason. This checks
+the new observer and does not certify that library against the interpreter.
+
+The default GUI copy checks menu/CLI Start/Save, IWRAM/ARM filter with authentic
+label and 16 events, default 512-event prefix and a no-match region with 106,554
+dispatches explicitly excluded. A two-frame A/release recording reaches the
+exact full endpoint after Stop and closure; the copy exits with an inactive
+server. Different-ROM label, invalid parameters, duplicate Start, eight-directory
+cap, free running and closed-session refusals pass. The six actually selected
+inputs/runtimes retain hashes/mtimes; no normal executable is replaced.
+
+Chrome desktop and narrow layouts check PC/label search, dispatch filters,
+details, empty prefix and absence of page overflow. The homepage includes
+41 indexes, four code reports. Screenshots inspected; payloads and evidence stay
+in `target/debug-tools-code/`. Native Windows/Linux, physical controllers,
+other scenes and native GUI capture were not verified by these checks.

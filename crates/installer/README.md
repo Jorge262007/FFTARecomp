@@ -1,23 +1,31 @@
-# FFTARecomp - instalador
+<a id="fftarecomp---instalador"></a>
 
-Instalador de escritorio (Rust + egui) que toma **tu propia ROM** de Final Fantasy Tactics Advance
-y la instala junto al reproductor y tus ajustes. Este repositorio **no contiene ninguna ROM, asset ni
-archivo derivado del juego**,.
+# FFTARecomp installer
 
+Desktop installer (Rust + egui) that takes **your own ROM** of Final Fantasy
+Tactics Advance and installs it with the player and your settings.
+This repository **contains no ROM, game asset or game-derived file**.
 
+<a id="compilar-windows"></a>
 
-## Compilar (Windows)
-Requisitos: Rust (rustup) y el toolchain MSVC.
-Coloca tus propios `assets/logo.png` y `assets/icon.ico`, luego:
+## Building on Windows
+
+Requirements: Rust (rustup) and the MSVC toolchain.
+Supply your own `assets/logo.png` and `assets/icon.ico`, then run:
 
     cargo run --release
 
-El instalador busca una carpeta `payload/` junto al `.exe` con `FFTARecomp.exe` y los ajustes
-(widescreen, etc.); se copia entera a `%LOCALAPPDATA%\FFTARecomp`, junto con la ROM como `ffta.gba`.
+The installer looks for a `payload/` directory beside the `.exe`, containing
+`FFTARecomp.exe` and settings (widescreen, etc.). It copies that directory to
+`%LOCALAPPDATA%\FFTARecomp`, together with the ROM as `ffta.gba`.
 
-## Aviso
-Proyecto de hobby, sin afiliacion con Square Enix ni Nintendo. Final Fantasy Tactics Advance es
-marca y propiedad de sus titulares. Usa solo una ROM de un cartucho que poseas.
+<a id="aviso"></a>
+
+## Notice
+
+Hobby project, unaffiliated with Square Enix or Nintendo. Final Fantasy Tactics
+Advance is a trademark and property of its respective owners. Use only a ROM
+from a cartridge you own.
 
 ## Linux
 

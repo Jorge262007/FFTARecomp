@@ -12,12 +12,25 @@ HANDOFF = 'docs/development/TASK_HANDOFF.md'
 ARCHIVE = 'docs/development/TASK_COMPLETED_ARCHIVE.md'
 MANIFEST = 'docs/development/TASK_HANDOFF_MIGRATION.json'
 SECTIONS = (
+    'Operational status', 'Running or suspended tasks',
+    'Incomplete tasks and open criteria', 'Blockers, dependencies and shared resources',
+    'Final handover',
+)
+LEGACY_SECTIONS = (
     'Stato operativo', 'Task in esecuzione o sospesi',
     'Task incompleti e criteri aperti', 'Blocchi, dipendenze e risorse condivise',
     'PASSAGGIO DI TESTIMONE',
 )
-STATES = {'attivo', 'sospeso', 'interrotto', 'fallito', 'in_attesa'}
-OUTCOMES = {'parziale', 'non_iniziato', 'integrato_non_verificato'}
+STATES = {'active', 'suspended', 'interrupted', 'failed', 'waiting'}
+OUTCOMES = {'partial', 'not_started', 'integrated_unverified'}
+LEGACY_STATES = dict(zip(('attivo', 'sospeso', 'interrotto', 'fallito', 'in_attesa'),
+                         ('active', 'suspended', 'interrupted', 'failed', 'waiting')))
+LEGACY_OUTCOMES = {'parziale': 'partial', 'non_iniziato': 'not_started',
+                   'integrato_non_verificato': 'integrated_unverified'}
+FINAL_FIELDS = ('Task', 'Last verified result', 'Remaining work', 'Errors or blockers',
+                'Next action', 'References')
+LEGACY_FINAL_FIELDS = ('Task', 'Ultimo risultato verificato', 'Da completare',
+                       'Errori o impedimenti', 'Prossima azione', 'Riferimenti')
 BEGIN = b'<!-- legacy-handoff-begin -->\n'
 END = b'<!-- legacy-handoff-end -->'
 
@@ -26,21 +39,25 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def field_values(text, english, legacy):
+    """Read canonical fields and legacy aliases without permitting duplicate owners."""
+    return re.findall(r'^- (?:' + re.escape(english) + '|' + re.escape(legacy) + r'): (.+)$', text, re.M)
+
+
 def validate_handoff(data):
     if len(data) > 20 * 1024:
         raise ValueError('Operational handoff exceeds 20 KiB; compact closed details')
     text = data.decode('utf-8')
-    if re.findall(r'^## (.+)$', text, re.M) != list(SECTIONS):
+    sections = re.findall(r'^## (.+)$', text, re.M)
+    if sections not in (list(SECTIONS), list(LEGACY_SECTIONS)):
         raise ValueError('Handoff sections must follow the five-section contract; handover is last')
-    final = text.split('## PASSAGGIO DI TESTIMONE\n', 1)[1]
+    final = text.split('## ' + sections[-1] + '\n', 1)[1]
     if re.search(r'^#{1,6} ', final, re.M):
         raise ValueError('No sections may follow the final handover')
-    fields = ('Task', 'Ultimo risultato verificato', 'Da completare', 'Errori o impedimenti',
-              'Prossima azione', 'Riferimenti')
     final_lines = [line for line in final.splitlines() if line.strip()]
-    if len(final_lines) != len(fields) or any(
-            not re.fullmatch(r'- ' + re.escape(field) + r': .+', line)
-            for field, line in zip(fields, final_lines)):
+    if len(final_lines) != len(FINAL_FIELDS) or any(
+            len(field_values(line, english, legacy)) != 1
+            for english, legacy, line in zip(FINAL_FIELDS, LEGACY_FINAL_FIELDS, final_lines)):
         raise ValueError('Final handover must contain only the six ordered fields (one line each)')
     tasks = {}
     for block in text.split('\n### ')[1:]:
@@ -49,13 +66,13 @@ def validate_handoff(data):
         task_id = block.splitlines()[0]
         if not re.fullmatch(r'[A-Z][A-Z0-9-]+', task_id) or task_id in tasks:
             raise ValueError('Invalid or duplicate task ID: ' + task_id)
-        state = re.findall(r'^- Stato: (.+)$', block, re.M)
-        outcome = re.findall(r'^- Esito: (.+)$', block, re.M)
+        state = [LEGACY_STATES.get(value, value) for value in field_values(block, 'State', 'Stato')]
+        outcome = [LEGACY_OUTCOMES.get(value, value) for value in field_values(block, 'Outcome', 'Esito')]
         if len(state) != 1 or state[0] not in STATES or len(outcome) != 1 or outcome[0] not in OUTCOMES:
             raise ValueError('Task needs one explicit open state and outcome: ' + task_id)
-        for field in ('Verificato', 'Manca', 'Ripresa'):
-            if not re.search(r'^- ' + field + r': .+', block, re.M):
-                raise ValueError(f'{task_id} needs {field}')
+        for english, legacy in [('Verified', 'Verificato'), ('Missing', 'Manca'), ('Resume', 'Ripresa')]:
+            if len(field_values(block, english, legacy)) != 1:
+                raise ValueError(f'{task_id} needs one {english} field')
         tasks[task_id] = {'state': state[0], 'outcome': outcome[0]}
     if not tasks:
         raise ValueError('No operational tasks recorded')
@@ -86,7 +103,7 @@ def validate_queue_archive(handoff, archive, manifest):
     closed.update(re.findall(r'^### ([A-Z][A-Z0-9-]+)$', appendix, re.M))
     for task in set(tasks) & closed:
         block = handoff.decode('utf-8').split('\n### ' + task + '\n', 1)[1].split('\n##', 1)[0]
-        if not re.search(r'^- Riapertura: \S.+', block, re.M):
+        if not re.search(r'^- (?:Reopening|Riapertura): \S.+', block, re.M):
             raise ValueError('Closed task requires a concrete reopening reason: ' + task)
     return tasks, closed
 
@@ -98,8 +115,8 @@ def check(root):
     validate_archive(archive, manifest)
     tasks, closed = validate_queue_archive(handoff, archive, manifest)
     return {'bytes': (root / HANDOFF).stat().st_size, 'tasks': len(tasks),
-            'active': sum(t['state'] == 'attivo' for t in tasks.values()),
-            'partial': sum(t['outcome'] in ('parziale', 'integrato_non_verificato') for t in tasks.values()),
+            'active': sum(t['state'] == 'active' for t in tasks.values()),
+            'partial': sum(t['outcome'] in ('partial', 'integrated_unverified') for t in tasks.values()),
             'archived_outcomes': len(closed)}
 
 
@@ -125,11 +142,13 @@ def validate_transition(old_handoff, handoff, appended):
         if not match:
             raise ValueError('Removed task needs an appended terminal outcome: ' + task)
         block = match[1]
-        if not re.search(r'^- Esito: (completato|respinto|chiuso)$', block, re.M):
+        outcomes = field_values(block, 'Outcome', 'Esito')
+        if len(outcomes) != 1 or outcomes[0] not in {'completed', 'rejected', 'closed', 'completato', 'respinto', 'chiuso'}:
             raise ValueError('Partial tasks must stay operational: ' + task)
-        for field in ('Criteri verificati', 'Prove', 'Limiti'):
-            if not re.search(r'^- ' + field + r': \S.+', block, re.M):
-                raise ValueError('Terminal outcome needs ' + field + ': ' + task)
+        for english, legacy in [('Verified criteria', 'Criteri verificati'), ('Evidence', 'Prove'), ('Limits', 'Limiti')]:
+            values = field_values(block, english, legacy)
+            if len(values) != 1 or not re.fullmatch(r'\S.+', values[0]):
+                raise ValueError('Terminal outcome needs ' + english + ': ' + task)
 
 
 def publish(root, handoff, archive, expected_handoff, expected_archive):

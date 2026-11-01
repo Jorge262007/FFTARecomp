@@ -1,0 +1,20 @@
+---
+description: English-first documentation and default product/tooling text throughout the project
+alwaysApply: true
+---
+
+# English-first project
+
+- Write maintained documentation, comments, default UI, CLI/help/errors and
+  generated report text in English, including the standalone `AndroidPort/`.
+- Keep optional translations in explicit locale catalogs. Default and missing
+  translation fallback must be English.
+- Prefer English for new message keys and identifiers. Preserve compatibility
+  for existing persisted tokens, paths, schemas and external references.
+- Preserve upstream legal wording, original game/imported data and immutable
+  historical evidence verbatim. Add English explanation when needed.
+- Do not classify an active guide or current UI as historical to avoid translating it.
+- Preserve IDs, commands, paths, hashes, evidence limits and acceptance status
+  when translating existing material. Translation does not authorize rebuilding
+  ROM datasets, repeating benchmarks or promoting unverified results.
+- Follow `docs/development/ENGLISH_FIRST.md` for scope and migration status.

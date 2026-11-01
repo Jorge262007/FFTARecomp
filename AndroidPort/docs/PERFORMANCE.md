@@ -1,56 +1,66 @@
-# Estado de rendimiento Android
+<a id="estado-de-rendimiento-android"></a>
 
-Base de trabajo: AndroidPort. El proyecto de PC y el instalador quedan intactos.
-Sin commits. No se usa FFTARecomp - Copy.
+# Android performance status
 
-## Prueba reproducible
+Working tree: AndroidPort. The PC project and installer were left unchanged
+in this recorded iteration. No commits were made. FFTARecomp - Copy was not used.
 
-RG Rotate, Android 12, ARM64, SoC T618, pantalla 720x720.
-Replay completo desde frame 0 hasta 13100; zoom 6, salida 512x512.
-Se conserva el arranque de batalla-1 y se anaden barridos rectos por los
-cuatro extremos. Solo se mide como movimiento cuando cambia HOFS/VOFS:
-610 frames de camara en movimiento a partir del frame 9700.
-benchmark.sav es una copia privada; la partida original no se modifica.
+<a id="prueba-reproducible"></a>
 
-Ejemplo PowerShell desde esta carpeta, ajustando las rutas locales:
+## Reproducible test
+
+RG Rotate, Android 12, ARM64, T618 SoC, 720x720 display.
+Full replay from frame 0 through 13100; zoom 6, 512x512 output.
+The battle-1 startup is retained, with straight sweeps added along all
+four edges. Movement is measured only when HOFS/VOFS changes:
+610 moving-camera frames starting at frame 9700.
+benchmark.sav is a private copy; the original save is not modified.
+
+PowerShell example from this directory, adjusting local paths:
 
     python scripts/ffta_android_camera_bench.py --adb C:/platform-tools/adb.exe --serial ROTATE01523130 --input E:/AI/ARC/gba-recomp/ffta-batalla-1.input --save E:/AI/ARC/ffta-respaldo.sav --out target/camera-test
     python scripts/ffta_android_bench_summary.py target/camera-test
 
-Para comparar, pasa dos carpetas al script de resumen. Comprueba cuatro
-hashes framebuffer/OAM y la trayectoria completa. Los tiempos CPU no son
-FPS de presentacion. No comparar ejecuciones con simpleperf activo contra
-mediciones sin perfilador. Separar cache nueva y preparada.
+To compare runs, pass two directories to the summary script. Check the four
+framebuffer/OAM hashes and the complete trajectory. CPU timings are not
+presentation FPS. Do not compare runs with simpleperf enabled against
+measurements without a profiler. Keep cold and warm caches separate.
 
-## Cambios de esta iteracion
+<a id="cambios-de-esta-iteracion"></a>
 
-- Buffers del PPU reutilizados por cada hilo de zoom; limpiar solo el ancho
-  activo, preservando el borrado por fila y la transparencia.
-- La rutina pump_audio retorna antes de extraer los mezcladores si todavia
-  no corresponde generar ninguna muestra. No cambia el reloj de audio.
-- El benchmark registra faltas de audio por frame, tambien durante la camara.
-- Opcion Gradle -PfftaProfileSymbols para conservar simbolos nativos cuando
-  la biblioteca Rust se compila con profile.release.strip=false.
+## Changes in this iteration
 
-Se probo una precarga de audio de tres frames. No demostro una mejora y se
-retiro; no forma parte de la APK entregada.
+- Reuse PPU buffers for each zoom thread; clear only the active width,
+  preserving per-row clearing and transparency.
+- Return from pump_audio before extracting the mixers when no sample is
+  due yet. The audio clock is unchanged.
+- Record audio underruns per frame in the benchmark, including camera movement.
+- Add the Gradle -PfftaProfileSymbols option to retain native symbols when
+  the Rust library is built with profile.release.strip=false.
 
-## Validacion
+A three-frame audio prebuffer was tried. It showed no improvement and was
+removed; it is not part of the delivered APK.
 
-MEDIDO: 90 pruebas gba-core pasadas, 0 fallidas, 3 ignoradas.
-MEDIDO: prueba con ROM real, TinyCC del host y 600 frames sin extra:
-framebuffer y OAM identicos al interprete original en cada frame.
-MEDIDO: pruebas unitarias Kotlin y ensamblado Android correctos.
-NO MEDIDO en esta iteracion: recuento independiente de los 8 personajes
-por frame. No se modifican los productores, rangos ni la lista de personajes.
+<a id="validacion"></a>
 
-## Limites conocidos
+## Validation
 
-El rendimiento no esta cerrado como 60 FPS fijos. La captura de pantalla
-medida en la iteracion anterior rondaba 55-60 FPS, con caidas puntuales.
-Persisten faltas de audio; no confundirlas con un problema resuelto.
-No se ha medido la nueva APK en Snapdragon 855 durante esta iteracion.
-No se altera la logica del juego para acelerar el renderizado.
+MEASURED: 90 gba-core tests passed, 0 failed, 3 ignored.
+MEASURED: real-ROM test with host TinyCC and 600 frames without extra area:
+framebuffer and OAM identical to the original interpreter on every frame.
+MEASURED: Kotlin unit tests and Android assembly succeeded.
+NOT MEASURED in this iteration: independent count of all 8 characters
+per frame. Producers, ranges and the character list were not changed.
 
-Los registros de prueba quedan fuera de esta carpeta portable:
-../target/android-validation/. No se incluyen ROM, saves ni replays en fuentes.
+<a id="limites-conocidos"></a>
+
+## Known limits
+
+Performance has not reached a verified fixed 60 FPS. The screen capture
+measured in the preceding iteration was around 55–60 FPS, with occasional drops.
+Audio underruns remain; they must not be described as resolved.
+The new APK was not measured on Snapdragon 855 in this iteration.
+Game logic is not changed to accelerate rendering.
+
+Test records remain outside this portable directory:
+../target/android-validation/. Sources include no ROMs, saves or replays.

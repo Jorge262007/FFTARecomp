@@ -5,7 +5,7 @@ validation belong in [CHANGELOG.md](../../CHANGELOG.md) and `docs/changes/`.
 Read current source and manifests before relying on older build instructions.
 
 Task selection starts with the bounded [TASK_HANDOFF.md](TASK_HANDOFF.md) and its
-final PASSAGGIO DI TESTIMONE, Git state and only task-relevant evidence/sections
+final **Final handover** section, Git state and only task-relevant evidence/sections
 of this document. Do not load full PROJECT_STATE/CHANGELOG/TODOs or history at
 startup. [TASK_COMPLETED_ARCHIVE.md](TASK_COMPLETED_ARCHIVE.md) preserves the
 original history exactly; consult only a named ID/section when needed. Open
@@ -14,6 +14,15 @@ defines explicit task states, pause/async handling and locked preimage-checked
 publication; `scripts/task_handoff.py check` enforces structure and preservation.
 
 ## Architecture and current scope
+
+- The [English-first policy](ENGLISH_FIRST.md) applies to maintained documentation,
+  comments and default product/tooling text in both source trees. Optional locale
+  catalogs retain their languages; English remains the default/fallback. The
+  operational handoff now publishes English headings/fields/states, with legacy
+  Italian parsing retained for lossless migration. Its immutable historical
+  snapshot remains byte-identical. Whole-project translation is in progress;
+  the [audit ledger](ENGLISH_FIRST_AUDIT.json) records reviewed files and pending
+  scope without treating heuristic searches as proof of completeness.
 
 - The readonly [cheat catalog](../cheats.md) has an explicit plaintext or
   caller-supplied seeded inspection for a bounded CodeBreaker subset. A
@@ -72,7 +81,7 @@ publication; `scripts/task_handoff.py check` enforces structure and preservation
   Each menu owns its locale; the generated catalog translates native UI copy before
   layout while config tokens, bindings, imported content and diagnostic payloads
   retain their identity. ROM language is independent; see [menu localization](../menu_localization.md).
-  Complete selected values are available through readonly Dettagli/F1/R3;
+  Complete selected values are available through readonly Details/F1/R3;
   capture, editors, dropdowns and busy host owners keep priority. Native font
   scaling follows HD/4K, with readable nested catalog/selector/tool controls.
   Logical Fast Forward ON at100% still applies the selected FF audio mode.
@@ -85,7 +94,10 @@ publication; `scripts/task_handoff.py check` enforces structure and preservation
   reuse the existing coverage image with readonly checkout/network disabled,
   without extraction or runtime builds. Regenerate after report changes; browser
   reload alone cannot discover new local files. Catalog presence/mtime does not
-  establish report validity or new scene acceptance.
+  establish report validity or new scene acceptance. The template, generated group
+  labels, search feedback and date presentation use English. Existing report
+  titles and paths remain verbatim. Code/UI/audio/recent-event report templates
+  likewise use English fixed UI; source-generated metadata is audited separately.
 
 - The [local cheat reference catalog](../cheats.md) lives in ignored root
   `cheats/`, with a Markdown index and provenance-preserving JSON export for

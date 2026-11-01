@@ -15,18 +15,18 @@ SKIP_DIRS = {'.git', '.hg', '.svn', 'node_modules', '__pycache__', '.gradle', '.
 MAX_ENTRIES = 1_000_000
 MAX_REPORTS = 5_000
 GROUPS = {
-    'coverage': 'Copertura ROM',
-    'graphics': 'Ispettore grafico',
-    'ui': 'Menu, testo e input',
-    'audio': 'Diagnostica audio',
-    'code': 'Codice e fallback',
-    'issues': 'Report dei problemi',
-    'gameplay': 'Task, script e unità',
-    'artifacts': 'Sessioni e artefatti',
-    'recent': 'Eventi recenti',
-    'campaigns': 'Campagne mirate',
-    'comparisons': 'Confronti',
-    'other': 'Altri indici',
+    'coverage': 'ROM coverage',
+    'graphics': 'Graphics inspector',
+    'ui': 'Menu, text and input',
+    'audio': 'Audio diagnostics',
+    'code': 'Code and fallback',
+    'issues': 'Issue reports',
+    'gameplay': 'Tasks, scripts and units',
+    'artifacts': 'Sessions and artifacts',
+    'recent': 'Recent events',
+    'campaigns': 'Targeted campaigns',
+    'comparisons': 'Comparisons',
+    'other': 'Other indexes',
 }
 
 
@@ -77,14 +77,14 @@ def discover(root):
                 parser = Title()
                 with path.open('rb') as source:
                     parser.feed(source.read(65_536).decode('utf-8', errors='replace'))
-                title = ' '.join(''.join(parser.parts).split())[:240] or 'Indice HTML'
+                title = ' '.join(''.join(parser.parts).split())[:240] or 'HTML index'
                 group = 'other'
                 for sidecar, kind in [('coverage.json', 'coverage'), ('graphics.json', 'graphics'), ('ui.json', 'ui'), ('audio.json', 'audio'), ('code.json', 'code'), ('gameplay.json', 'gameplay'), ('recent.json', 'recent'), ('campaign.json', 'campaigns'), ('issue.json', 'issues'), ('plan.json', 'artifacts'), ('comparison.json', 'comparisons')]:
                     if (path.parent / sidecar).is_file():
                         group = kind
                         break
                 if relative == 'docs/development/rom-coverage/index.html':
-                    name = 'Mappa principale della ROM'
+                    name = 'Primary ROM coverage map'
                 elif group in ('graphics', 'ui', 'audio', 'code', 'gameplay', 'recent', 'issues') and 'Data' in parts and parts.index('Data') > 0:
                     name = parts[parts.index('Data') - 1]
                 elif group == 'comparisons' and path.parent.parent.name == 'comparisons':
@@ -120,11 +120,11 @@ def render(reports, template, root=None):
         if not choices:
             continue
         selected = next((item for item in choices if item['path'] == 'docs/development/rom-coverage/index.html'), choices[0])
-        qualifier = 'Mappa principale' if selected['path'] == 'docs/development/rom-coverage/index.html' else 'File più recente'
+        qualifier = 'Primary coverage map' if selected['path'] == 'docs/development/rom-coverage/index.html' else 'Newest file'
         shortcuts.append(f'<a class="shortcut" href="{esc(selected["href"])}"><span>{GROUPS[group]}</span>'
                          f'<strong>{esc(selected["name"])}</strong><small>{qualifier} <span aria-hidden="true">↗</span></small></a>')
     sections = []
-    filters = [f'<button type="button" class="filter active" data-filter="all" aria-pressed="true">Tutti <span>{len(reports)}</span></button>']
+    filters = [f'<button type="button" class="filter active" data-filter="all" aria-pressed="true">All <span>{len(reports)}</span></button>']
     for group, label in GROUPS.items():
         items = [item for item in reports if item['group'] == group]
         if not items:
@@ -140,7 +140,7 @@ def render(reports, template, root=None):
         sections.append(f'<section class="report-group" data-group="{group}" aria-labelledby="heading-{group}">'
                         f'<h3 id="heading-{group}">{label} <span>{len(items)}</span></h3>{"".join(rows)}</section>')
     if not sections:
-        sections.append('<p class="empty">Nessun index trovato. Genera un report, poi aggiorna questa homepage.</p>')
+        sections.append('<p class="empty">No index found. Generate a report, then refresh this homepage.</p>')
     values = {'@@SHORTCUTS@@': ''.join(shortcuts), '@@FILTERS@@': ''.join(filters),
               '@@REPORTS@@': ''.join(sections), '@@COUNT@@': str(len(reports)),
               '@@UPDATED@@': datetime.now(timezone.utc).isoformat(timespec='seconds')}

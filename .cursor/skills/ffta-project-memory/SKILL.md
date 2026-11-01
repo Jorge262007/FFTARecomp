@@ -6,7 +6,7 @@ description: Maintain FFTARecomp's changelog, task handoff and durable memory af
 # Record project memory
 
 Read `AGENTS.md`, the short operational `docs/development/TASK_HANDOFF.md`
-including its final PASSAGGIO DI TESTIMONE, Git status and the current diff.
+including its final **Final handover** section, Git status and the current diff.
 Read only task-relevant PROJECT_STATE sections and evidence. Do not preload
 TASK_COMPLETED_ARCHIVE, full CHANGELOG/PROJECT_STATE or unrelated large TODOs.
 Use files, Git and test output as evidence;
@@ -55,7 +55,7 @@ After a meaningful change:
    next action and any live process/artifact locator. Mark rejected experiments
    explicitly. Separate unavailable local artifacts from unfinished work.
    Keep only incomplete work in the five ordered operational sections, targeting
-   10–20 KiB; PASSAGGIO DI TESTIMONE is always last, never followed by chronology.
+   10–20 KiB; Final handover is always last, never followed by chronology.
    Verify acceptance before closing; append terminal history with evidence and
    limitations to TASK_COMPLETED_ARCHIVE, remove obsolete operational directions
    and preserve partial IDs, accepted substeps and exact missing criteria.

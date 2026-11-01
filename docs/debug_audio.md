@@ -1,135 +1,149 @@
-# Diagnostica audio circoscritta — DBG-14
+<a id="diagnostica-audio-circoscritta--dbg-14"></a>
 
-La raccolta è esplicita e disponibile nelle [copie isolate](debug_sessions.md).
-Separa i buffer generati dal guest, la decisione del producer frontend e il
-buffer scritto dal callback dopo DSP, gain e conversione al formato del backend.
-Quest'ultimo è ciò che l'applicazione consegna al callback del backend: buffering
-del dispositivo, XRUN hardware, altoparlanti e ascolto fisico restano sconosciuti.
-Non avvia benchmark, traduzioni native o nuove prove di correttezza ROM/DS.
+# Bounded audio diagnostics — DBG-14
 
-## Dal menu
+Collection is explicit and available in [isolated copies](debug_sessions.md).
+It separates guest-generated buffers, the frontend producer's decision and the
+callback buffer after DSP, gain and backend-format conversion. The latter is
+what the application delivers to the backend callback: device buffering,
+hardware XRUNs, speakers and physical listening remain unknown. It starts no
+benchmark, native translation or new ROM/DS correctness check.
 
-1. Aprire una copia di debug con il runtime aggiornato e metterla in pausa.
-2. **Debug > Start audio capture** arma 60 frame, con mixed, PSG, HLE e i due
-   FIFO. La raccolta non riavvolge la macchina e non salva snapshot.
-3. Riprodurre il breve problema riprendendo il gioco oppure avanzando per frame.
-4. Tornare in pausa e scegliere **Debug > Save audio report**.
-5. Aprire `Data/config/audio/<run>/index.html` nella copia. Ogni stream offre
-   inviluppo, metadati, WAV locale e dati grezzi; il JSON è `audio.json`.
+<a id="dal-menu"></a>
 
-La pausa e i passi controllati normalmente scartano l'audio frontend. I buffer
-guest possono quindi essere non nulli mentre il callback è silenzioso. Il report
-indica `discard-paused`, `discard-no-stream`, `discard-fast-silent`, `normal-queue`
-o `rings` per ogni frame osservato; non presume che un buffer generato sia stato
-accodato o ascoltato. Le dimensioni delle code nei blocchi callback sono quelle
-osservate dopo il loro consumo, non copie dei campioni in coda.
+## From the menu
 
-## Stessa operazione da CLI
+1. Open a debug copy with the updated runtime and pause it.
+2. **Debug > Start audio capture** arms 60 frames, with mixed, PSG, HLE and
+   both FIFOs. Collection does not rewind the machine or save snapshots.
+3. Reproduce the short problem by resuming play or stepping frames.
+4. Pause again and choose **Debug > Save audio report**.
+5. Open `Data/config/audio/<run>/index.html` in the copy. Each stream offers
+   an envelope, metadata, local WAV and raw data; the JSON is `audio.json`.
 
-Aprire la copia in pausa, quindi usare un altro terminale:
+The report's fixed interface uses English, including stream truncation,
+difference counts and unavailable previews. Captured payloads retain their
+source content.
+
+Pause and controlled steps normally discard frontend audio. Guest buffers can
+therefore be nonzero while the callback is silent. The report shows
+`discard-paused`, `discard-no-stream`, `discard-fast-silent`, `normal-queue` or
+`rings` for each observed frame; it does not assume a generated buffer was
+queued or heard. Queue sizes in callback blocks are observed after consumption,
+not copies of queued samples.
+
+<a id="stessa-operazione-da-cli"></a>
+
+## The same operation from the CLI
+
+Open the copy paused, then use another terminal:
 
 ```powershell
-.\recomp.exe debug-session open 'target\caso-audio' --paused
+.\recomp.exe debug-session open 'target\audio-case' --paused
 ```
 
 ```powershell
-.\recomp.exe debug-control audio-start 'target\caso-audio' --frames 4 --streams mixed,hle
-.\recomp.exe debug-control step 'target\caso-audio' 1 --keys 3fe
-.\recomp.exe debug-control step 'target\caso-audio' 3 --keys 3ff
-.\recomp.exe debug-control audio-report 'target\caso-audio'
+.\recomp.exe debug-control audio-start 'target\audio-case' --frames 4 --streams mixed,hle
+.\recomp.exe debug-control step 'target\audio-case' 1 --keys 3fe
+.\recomp.exe debug-control step 'target\audio-case' 3 --keys 3ff
+.\recomp.exe debug-control audio-report 'target\audio-case'
 ```
 
-`--frames` accetta **1–180**; `--streams` accetta una selezione senza duplicati
-di `mixed,psg,hle,fifo0,fifo1`. Menu e CLI condividono lo stesso collector e
-writer. Lo stato restituisce `audio_diagnostic` e il percorso `audio_report`.
-Per catturare input riproducibili, avviare prima una
-[registrazione da snapshot](debug_recordings.md), fermarla esplicitamente e
-chiudere la copia prima di verificarla. Le chiavi active-low osservate sono anche
-riportate per frame. Una raccolta audio da sola non certifica un replay.
+`--frames` accepts **1–180**; `--streams` accepts a selection without duplicates
+from `mixed,psg,hle,fifo0,fifo1`. Menu and CLI share the collector and writer.
+Status returns `audio_diagnostic` and the `audio_report` path. To capture
+reproducible input, first start a [snapshot recording](debug_recordings.md),
+stop it explicitly and close the copy before verification. Observed active-low
+keys are also reported per frame. Audio collection alone does not certify replay.
 
-Start e Save richiedono una copia in pausa, senza budget di passi/probe o replay
-attivo. Non si sostituisce una raccolta non salvata e non si avvia un replay
-separato finché esiste. Load/Undo/Restart congelano il prefisso audio prima del
-normale reset; il report può identificare uno stato corrente successivo al
-prefisso. Un errore di pubblicazione conserva la raccolta congelata per un altro
-tentativo. Non si modificano i file di report già pubblicati.
+Start and Save require a paused copy without a step/probe budget or active
+replay. Unsaved collection is not replaced, and a separate replay cannot start
+while it exists. Load/Undo/Restart freeze the audio prefix before normal reset;
+the report may identify current state after that prefix. A publication error
+retains frozen collection for another attempt. Published reports are not modified.
 
-## Confrontare buffer già conservati
+<a id="confrontare-buffer-già-conservati"></a>
 
-Il comando offline legge snapshot esistenti compatibili con la stessa ROM/BIOS
-e lo stesso frame guest. Non esegue frame, non carica dataset e non compila
-codice native. Clock diversi restano visibili.
+## Comparing retained buffers
+
+The offline command reads existing snapshots compatible with the same ROM/BIOS
+and guest frame. It executes no frames, loads no dataset and compiles no native
+code. Different clocks remain visible.
 
 ```powershell
-.\recomp.exe debug-audio states --rom '.\ffta.gba' --left '.\sinistra.ffstate' --right '.\destra.ffstate' --dir '.\confronto-audio-nuovo' --streams mixed,psg,hle,fifo0,fifo1 --start 81800 --count 256
+.\recomp.exe debug-audio states --rom '.\ffta.gba' --left '.\left.ffstate' --right '.\right.ffstate' --dir '.\new-audio-comparison' --streams mixed,psg,hle,fifo0,fifo1 --start 81800 --count 256
 ```
 
-Per snapshot con BIOS reale aggiungere `--bios '.\gba_bios.bin'`. La directory
-di output deve essere nuova. Start e count sono indici di valori interleaved
-oppure eventi FIFO; devono essere pari e count è **2–262.144**. Il confronto
-conserva byte esatti, differenze di lunghezza e le prime 16 coppie diverse, con
-indici assoluti e decodifica. Non allinea ritardi, canali o fasi fra acquisizioni.
+For snapshots with a real BIOS, add `--bios '.\gba_bios.bin'`. The output directory
+must be new. Start and count are interleaved-value or FIFO-event indexes; they
+must be even and count is **2–262,144**. Comparison retains exact bytes, length
+differences and the first 16 differing pairs, with absolute indexes and decoding.
+It does not align delay, channels or phases between captures.
 
-L'esito JSON e il codice di uscita distinguono **0: equal**, **2: diverged**,
-**3: incompatible**. Equal riguarda esclusivamente gli stream e la finestra
-selezionati, compresi eventuali buffer vuoti; non certifica lo stato completo o
-la qualità percepita. Anche in caso di divergenza il report viene pubblicato.
-Input incompatibili producono un risultato JSON senza sovrascrivere output.
+JSON outcome and exit code distinguish **0: equal**, **2: diverged**,
+**3: incompatible**. Equal covers only selected streams/window, including empty
+buffers; it certifies neither complete state nor perceived quality. Divergence
+still publishes a report. Incompatible inputs produce a JSON result without
+overwriting output.
 
-Il browser permette di scegliere lo stream e andare alla prima differenza
-nelle preview a campioni. Per i FIFO mostra gli eventi esatti nel dettaglio;
-non converte un indice evento in un istante dedotto.
+The browser lets users select a stream and jump to the first difference in
+sample previews. For FIFOs, it shows exact events in details; it does not convert
+an event index into an inferred timestamp.
 
-## Formati, limiti e identità
+<a id="formati-limiti-e-identità"></a>
 
-- Mixed e PSG: valori i16 little-endian, stereo a 65.536 Hz. HLE: bit IEEE f32
-  little-endian nello stesso ordine. FIFO: campione i8 seguito dal periodo u32
-  little-endian, cinque byte per evento. I file `.bin` conservano i valori esatti.
-- Le WAV sono anteprime PCM16 con clipping e sostituzione dei non finiti con
-  zero. La preview FIFO usa sample-hold isolato a 65.536 Hz con `period/256`;
-  filtro, routing e fase iniziale restano sconosciuti. Ogni preview dura al più
-  tre secondi; questo limite non modifica il dump grezzo selezionato.
-- Cattura live: 30 secondi host, al più 180 frame guest e **2 MiB per stream**.
-  Callback: tre secondi oppure 524.288 valori normalizzati f32, al più 512
-  blocchi e 64 reset. Omissioni, troncature e motivi di stop sono espliciti.
-  Il limite guest si applica ai frame successivi all'origine; eventuali buffer
-  già pendenti all'avvio sono dichiarati e possono comparire nel primo handoff.
-- Il report conserva frame/clock/stato esatto, ROM/runtime, BIOS effettivo,
-  dataset effettivo se presente, manifest della sessione con hash dei seed e
-  input immutabili, build, configurazione input/AV e chiavi osservate. Un percorso
-  di registrazione in corso non significa registrazione completa/verificata.
-  Il confronto offline identifica runtime, ROM, BIOS e snapshot; configurazione
-  frontend storica e input non presenti negli snapshot restano sconosciuti.
-- Sono ammessi al più **otto report** per copia, compresi tentativi incompleti.
-  JSON al più 2 MiB; nessuna cancellazione o sovrascrittura automatica. Le cartelle
-  e tutti i dump restano privati e ignorati da Git. La
-  [homepage locale](report_home.md) li trova dopo rigenerazione.
+## Formats, limits and identity
 
-Nel callback si copiano solo valori e contatori in memoria preallocata sotto il
-mutex già esistente. Non si leggono orologi, non si allocano buffer, non si
-scrivono file/log e non si acquisiscono altri lock. WAV/JSON/HTML vengono scritti
-dal thread principale dopo il rilascio del mutex. Il frame pubblicato è un
-watermark del producer, non l'origine dimostrata di ciascun campione callback.
-Mute utente/temporaneo, gain, modalità enhanced/HLE, Fast richiesto/stimato,
-code residue, contatori e reset permettono di leggere il contesto del buffer.
+- Mixed and PSG: little-endian i16 values, stereo at 65,536 Hz. HLE: little-endian
+  IEEE f32 bits in the same order. FIFO: i8 sample followed by little-endian u32
+  period, five bytes per event. `.bin` files retain exact values.
+- WAVs are PCM16 previews with clipping and nonfinite values replaced by zero.
+  FIFO preview uses isolated sample-and-hold at 65,536 Hz with `period/256`;
+  filter, routing and initial phase remain unknown. Each preview lasts at most
+  three seconds; that limit does not change the selected raw dump.
+- Live capture: 30 host seconds, at most 180 guest frames and **2 MiB per stream**.
+  Callback: three seconds or 524,288 normalized f32 values, at most 512 blocks
+  and 64 resets. Omissions, truncation and stop reasons are explicit. The guest
+  limit applies to frames after origin; buffers pending at startup are declared
+  and may appear in the first handoff.
+- The report retains exact frame/clock/state, ROM/runtime, actual BIOS/dataset,
+  session manifest with seed/immutable-input hashes, build, input/AV configuration
+  and observed keys. An in-progress recording path does not mean a complete/
+  verified recording. Offline comparison identifies runtime, ROM, BIOS and
+  snapshots; historical frontend settings and input absent from snapshots remain
+  unknown.
+- At most **eight reports** per copy, including incomplete attempts. JSON at most
+  2 MiB; no automatic deletion or overwrite. Directories and all dumps remain
+  private and Git-ignored. The [local homepage](report_home.md) finds them after
+  regeneration.
 
-## Validazione
+The callback copies only values/counters into preallocated memory under its
+existing mutex. It reads no clocks, allocates no buffers, writes no files/logs
+and acquires no other locks. WAV/JSON/HTML are written by the main thread after
+releasing the mutex. Published frame is a producer watermark, not a proven
+origin for each callback sample. User/temporary mute, gain, enhanced/HLE mode,
+requested/estimated Fast, residual queues, counters and resets explain the
+buffer's context.
 
-I controlli Windows vengono eseguiti sotto Wine/Xvfb, in copie portable mute.
-La divergenza conservata al frame 8514 e clock 2391464782 viene localizzata a
-mixed 81918/81919: −704 contro −576, anche selezionando solo 256 valori attorno
-al punto. Questo riusa snapshot precedenti e non ripete il replay o il benchmark.
+<a id="validazione"></a>
 
-La prova live registra A/rilascio per quattro frame, confronta lo stato completo
-alla fine e cattura selezione CLI, default menu e Fast/reset. Il source peak è
-0,16015625 mentre il callback con mute è zero; è una distinzione fra generazione
-e buffer applicativo, senza certificare un listener hardware. Rifiuti di doppio
-Start, parametri invalidi, otto cartelle, sessione attiva/non in pausa/chiusa
-conservano i report. I test confrontano bit per bit uscita/code/contatori con e
-senza observer nei formati f32/i16/u16 e nelle transizioni audio esistenti.
+## Validation
 
-I risultati dettagliati e i limiti effettivi sono nel
-[record DBG-14](changes/2026-10-29-add-bounded-audio-diagnostics.json).
-Windows nativo, Linux nativo, controller fisici, altri dispositivi/scene e ascolto
-fisico restano da verificare. Nessuna accettazione ROM/DS/native o prestazione
-deriva dalla sola presenza del report.
+Windows checks run under Wine/Xvfb in muted portable copies. The retained
+divergence at frame 8514 and clock 2391464782 is localized to mixed 81918/81919:
+−704 versus −576, also when selecting only 256 values around that point. This
+reuses earlier snapshots without repeating replay or benchmark.
+
+Live validation records A/release for four frames, compares complete endpoint
+state and captures CLI selection, menu defaults and Fast/reset. Source peak is
+0.16015625 while the muted callback is zero; this distinguishes generation from
+application buffer without certifying hardware listening. Duplicate Start,
+invalid parameters, eight-directory cap, active/unpaused/closed session refusals
+preserve reports. Tests compare output/queues/counters bit for bit with/without
+observer in f32/i16/u16 formats and existing audio transitions.
+
+Detailed results and actual limits are in the
+[DBG-14 record](changes/2026-10-29-add-bounded-audio-diagnostics.json).
+Native Windows/Linux, physical controllers, other devices/scenes and physical
+listening remain unverified by these checks. The presence of a report alone
+establishes no ROM/DS/native acceptance or performance result.

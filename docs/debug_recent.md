@@ -1,165 +1,168 @@
-# Registro degli eventi recenti — DBG-19
+<a id="registro-degli-eventi-recenti--dbg-19"></a>
 
-DBG2-08 collega gli eventi host allo [schema comune](debug_events.md): identità,
-ordine host, correlazione e mappa della copertura condivisi fra UI e recent.
-I campi `sequence`/`host_ms` originali restano locali al collector.
+# Recent event log — DBG-19
 
-Nella [copia isolata](debug_sessions.md) in pausa, scegliere **Debug > Start
-recent events**. Il registro mantiene una finestra mobile; gli eventi più vecchi
-vengono espulsi mentre il gioco continua. **Freeze / save recent events** congela
-e salva il contesto in Data/config/recent/&lt;run&gt;/index.html e recent.json.
+DBG2-08 connects host events to the [shared schema](debug_events.md): identity,
+host ordering, correlation and coverage map shared by UI and recent events.
+Original `sequence`/`host_ms` fields remain local to the collector.
 
-Per impostazione predefinita un errore dei comandi condivisi menu/CLI o un errore
-fatale osservato dal frontend congela e salva automaticamente il registro.
-Il report contiene il messaggio e il contesto precedente; non invia nulla.
-Non vengono creati nuovi snapshot o dump continui dell'intera macchina.
+In the paused [isolated copy](debug_sessions.md), choose **Debug > Start recent
+events**. The log retains a rolling window; older events are evicted while the
+game continues. **Freeze / save recent events** freezes and saves context in
+Data/config/recent/&lt;run&gt;/index.html and recent.json. The report's fixed
+interface, counts and empty-state explanations use English; observed payloads
+retain their source text.
+
+By default, a shared menu/CLI command error or a fatal error observed by the
+frontend automatically freezes and saves the log. The report contains the
+message and preceding context; it sends nothing. No new snapshots or continuous
+whole-machine dumps are created.
 
 ## CLI
 
-Aprire la copia con il runtime che contiene lo strumento; le vecchie copie
-conservano il proprio eseguibile autenticato:
+Open the copy with the runtime containing the tool; older copies retain their
+own authenticated executable:
 
 ~~~powershell
-.\recomp.exe debug-session open 'Data/debug-sessions/caso' --paused
+.\recomp.exe debug-session open 'Data/debug-sessions/case' --paused
 ~~~
 
-Da un secondo terminale:
+From a second terminal:
 
 ~~~powershell
-.\recomp.exe debug-control recent-start 'Data/debug-sessions/caso' --events 1024 --reads on --start 00000000 --end 02000000 --on-error on
-.\recomp.exe debug-control step 'Data/debug-sessions/caso' 10
-.\recomp.exe debug-control recent-report 'Data/debug-sessions/caso'
+.\recomp.exe debug-control recent-start 'Data/debug-sessions/case' --events 1024 --reads on --start 00000000 --end 02000000 --on-error on
+.\recomp.exe debug-control step 'Data/debug-sessions/case' 10
+.\recomp.exe debug-control recent-report 'Data/debug-sessions/case'
 ~~~
 
-**recent-freeze SESSION** congela senza scrivere; può essere usato anche durante
-esecuzione libera, al confine gestito dal frontend. Per salvare esplicitamente
-servono pausa e assenza di passi/probe/replay pendenti. Non interrompe un frame
-guest a metà. **status.recent** espone finestra, contatori, stop ed eventuale errore
-di scrittura; **recent_report** indica l'ultimo HTML. Le query status non riempiono
-il registro.
+**recent-freeze SESSION** freezes without writing; it also works during free
+running at a boundary handled by the frontend. Explicit Save requires pause
+and no pending steps/probes/replays. It does not interrupt a guest frame midway.
+**status.recent** exposes the window, counters, stop and any write error;
+**recent_report** identifies the latest HTML. Status queries do not fill the log.
 
-**--events** ammette **1–1.024**; **--reads on|off** seleziona le letture strumentate;
-**--start** incluso e **--end** escluso sono **offset ROM fisici** esadecimali,
-entro 02000000. Non sono indirizzi PC. **--on-error off** conserva gli errori
-come eventi e continua a scorrere; il default è on.
+**--events** accepts **1–1,024**; **--reads on|off** selects instrumented reads;
+**--start** inclusive and **--end** exclusive are hexadecimal **physical ROM
+offsets**, within 02000000. They are not PC addresses. **--on-error off** retains
+errors as events and keeps rolling; the default is on.
 
-Un nuovo Start richiede che la finestra precedente sia salvata. Un doppio Start
-è un errore osservato e può quindi congelare/salvare la vecchia finestra se
-on-error è attivo. Un ripristino della timeline congela con motivo
-state-restored; origine, limite congelato e stato corrente rimangono distinti.
-Un replay separato richiede prima Save. Chiudere normalmente senza salvare
-perde il buffer in memoria. Un errore d'uscita osservato tenta il salvataggio;
-un processo ucciso senza callback non può esportare la propria memoria.
+A new Start requires the preceding window to be saved. Duplicate Start is an
+observed error and may therefore freeze/save the old window when on-error is
+enabled. Timeline restore freezes with reason state-restored; origin, frozen
+boundary and current state remain distinct. A separate replay requires Save
+first. Normal closure without Save loses the memory buffer. An observed exit
+error attempts Save; a process killed without callbacks cannot export its memory.
 
-## Leggere il contesto
+<a id="leggere-il-contesto"></a>
 
-Gli eventi conservano sequenza, tempo host monotono, frame e clock guest:
+## Reading context
 
-- **guest-input**: latch active-low effettivamente usato prima del frame.
-  Il report mantiene anche l'ultimo input osservato; i frame riportano i tasti
-  anche quando l'evento del cambiamento è stato espulso. I poll grezzi dei
-  dispositivi appartengono all'[ispettore UI](debug_ui.md).
-- **recognized-ui-transition**: variazione della firma frontend readonly,
-  con selettore riconosciuto, target limitati, segnali dialogo/pannello e name
-  input. Include cambi di selezione. La copertura è parziale; un recognizer
-  disabilitato o senza match rimane sconosciuto, non prova assenza di una scena.
-  Non vengono inventati ID globali di scena o unità.
-- **rom-read-batch**: fino a **16 chiavi uniche selezionate per frame** dal
-  collector esistente, con servizio effettivo Typed, Raw o Unclassified,
-  lettore, indirizzo/offset/ampiezza e scope interprete quando disponibile.
-  Le chiavi sono aggregate e ordinate: non costituiscono l'ordine temporale
-  delle singole letture. Fetch esclusi; scope HLE/DMA può essere ereditato.
-- **frame**: input, confini e completamento, backend scelto e conteggi osservati
-  native/missing/system/hook. Il backend interprete non effettua lookup
-  native; solo native/missing dimostrano una selezione della tabella.
-  Gli interni dei blocchi native e l'identità dell'immagine caricata restano
-  fuori ambito.
-- **control-request/result**, **error**, **freeze**: comandi condivisi, risultato,
-  messaggio limitato, PC/tasti e motivo di stop. Altri canali di errore non
-  collegati o un crash senza callback restano non osservati.
+Events retain sequence, monotonic host time, guest frame and clock:
 
-Le letture richiedono il build con rom-data-read-audit. Nel build ordinario
-feature-unavailable è distinto da disabled, da collisione dell'observer e da
-zero richieste nella finestra/range. Se un altro collector possiede già
-l'observer, il gioco prosegue con indisponibilità esplicita. I gruppi persi per
-cap sono conteggiati; non dimostrano non-uso globale di risorse o funzioni.
+- **guest-input**: active-low latch actually used before the frame. The report
+  also retains the last observed input; frames report keys even after the
+  change event was evicted. Raw device polls belong to the
+  [UI inspector](debug_ui.md).
+- **recognized-ui-transition**: readonly frontend-signature change with recognized
+  selector, bounded targets, dialogue/panel signals and name input. Includes
+  selection changes. Coverage is partial; a disabled or unmatched recognizer
+  remains unknown, not proof that a scene is absent. No global scene/unit IDs
+  are invented.
+- **rom-read-batch**: up to **16 selected unique keys per frame** from the existing
+  collector, with actual Typed, Raw or Unclassified service, reader, address/
+  offset/width and interpreter scope when available. Keys are aggregated and
+  sorted, not the temporal order of individual reads. Fetches excluded;
+  HLE/DMA scope may be inherited.
+- **frame**: input, boundaries/completion, selected backend and observed
+  native/missing/system/hook counts. Interpreter backend performs no native
+  lookup; only native/missing prove table selection. Native-block internals
+  and loaded-image identity remain out of scope.
+- **control-request/result**, **error**, **freeze**: shared commands, result,
+  bounded message, PC/keys and stop reason. Unconnected error channels or a
+  crash without callbacks remain unobserved.
 
-Nel form dei parametri, **Recent** con `--reads on` viene rifiutato in fase di
-validazione se il runtime non include `rom-data-read-audit`; `--reads off` resta
-valido in entrambe le build. Il test del form verifica separatamente questi due
-casi, senza aspettarsi che un build ordinario disponga degli hook opzionali.
-Gli esiti della verifica mirata sono nel
-[record della correzione del test](changes/2026-10-30-correct-recent-form-feature-expectations.json).
+Reads require a rom-data-read-audit build. In an ordinary build,
+feature-unavailable is distinct from disabled, observer collision and zero
+requests in the window/range. When another collector already owns the observer,
+the game continues with explicit unavailability. Groups lost to caps are counted;
+they do not prove global non-use of resources or functions.
 
-## Limiti, identità e conservazione
+In the parameter form, **Recent** with `--reads on` is refused during validation
+if the runtime lacks `rom-data-read-audit`; `--reads off` remains valid in both
+builds. The form test checks these cases separately without expecting an ordinary
+build to have optional hooks. Focused results are in the
+[test correction record](changes/2026-10-30-correct-recent-form-feature-expectations.json).
 
-Il buffer conserva al più **1.024 eventi / 256 KiB di eventi serializzati**,
-con **8 KiB per evento**. Un evento troppo grande viene scartato e conteggiato;
-non espelle il contesto valido. La firma UI è limitata a 2 KiB, l'origine a
-128 KiB; il messaggio d'errore mantiene al più 1.024 caratteri con troncamento
-esplicito. Anche con un solo posto resta l'errore che ha congelato la finestra.
+<a id="limiti-identità-e-conservazione"></a>
 
-Non esiste il limite di durata dei collector a prefisso: il registro continua
-a scorrere oltre 30 secondi. Sequenze iniziale/finale, host ms e frame/clock
-definiscono la finestra effettiva. I totali di tentativi/espulsioni/scarti e delle
-letture appartengono all'intera raccolta, non soltanto agli eventi conservati.
-Dopo Freeze il suffisso è non osservato, non pari a zero.
+## Limits, identity and retention
 
-Start e Save identificano stato completo tramite hash soltanto ai confini
-espliciti, più ROM/BIOS, runtime/build, manifest/pin della sessione, dataset
-effettivo, input e AV. Nessuna nuova proprietà guest, ABI o misura di prestazione.
-Il report è diagnostico e non certifica nuove scene, risorse o parità native.
+The buffer retains at most **1,024 events / 256 KiB of serialized events**,
+with **8 KiB per event**. An oversized event is dropped and counted; it does not
+evict valid context. UI signature is limited to 2 KiB, origin to 128 KiB; error
+messages retain at most 1,024 characters with explicit truncation. Even with
+one slot, the error that froze the window remains.
 
-Al più **otto cartelle / 2 MiB JSON per report**, tentativi incompleti inclusi;
-nessuna sovrascrittura o pulizia automatica. Save fallito conserva il buffer
-congelato e il motivo. Save di una finestra già pubblicata restituisce lo stesso
-percorso. I percorsi e i metadati sono privati, ignorati da Git; rivederli prima
-di condividerli. La [homepage](report_home.md) li trova dopo rigenerazione.
-Il [gestore degli artefatti](debug_artifacts.md) conserva questi report e mostra
-i relativi limiti.
+Unlike prefix collectors, there is no duration limit: the log keeps rolling
+beyond 30 seconds. First/last sequence, host ms and frame/clock define the actual
+window. Attempt/eviction/drop and read totals belong to the whole collection,
+not just retained events. After Freeze, the suffix is unobserved, not zero.
 
-Le prove effettive e i limiti di piattaforma sono nel
-[record DBG-19](changes/2026-10-29-add-recent-event-ring.json).
+Start and Save identify complete state by hash only at explicit boundaries,
+plus ROM/BIOS, runtime/build, session manifest/pins, actual dataset, input and AV.
+No new guest property, ABI or performance measurement. The diagnostic report
+does not certify new scenes, resources or native parity.
 
-Il 30 ottobre sono stati eliminati i warning `unused_mut` nel controllo delle
-directory di output, conservando il rifiuto dei link simbolici e dei reparse
-point Windows. I blocchi modificati compilano senza warning per Linux e Windows;
-è una verifica mirata del compilatore, non una nuova prova GUI o del report.
-Vedere il [record della correzione](changes/2026-10-30-remove-report-link-flag-warnings.json).
+At most **eight directories / 2 MiB JSON per report**, including incomplete
+attempts; no automatic overwrite or cleanup. Failed Save retains the frozen
+buffer and reason. Saving an already published window returns the same path.
+Paths/metadata are private and Git-ignored; review before sharing. The
+[homepage](report_home.md) finds them after regeneration. The
+[artifact manager](debug_artifacts.md) preserves reports and shows their limits.
 
-## Verifica del 29 ottobre 2026
+Actual checks and platform limits are in the
+[DBG-19 record](changes/2026-10-29-add-recent-event-ring.json).
 
-Build Windows GNU release locked/offline, con e senza audit, senza warning.
-**81 test distinti Wine passati**:79 feature (rolling di un milione di eventi,
-entrambi i cap, oversize, errore con un solo posto, salvataggio fallito, servizi
-reali/collisione e dispatch più menu/control/frontend), un observer reale e un
-test default non disponibile. Due primi test cercavano il batch nella posizione
-iniziale occupata dall'input; corretti soltanto nei test. Tentativi e risultati
-restano conservati. Gli11test Python interessati dal riepilogo dei limiti passano.
+On October 30, `unused_mut` warnings were removed from output-directory checks
+while preserving symlink and Windows reparse-point refusal. Changed blocks
+compile without warnings for Linux and Windows; this is a focused compiler
+check, not new GUI/report validation. See the
+[fix record](changes/2026-10-30-remove-report-link-flag-warnings.json).
 
-L'observer nuovo usa il seed DS20 già conservato: stessi due frame A/rilascio con
-e senza osservazione hanno identico stato completo a ogni confine, fino al frame
-22221/clock6241706243. Non ripete vecchie accettazioni ROM/native. La GUI feature
-usa25invocazioni CLI: dopo26frame una finestra di8eventi ha60espulsioni e conserva
-input/firma UI/frame/letture più l'errore controllato **Start a code trace first**.
-Il salvataggio automatico non cambia lo stato guest. Menu Start/Save resta
-attivo oltre31secondi in pausa; Freeze durante esecuzione libera, letture off,
-idempotenza e cap delle otto cartelle verificati. La GUI default usa cinque
-invocazioni e pubblica feature-unavailable senza inventare zero letture.
+<a id="verifica-del-29-ottobre-2026"></a>
 
-Il runtime default era già uscito con0 quando il vecchio helper di chiusura
-ha cercato una variabile log non definita: ready inattivo, lease rilasciato,
-risposta/report e integrità verificati con letture successive, senza rilancio.
-Chrome offline desktop/stretto verifica cinque viste, filtri/ricerca/reset,
-errore e indisponibilità; screenshot ispezionati. Homepage67indici/5recenti
-al momento della prova, senza riaccettare gli altri report.
+## October 29, 2026 validation
 
-Verificatore finale autentica19overlay sorgenti, due runtime candidati e cinque
-coppie HTML/JSON con contabilità byte/sequenze. Sei input/runtime normali
-mantengono hash e mtime; helper chiusi. Ritirati soltanto cinque profili browser
-terminati; report, input, sorgenti/preimages, tentativi, log e candidati conservati.
-Nessuna fixture disposable managed/native: il completion helper ROM non si
-applica. Evidenze locali in **target/debug-tools-recent/**. Windows nativo,
-Linux GUI nativa, controller fisici e osservazione reale native restano non
-verificati. Nessuna sostituzione del runtime normale, misura prestazionale,
-pubblicazione o modifica Android/Godot.
+Windows GNU release builds locked/offline, with/without audit, without warnings.
+**81 distinct Wine tests passed**: 79 feature tests (one million rolling events,
+both caps, oversize, one-slot error, failed Save, actual services/collision and
+dispatch plus menu/control/frontend), one real observer and one default
+unavailable-feature test. Two initial tests searched for the batch at the first
+position occupied by input; only tests were corrected. Attempts/results remain
+retained. The 11 Python tests affected by the limit summary passed.
+
+The new observer uses the retained DS20 seed: the same two A/release frames
+with/without observation have identical complete state at every boundary up to
+frame 22221/clock6241706243. It does not repeat earlier ROM/native acceptance.
+Feature GUI uses 25 CLI invocations: after 26 frames, an eight-event window has
+60 evictions and retains input/UI signature/frame/reads plus controlled error
+**Start a code trace first**. Automatic Save does not change guest state. Menu
+Start/Save remains active beyond 31 seconds paused; Freeze during free running,
+reads off, idempotency and eight-directory cap checked. Default GUI uses five
+invocations and publishes feature-unavailable without inventing zero reads.
+
+The default runtime had already exited with 0 when the old closure helper
+referenced an undefined log variable: ready inactive, lease released, response/
+report/integrity checked by subsequent reads without relaunch. Offline Chrome
+desktop/narrow checks five views, filters/search/reset, error and unavailability;
+screenshots inspected. Homepage had 67 indexes/5 recent reports at that check,
+without reaccepting other reports.
+
+The final verifier authenticates 19 source overlays, two candidate runtimes and
+five HTML/JSON pairs with byte/sequence accounting. Six normal inputs/runtimes
+retain hash/mtime; helpers closed. Only five exited browser profiles retired;
+reports, inputs, source/preimages, attempts, logs and candidates retained.
+No disposable managed/native fixture: the ROM completion helper does not apply.
+Local evidence: **target/debug-tools-recent/**. Native Windows, native Linux GUI,
+physical controllers and actual native observation were not verified. No normal
+runtime replacement, performance measurement, publishing or Android/Godot change.

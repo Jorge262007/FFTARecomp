@@ -1,152 +1,163 @@
-# Menu, testo e input — DBG-13
+<a id="menu-testo-e-input--dbg-13"></a>
 
-DBG2-08 collega gli eventi host allo [schema comune](debug_events.md): identità,
-ordine host, correlazione e mappa della copertura condivisi fra UI e recent.
-I campi `sequence`/`host_ms` originali restano locali al collector.
+# Menu, text and input — DBG-13
 
-Nella [copia isolata](debug_sessions.md), mettere in pausa e usare **Debug >
-Start UI / input trace**, poi riprodurre il caso e **Save UI / input report**.
-La CLI condivide le stesse azioni:
+DBG2-08 connects host events to the [shared schema](debug_events.md): identity,
+host ordering, correlation and coverage map shared by UI and recent events.
+Original `sequence`/`host_ms` fields remain local to the collector.
+
+In the [isolated copy](debug_sessions.md), pause and use **Debug > Start UI /
+input trace**, reproduce the case, then **Save UI / input report**. The CLI
+shares the same actions:
 
 ```powershell
-.\recomp.exe debug-control ui-start 'target\caso'
-# Usare tastiera/gamepad o i passi DBG-10 per riprodurre il caso.
-.\recomp.exe debug-control ui-report 'target\caso'
+.\recomp.exe debug-control ui-start 'target\case'
+<a id="usare-tastieragamepad-o-i-passi-dbg-10-per-riprodurre-il-caso"></a>
+
+# Use keyboard/gamepad or DBG-10 steps to reproduce the case.
+.\recomp.exe debug-control ui-report 'target\case'
 ```
 
-`status.ui_trace` indica raccolta attiva, conteggio, motivo di arresto e percorso
-relativo dell'ultimo report. Aprire `Data/config/ui/<run>/index.html`. La pagina
-funziona offline, con menu PNG, focus, metriche del testo e sequenza filtrabile.
-Il report resta privato e compare nella [homepage locale](report_home.md) dopo
-averne rigenerato l'elenco.
+`status.ui_trace` reports active collection, count, stop reason and relative
+path of the latest report. Open `Data/config/ui/<run>/index.html`. The page works
+offline, with menu PNG, focus, text metrics and a filterable sequence. Its fixed
+interface and status labels use English; observed text and payloads retain
+their source content. The report stays private and appears on the
+[local homepage](report_home.md) after regenerating the list.
 
-`debug-control status` espone anche `status.host_menu`: pagina, riga, binding e
-dropdown correnti. Leggere questo focus prima di automatizzare una navigazione:
-un controller connesso può aprire direttamente la scheda Gamepad. Un dropdown
-aperto consuma le frecce fino alla scelta/chiusura; non stanno muovendo le righe
-del pannello sottostante.
+`debug-control status` also exposes `status.host_menu`: current page, row,
+binding and dropdown. Read this focus before automating navigation: a connected
+controller may open the Gamepad tab directly. An open dropdown consumes arrows
+until selection/closure; those arrows do not move the underlying panel's rows.
 
-## Quale passaggio ha consumato il comando
+<a id="quale-passaggio-ha-consumato-il-comando"></a>
 
-La sequenza distingue:
+## Which stage consumed the command
 
-- `keyboard`: pressione/rilascio ricevuti da Winit, codice fisico e autorepeat;
-- `controller-poll`: token XInput campionati, prima del blocco di cattura;
-- `mapped-poll`: tasti tenuti, maschera GBA attiva bassa, navigazione host,
-  `rising_confirm`, cattura binding, shortcut e maschera di soppressione;
-- `host-menu-dispatch`: focus prima/dopo, input e azione realmente restituita;
+The sequence distinguishes:
+
+- `keyboard`: press/release received by Winit, physical code and autorepeat;
+- `controller-poll`: sampled XInput tokens before the capture guard;
+- `mapped-poll`: held keys, active-low GBA mask, host navigation,
+  `rising_confirm`, binding capture, shortcuts and suppression mask;
+- `host-menu-dispatch`: before/after focus, input and actual returned action;
 - `menu-consumed-by-remapping`, `menu-debounce-refused`, `shortcut-consumed`:
-  motivo esplicito per cui quel comando non prosegue nello stesso percorso;
-- `bindings-changed` / `pad-bindings-changed`: configurazione dopo la rimappatura;
-- `guest-input-latch` e `guest-frame`: maschera consegnata al guest e frame
-  effettivamente completato, con sorgente passo controllato/host e stato recorder;
-- `control-request` e `host-action`: richieste CLI/shortcut e azioni frontend.
+  explicit reason that command does not continue along the same path;
+- `bindings-changed` / `pad-bindings-changed`: configuration after remapping;
+- `guest-input-latch` and `guest-frame`: mask delivered to the guest and actual
+  completed frame, with controlled-step/host source and recorder state;
+- `control-request` and `host-action`: CLI/shortcut requests and frontend actions.
 
-Ogni evento ha numero di sequenza, tempo relativo **host**, frame e clock **guest**.
-I down-state duplicati vengono deduplicati per poll; le ripetizioni fisiche della
-tastiera restano esplicite. L'assenza di un edge non è un secondo dispatch. La
-maschera rimappata non è automaticamente input guest: il menu in pausa non esegue
-frame, e un passo F7 usa la maschera neutra dichiarata da DBG-10.
+Each event has a sequence number, relative **host** time, **guest** frame and
+clock. Duplicate down-states are deduplicated per poll; physical keyboard repeats
+remain explicit. Absence of an edge is not a second dispatch. A remapped mask
+is not automatically guest input: the paused menu executes no frames, and an
+F7 step uses the neutral mask declared by DBG-10.
 
-La raccolta non cambia input o filtri esistenti. Le pressioni sono osservate
-nei punti correnti, senza un nuovo canale di iniezione. DBG2-09 aggiunge token pulsanti/rotella Winit e cambi semantici del menu;
-le transizioni raw Gilrs/DirectInput restano fuori dagli hook, mentre backend
-selezionato, risultato rimappato aggregato e cambi effettivi sono osservabili. Non si
-deduce una latenza hardware dai tempi dei poll.
+Collection does not change existing input or filters. Presses are observed at
+current points without a new injection channel. DBG2-09 adds Winit button/wheel
+tokens and semantic menu changes; raw Gilrs/DirectInput transitions remain
+outside the hooks, while the selected backend, aggregate remapped result and
+effective changes are observable. Poll timing does not establish hardware latency.
 
-## Testo e rettangoli
+<a id="testo-e-rettangoli"></a>
 
-Il report ridisegna il menu host su un buffer temporaneo, con lo stesso percorso
-font/pixel esistente. Un observer thread-local raccoglie al massimo 512 chiamate:
-testo (prefisso 256 caratteri), font/size, origine, larghezza massima, ascent/
-descent, advance completo/prefisso e bbox outline dei glyph effettivamente scelti.
-La misurazione si ferma a 4.096 caratteri e segnala il limite.
+## Text and rectangles
 
-`width_stopped` identifica il `break` originale quando il prossimo advance supera
-la larghezza disponibile. `canvas_clipped` indica outline fuori dal canvas:
-sono controlli separati. La bbox è quella degli outline, non una misura dei pixel
-alpha nonzero. La pagina sovrappone bbox e area disponibile al PNG; non cambia
-font, wrapping, ellissi o geometria del menu. Il focus host riporta pagina, riga,
-binding in cattura, panel e rettangolo selezionato con scroll corrente.
-Quando è aperto un dropdown include opzione, indice, scroll e geometria ottenuta
-dallo stesso helper usato per disegno e hit test.
+The report redraws the host menu into a temporary buffer using the existing
+font/pixel path. A thread-local observer collects at most 512 calls: text
+(256-character prefix), font/size, origin, maximum width, ascent/descent,
+full/prefix advance and outline bounding box of the actual selected glyphs.
+Measurement stops at 4,096 characters and reports the limit.
 
-Per la UI guest sono dichiarati solo selector già riconosciuti dagli helper
-esistenti, flag dialogue/panel, bbox dei buffer e layout/clip frontend. Altri menu,
-focus e metriche dei glyph guest restano **sconosciuti**. Queste misure non provano
-la provenienza ROM, i byte typed consumati o il vincitore del framebuffer.
+`width_stopped` identifies the original `break` when the next advance exceeds
+available width. `canvas_clipped` identifies outlines outside the canvas:
+these are separate checks. The bounding box covers outlines, not nonzero-alpha
+pixels. The page overlays the box and available area on the PNG; it does not
+change fonts, wrapping, ellipses or menu geometry. Host focus reports page, row,
+binding being captured, panel and selected rectangle with current scroll.
+An open dropdown includes option, index, scroll and geometry from the same
+helper used for drawing and hit testing.
 
-## Limiti, registrazione e conservazione
+For guest UI, only selectors already recognized by existing helpers,
+dialogue/panel flags, buffer boxes and frontend layout/clipping are declared.
+Other menus, focus and guest glyph metrics remain **unknown**. These measurements
+do not prove ROM provenance, consumed typed bytes or framebuffer winner.
 
-Raccolta esplicita, disattivata normalmente. Si ferma a **30 secondi, 1.024 eventi
-o 600 frame**, conservando il motivo e il prefisso. Start/Save richiedono copia
-in pausa senza budget di passi/ricerca/replay in corso. La raccolta può osservare
-passi, gioco e una [registrazione DBG-04](debug_recordings.md), da verificare con
-il relativo comando: la sola traccia host non equivale a un replay completo.
+<a id="limiti-registrazione-e-conservazione"></a>
 
-Un ripristino di timeline chiude il prefisso con `state-restored`; il report può
-quindi mostrare lo stato corrente successivo al ripristino, senza attribuirlo
-all'endpoint degli eventi precedenti. Dopo un arresto automatico salvare il
-report prima di iniziare una nuova traccia. Gli eventi non vengono scritti
-continuamente su disco.
+## Limits, recording and retention
 
-Massimo **otto cartelle** per copia, comprese le catture fallite. Il report limita
-il canvas a 1600×1000 e il JSON a 2 MiB. Stato completo controllato prima/dopo il
-ridisegno; ROM/runtime e origine/corrente identificati. `ui.json` viene pubblicato
-per ultimo; nessuna sovrascrittura, pruning o snapshot aggiuntivo dal collector.
-Un errore conserva la traccia e le eventuali risorse per diagnosi. L'ultimo
-percorso in status resta una cattura precedente se un nuovo comando fallisce:
-leggere sempre esito e identità della richiesta.
+Explicit collection, normally disabled. It stops at **30 seconds, 1,024 events
+or 600 frames**, retaining reason and prefix. Start/Save require a paused copy
+without an active step/search/replay budget. Collection can observe steps, play
+and a [DBG-04 recording](debug_recordings.md), which must be checked with its
+own command: a host trace alone is not a complete replay.
 
-## Risultati verificati il 28 ottobre 2026
+A timeline restore closes the prefix with `state-restored`; the report may then
+show current post-restore state without attributing it to the preceding events'
+endpoint. After an automatic stop, save the report before starting a new trace.
+Events are not written continuously to disk.
 
-Build Windows locked/offline con/senza audit, entrambe senza warning;
-**69 test Wine distinti**: 2 collector, 7 controllo, 12 frontend, 47 menu iniziali
-e un nuovo controllo dropdown. Dopo le revisioni sono stati ripetuti solo i
-2 test report interessati (due volte): 73 esecuzioni totali. L'observer font
-lascia identici tutti i pixel; rimuovendo i soli hook si recuperano gli stessi
-corpi originali di mapping input, frame runner e canvas, più l'helper dropdown.
+Maximum **eight directories** per copy, including failed captures. The report
+limits canvas to 1600×1000 and JSON to 2 MiB. Complete state is checked before/
+after redraw; ROM/runtime and origin/current are identified. `ui.json` is
+published last; no overwrite, pruning or additional snapshot from the collector.
+Errors retain the trace and any resources for diagnosis. Status's latest path
+still identifies a previous capture when a new command fails: always read the
+request outcome and identity.
 
-Tre casi rendono leggibili i passaggi:
+<a id="risultati-verificati-il-28-ottobre-2026"></a>
 
-- Tastiera con Enter rimappato ad A: 14 eventi autorepeat producono un solo
-  `host-menu-dispatch`, che apre il dropdown Extended saves. I poll successivi
-  mostrano confirm tenuto e `rising_confirm=false`. F7 consegna `3ff` neutro;
-  i passi successivi consegnano `3fe/3ff` come richiesto. Questo prefisso è
-  osservazione accettata; la sua prima registrazione, interrotta dal test, resta
-  incompleta e non è stata certificata come replay.
-- Copia separata con registrazione completata: i due frame CLI A/rilascio,
-  esplicitamente fermati e seguiti da chiusura pulita, passano il verificatore
-  completo di DBG-04. Endpoint SHA256
-  `dd841ef6dba845974625e7e5ae5839f86069000066f876a32d0a86bf6fcb0b81`.
-- XInput **simulato**, South tenuto 1.200ms nel binding A: un aggiornamento
-  North→South, una sola conferma da tastiera per aprire la cattura, nessuna
-  seconda conferma né frame guest. Focus/cattura/mapping e token raw distinguono
-  il binding dalla navigazione. I rifiuti per traccia già presente, capacità,
-  esecuzione attiva e copia chiusa passano.
+## Results verified on October 28, 2026
 
-Il report misura inoltre il titolo diagnostico lungo: **545,89px** di advance,
-**472px** disponibili, **64/75 caratteri** scelti, `width_stopped=true` e
-`canvas_clipped=false`. La causa è il limite della chiamata font. Il dropdown
-Extended saves ha bbox `[266,202,320,76]` sul canvas 852×480; l'opzione corrente
-e le frecce riguardano quel popup, prima del menu sottostante.
+Locked/offline Windows builds with/without audit, both without warnings;
+**69 distinct Wine tests**: 2 collector, 7 control, 12 frontend, 47 initial menu
+and one new dropdown check. After revisions, only the 2 affected report tests
+were repeated (twice): 73 total executions. The font observer leaves every
+pixel identical; removing only hooks recovers the original input-mapping,
+frame-runner and canvas bodies, plus the dropdown helper.
 
-Sono conservati sei report. Chrome desktop 1400px/mobile 620px verifica focus,
-selezione testo/bbox, immagini, filtro eventi e assenza di overflow; screenshot
-ispezionati. La homepage aggiornata riconosce tutti i sei report UI fra 29 indici.
-Tutti i 202 originali selezionati e i due runtime normali rimangono invariati.
+Three cases make the stages readable:
 
-I tentativi del test hanno rilevato anche errori nella sua navigazione: frecce
-in un dropdown ancora aperto, verifica mentre la sessione aveva il lease,
-Right dopo la selezione automatica Gamepad e riga Open menu scambiata per A.
-Sono conservati con log/preimmagini; i prefissi accettati non sono stati rifatti.
-Due copie terminano pulitamente; due vecchie copie diagnostiche furono interrotte
-dalla pulizia del test e non hanno un'accettazione di uscita o replay. La prova
-finale usa pagina, label e geometria restituite da `status`.
+- Keyboard with Enter remapped to A: 14 autorepeat events produce one
+  `host-menu-dispatch`, opening the Extended saves dropdown. Subsequent polls
+  show held confirm and `rising_confirm=false`. F7 delivers neutral `3ff`;
+  subsequent steps deliver `3fe/3ff` as requested. This prefix is accepted
+  observation; its first recording, interrupted by the test, remains incomplete
+  and was not certified as replay.
+- Separate copy with completed recording: two CLI A/release frames, explicitly
+  stopped and followed by clean closure, pass DBG-04's full verifier. Endpoint
+  SHA256 `dd841ef6dba845974625e7e5ae5839f86069000066f876a32d0a86bf6fcb0b81`.
+- **Simulated** XInput, South held for 1,200 ms in the A binding: one North→South
+  update, one keyboard confirmation to open capture, no second confirmation or
+  guest frame. Focus/capture/mapping and raw tokens distinguish binding from
+  navigation. Existing-trace, capacity, active-execution and closed-copy refusals
+  pass.
 
-Windows/Linux nativi, controller fisici, altre scene/backend native, glyph guest
-e transizioni raw Gilrs/DirectInput/mouse non sono certificati. Il PNG è un
-ridisegno CPU diagnostico del menu su anteprima, non una cattura del monitor/GPU.
-Nessuna nuova accettazione ROM/DS/native o misura di performance. Evidenze locali
-sotto `target/debug-tools-ui/`; i profili Chrome temporanei sono stati rimossi,
-conservando gli errori e gli input. [Record](changes/2026-10-28-add-bounded-menu-text-input-diagnostics.json).
+The report also measures the long diagnostic title: **545.89px** advance,
+**472px** available, **64/75 characters** selected, `width_stopped=true` and
+`canvas_clipped=false`. The cause is the font-call limit. The Extended saves
+dropdown has bbox `[266,202,320,76]` on an 852×480 canvas; the current option
+and arrows concern that popup before the underlying menu.
+
+Six reports are retained. Chrome desktop 1400px/mobile 620px checks focus,
+text/bounding-box selection, images, event filtering and absence of overflow;
+screenshots inspected. The refreshed homepage recognizes all six UI reports
+among 29 indexes. All 202 selected originals and both normal runtimes remain
+unchanged.
+
+Test attempts also revealed navigation errors in the harness: arrows in a
+still-open dropdown, checking while the session held its lease, Right after
+automatic Gamepad selection and mistaking the Open menu row for A. They are
+retained with logs/preimages; accepted prefixes were not repeated. Two copies
+exit cleanly; two older diagnostic copies were interrupted by test cleanup and
+have no exit/replay acceptance. The final check uses page, labels and geometry
+returned by `status`.
+
+Native Windows/Linux, physical controllers, other scenes/native backends,
+guest glyphs and raw Gilrs/DirectInput/mouse transitions are not certified.
+The PNG is a diagnostic CPU redraw of the menu over a preview, not a monitor/GPU
+capture. No new ROM/DS/native acceptance or performance measurement. Local
+evidence: `target/debug-tools-ui/`; temporary Chrome profiles were removed,
+retaining errors and inputs. [Record](changes/2026-10-28-add-bounded-menu-text-input-diagnostics.json).

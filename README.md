@@ -380,6 +380,9 @@ python3 scripts/menu_atlas_inventory.py --check
 
 Use `python` instead of `python3` on Windows if that is the installed command.
 The [script guide](scripts/README.md) lists additional helpers and requirements.
+Maintained documentation and default product/tooling text use English across
+both source trees; optional translations remain available. See the
+[English-first policy](docs/development/ENGLISH_FIRST.md).
 
 
 **Create a private Windows portable ZIP with local debug assets:**

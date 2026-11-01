@@ -5,7 +5,7 @@ description: Build, test, benchmark and package FFTARecomp for Windows, distingu
 
 # Windows validation
 
-Read the short TASK_HANDOFF including its final PASSAGGIO DI TESTIMONE, Git
+Read the short TASK_HANDOFF including its final **Final handover** section, Git
 status, and only relevant PROJECT_STATE/feature sections. Never preload the
 archive, full CHANGELOG/PROJECT_STATE or unrelated large TODOs.
 Use release builds for performance. Inspect installed targets, compiler and

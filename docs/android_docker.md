@@ -1,17 +1,19 @@
-# Compilare Android con Docker
+<a id="compilare-android-con-docker"></a>
 
-Servono **Docker con Buildx** e **Python 3.9+** sul computer host. Su Windows,
-Docker Desktop deve usare container Linux. Non occorre installare Rust, Java,
-SDK o NDK sull'host; non serve una ROM per compilare l'APK.
+# Build Android with Docker
 
-Dalla radice del repository:
+The host needs **Docker with Buildx** and **Python 3.9+**. On Windows,
+Docker Desktop must use Linux containers. Rust, Java, the SDK and the NDK
+do not need to be installed on the host; no ROM is needed to build the APK.
+
+From the repository root:
 
 ```sh
 python3 scripts/android/build_android_docker.py
 ```
 
-In PowerShell lo stesso comando può usare `python` al posto di `python3`.
-La scelta predefinita è il port mantenuto in **`AndroidPort/`**. Il risultato è:
+In PowerShell, the same command can use `python` instead of `python3`.
+The default source tree is the maintained **`AndroidPort/`**. The output is:
 
 ```text
 dist/docker-android/FFTARecomp-android-arm64-preview.apk
@@ -21,88 +23,94 @@ dist/docker-android/BUILD-SOURCE.json
 dist/docker-android/tests/TEST-*.xml
 ```
 
-L'APK è **ARM64, debug-signed**, con le librerie Rust e TinyCC. Il codice Rust
-è compilato in release. La build esegue `:app:assembleDebug` e
-`:app:testDebugUnitTest`; l'esportazione richiede entrambe le librerie ARM64,
-i sorgenti/avvisi TinyCC previsti e i risultati dei test Kotlin. Il checksum
-dell'APK esportato viene ricontrollato anche sull'host.
+The APK is **ARM64 and debug-signed**, with the Rust and TinyCC libraries.
+Rust code is compiled in release mode. The build runs `:app:assembleDebug`
+and `:app:testDebugUnitTest`; export requires both ARM64 libraries, the
+expected TinyCC source/notices and the Kotlin test results. The exported
+APK checksum is checked again on the host.
 
-La cartella di output può essere scelta esplicitamente, anche con spazi:
+You can select an output directory explicitly, including a path with spaces:
 
 ```sh
 python3 scripts/android/build_android_docker.py --output "dist/Android APK"
 ```
 
-## Alberi separati
+<a id="alberi-separati"></a>
 
-`AndroidPort/` e il workspace principale hanno sorgenti e versioni differenti.
-Lo script non li sincronizza e non sostituisce gli APK già presenti in `APK/`
-o `Installer/Android/`. Per compilare esplicitamente l'Android del workspace
-principale, dalla radice:
+## Separate source trees
+
+`AndroidPort/` and the main workspace have different sources and versions.
+The script does not synchronize them or replace APKs already in `APK/`
+or `Installer/Android/`. To build the main workspace's Android app explicitly,
+run this from the repository root:
 
 ```sh
 python3 scripts/android/build_android_docker.py --project-dir . --output dist/docker-android-root
 ```
 
-Il port resta autocontenuto. Anche dopo aver copiato soltanto `AndroidPort/`,
-da quella cartella si può eseguire:
+The port remains self-contained. After copying only `AndroidPort/`, you can
+run the following from that folder:
 
 ```sh
 python3 scripts/build_android_docker.py
 ```
 
-In questo caso l'output predefinito è `dist/docker-android/` dentro il port.
-`--dry-run` controlla gli ingressi e mostra il comando senza chiamare Docker.
+The default output is then `dist/docker-android/` inside the port.
+`--dry-run` checks the inputs and shows the command without calling Docker.
 
-## Toolchain, cache e firma
+<a id="toolchain-cache-e-firma"></a>
 
-La ricetta `AndroidPort/Dockerfile.android` usa immagini Rust 1.94.0 e
-Eclipse Temurin Java 25 fissate per digest, SDK Android 35, build-tools 35.0.0,
-NDK 28.2.13676358 e il wrapper Gradle 9.5.0 del progetto. Il target nativo è
-`aarch64-linux-android`, API minima 24. I command-line tools Android e i
-sorgenti TinyCC sono verificati tramite SHA256; il wrapper verifica il proprio
-download Gradle. Versioni e hash dei sorgenti/APK sono nei file esportati.
+## Toolchain, caches and signing
 
-La prima build scarica immagini e dipendenze. Le cache BuildKit conservano
-Cargo, Gradle, compilazioni e la **chiave debug generata dentro Docker**.
-Port e workspace principale usano cache distinte. La chiave consente di
-aggiornare successive APK prodotte dallo stesso builder/cache; le chiavi di
-precedenti build native non vengono importate. Eliminare la cache della firma
-cambia la chiave delle build successive. Non vengono lette chiavi personali.
+`AndroidPort/Dockerfile.android` uses digest-pinned Rust 1.94.0 and
+Eclipse Temurin Java 25 images, Android SDK 35, build-tools 35.0.0,
+NDK 28.2.13676358 and the project's Gradle 9.5.0 wrapper. The native target is
+`aarch64-linux-android`, with minimum API 24. The Android command-line tools
+and TinyCC source are verified by SHA256; the wrapper verifies its Gradle
+download. Tool versions and source/APK hashes are recorded in the exported files.
 
-Le immagini di base sono fissate, ma repository dei pacchetti e dipendenze
-scaricabili restano servizi esterni: non è una promessa di APK identiche byte
-per byte fra macchine o cache diverse. Il codice usa il vero stato dei sorgenti
-selezionati, comprese le modifiche locali, anziché un vecchio commit archiviato.
+The first build downloads images and dependencies. BuildKit caches retain
+Cargo, Gradle, compilation outputs and the **debug key generated inside Docker**.
+The port and main workspace use separate caches. This key supports updates
+between successive APKs produced by the same builder/cache; keys from earlier
+native builds are not imported. Removing the signing cache changes the key
+used by subsequent builds. Personal signing keys are not read.
 
-Il launcher prepara un contesto temporaneo con soli ingressi pubblici ammessi.
-Esclude ROM, salvataggi, registrazioni, binari generati, `local.properties`,
-cache, file nascosti e collegamenti simbolici. Non monta il checkout in scrittura
-nel container. L'SDK e i risultati nativi intermedi restano dentro Docker;
-solo gli artefatti finali passano nella cartella di output.
+The base images are pinned, but package repositories and downloadable
+dependencies remain external services: this is not a promise of byte-identical
+APKs across different machines or caches. The build uses the actual selected
+sources, including local edits, rather than an older archived commit.
 
-## Log e verifiche
+The launcher prepares a temporary context containing only allowed public
+build inputs. It excludes ROMs, saves, recordings, generated binaries,
+`local.properties`, caches, hidden files and symbolic links. It does not
+bind-mount the checkout writable into the container. SDK and native build
+intermediates remain inside Docker; only final artifacts are exported.
 
-Il launcher principale conserva stdout/stderr del builder in
-`target/build-logs/android-*.log`, anche quando Docker fallisce, e restituisce
-il codice d'errore. L'entry point autocontenuto usa `target/build-logs/` del port.
-I percorsi e gli hash dei sorgenti selezionati rimangono nel log.
-Se Docker fallisce, il contesto pubblico viene conservato accanto al log in
-una cartella `android-…-context`, per poter esaminare gli ingressi esatti del
-tentativo. I contesti temporanei delle build riuscite vengono rimossi.
+<a id="log-e-verifiche"></a>
 
-Le verifiche del launcher coprono filtro del contesto, selezione dell'albero,
-percorsi con spazi, errori e checksum. Gli adattatori dei builder esistenti
-controllano separatamente le convenzioni NDK Windows/Linux senza modificare
-l'esecuzione del gioco. La compilazione e i test Kotlin non costituiscono una
-prova su dispositivo, del controller fisico, dell'audio o delle prestazioni.
+## Logs and validation
 
-Verifica del 2026-11-01: entrambe le build Docker complete sono riuscite;
-**24 test Kotlin** passati per AndroidPort e **12** per il workspace principale,
-senza errori né casi saltati. I **7 test** del launcher/adapter/export sono
-passati, compresa la prova del port copiato fuori dal repository. Hash APK,
-librerie ARM64, archivio sorgente TinyCC e risultati JUnit sono stati verificati.
-Docker Desktop/Windows e l'esecuzione su dispositivo restano verifiche distinte.
+The main launcher retains builder stdout/stderr in
+`target/build-logs/android-*.log`, including on Docker failure, and returns
+the error code. The self-contained entry point uses the port's
+`target/build-logs/`. Selected source paths and hashes remain in the log.
+If Docker fails, the public context is retained beside the log in an
+`android-…-context` directory, so the exact inputs can be inspected.
+Temporary contexts from successful builds are removed.
 
-Fonti della toolchain: [Android command-line tools](https://developer.android.com/studio#command-line-tools-only)
-e [compatibilità Java/Gradle](https://docs.gradle.org/current/userguide/compatibility.html).
+Launcher checks cover context filtering, tree selection, paths with spaces,
+errors and checksums. The existing builders' adapters separately check the
+Windows/Linux NDK conventions without changing game execution. Compilation
+and Kotlin tests do not establish physical-device, controller, audio or
+performance results.
+
+Validation on 2026-11-01: both complete Docker builds passed; **24 Kotlin tests**
+passed for AndroidPort and **12** for the main workspace, with no errors or
+skipped cases. The **7 launcher/adapter/export tests** passed, including the
+port copied outside the repository. APK hashes, ARM64 libraries, the TinyCC
+source archive and JUnit results were verified. Docker Desktop/Windows and
+execution on a physical device remain separate checks.
+
+Toolchain references: [Android command-line tools](https://developer.android.com/studio#command-line-tools-only)
+and [Java/Gradle compatibility](https://docs.gradle.org/current/userguide/compatibility.html).
