@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "model-european-compact-obj-sixth-root",
+  "title": "Model European compact OBJ sixth root",
+  "kind": "added",
+  "platforms": [
+    "EUR; Wine"
+  ],
+  "changes": [
+    "Add an authenticated sparse model for seven compact OBJ sequences, 60 lists and 756 bytes while preserving the two-byte gap."
+  ],
+  "validation": [
+    "Isolated Windows build and focused Wine source, gap, boundary, tamper and original reader-prefix checks passed; protected inputs unchanged."
+  ],
+  "limitations": [
+    "Runtime publication and ordinary use remain open; Linux, USA and native Windows pending; no performance measurements."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/compact_obj_animations_senary.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_senary_tests.rs",
+    "docs/rom_data_obj.md"
+  ],
+  "references": []
+}

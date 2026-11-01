@@ -18036,3 +18036,52 @@ LOCAL-ARTIFACT-SWEEP-2026-10-31 — CLOSED. Latest request: clean residual proje
 - Criteri verificati: handoff operativo entro 20 KiB, cinque sezioni e passaggio finale esclusivo; snapshot originale di 1729308 byte identico a Git e SHA256 85562ac0e8b146c2e51b819c8ba58054104274f37facc1aca425aea7a5edc57e, 14 sezioni contigue e 632 locatori di esiti terminali. Task aperti conservati con ID/esiti/criteri, senza nuove chiusure runtime. Workflow/4 skill/CI aggiornati, pausa e asincroni espliciti, publication con lock/preimmagini e archivio append-only.
 - Prove: docs/changes/2026-11-01-compact-operational-handoff-and-preserve-history.json; TASK_HANDOFF_MIGRATION.json; DEBUG_TOOLS_V2_TODO.md audit del 1 novembre; 8 test_task_handoff e 5 test_project_memory PASS; 284 link locali verificati; project_memory.py check, task_handoff.py check e git diff --check PASS. Le verifiche finali della chiusura sono gli stessi soli controlli documentali.
 - Limiti: indice di 632 ID terminali storici, non certificazione globale o tassonomia di tutta la prosa; tutto lo storico non strutturato preservato esattamente. DBG2-13..23 aperti: 7 parziali, 14 integrato/input non completamente verificato, 16/22/23 non iniziati nel contratto. Discrepanza summary/menu_entries decoder unsupported/no handler vs source-bound/manual one-shot documentata, codice runtime invariato. Processi host/altri thread non osservabili; nessun job altrui fermato/avviato, nessun build/ROM/game/replay/benchmark/cleanup/package/commit/push. Stop senza prossima selezione di sviluppo.
+
+### ROMDATA-01-E104-ROOT-6C5FB0
+
+- Esito: completato
+- Criteri verificati: contratto sorgente condizionale EUR con selettori 0/1, due sequenze, 14 frame, sette liste e 12 oggetti; 140 byte contigui senza proprietari e104 sovrapposti.
+- Prove: disassemblaggio originale Wine isolato e verifica ROM/manifest `target/rom-data-root-6c5fb0-resume/{caller-disassembly-result,prelude-disassembly-result,source-contract}.json`.
+- Limiti: altri valori indiretti non delimitati, reachability e uso ordinario non provati; modello/runtime, Linux/USA/Windows nativo aperti; nessuna misura performance.
+
+### ROMDATA-02-E104-ROOT-6C5FB0
+
+- Esito: completato
+- Criteri verificati: modello autenticato, ricostruzione e confini dei 140 byte, rifiuto JSON/forma/manomissione, due prefissi conteggio, 14 prefissi ID/durata e sette puntatori lista.
+- Prove: build Windows isolata e test Wine `target/rom-data-compact-obj-quinary-model/{build-result,wine-result}.json`, `wine-runtime/result.json`; input protetti invariati, retention senza rimozioni.
+- Limiti: pubblicazione runtime e uso ordinario non verificati; Linux/USA/Windows nativo aperti; nessuna misura performance.
+
+### ROMDATA-03-04-E104-QUINARY-COMPACT-OBJ
+
+- Esito: completato
+- Criteri verificati: e105-d104 pubblica i 140 byte autenticati; tutte le 94 risorse e104 identiche, byte/confini e fallback, manomissione transazionale respinta, prefisso nativo/interprete selettori 0/1/19 con stato/clock uguali e otto byte tipizzati.
+- Prove: build Windows e test Wine `target/rom-data-compact-obj-quinary-runtime/{build-result,wine-result}.json`, `wine-runtime/result.json`; input protetti invariati, retention senza rimozioni.
+- Limiti: CLI di produzione e uso ordinario aperti; vecchie asserzioni di revisione aggiornate ma non rieseguite individualmente; Linux/USA/Windows nativo aperti; nessuna misura performance.
+
+### ROMDATA-04-E105-QUINARY-COMPACT-OBJ-CLI
+
+- Esito: completato
+- Criteri verificati: build Windows isolata e Wine create/reuse/startup PASS,95 identità/hashes,96 file generazione identici al dataset accettato e105,98 file gestiti invariati, fotogramma24755→24756 e tre exit0.
+- Prove: `target/rom-data-compact-obj-quinary-cli/{build-result,result,processes}.json`, startup.log; input protetti invariati, retention senza rimozioni.
+- Limiti: contatori nuova banca zero nel singolo fotogramma, uso ordinario aperto; Linux/USA/Windows nativo aperti; nessuna misura performance.
+
+### ROMDATA-05-E105-QUINARY-ORDINARY-ROUTE
+
+- Esito: chiuso
+- Criteri verificati: percorso sorgente condizionale, non prova ordinaria: record metadata 96/132/214/325 rimandano ai task93/129/211/320; descriptor e callback autenticati; due task creano callback figli. Per task129 le condizioni originali includono completamento helper, flag locale, contatore10 e predicati prima del costruttore. Tre snapshot EUR non contengono le quattro parole callback allineate in EWRAM alla cattura.
+- Prove: Sol consultato read-only su causa/prossimo discriminante, richiesta originaria gpt-6.1-sol/xhigh con configurazione effettiva non esposta; verifica indipendente ROM, manifest e Wine `target/rom-data-quinary-ordinary-route/{caller-disassembly-result,source-contract,snapshot-callbacks}.json`.
+- Limiti: nessuna prova di liveness, disponibilità globale o futura, ingresso task, scena o uso ordinario; nessun replay o performance. Linux/USA/Windows nativo aperti.
+
+### ROMDATA-01-E105-ROOT-6C6928
+
+- Esito: completato
+- Criteri verificati: sette selettori condizionali 0..6, 65 frame,60 liste/59 oggetti, 756 byte in due intervalli separati da gap2, nessun overlap e105. Helper trasporta 0..5 e lettore diretto imposta6; non sono limiti guest.
+- Prove: consultazione read-only Sol richiesta originariamente gpt-6.1-sol/xhigh (effettivo non esposto), riconciliazione indipendente ROM/manifest e finestre Wine `target/rom-data-root-6c6928/{source-contract,witness-disassembly-result}.json`. Un iniziale script selectors.py ha mascherato la libreria Python prima di Wine; rinominato, finestre successive PASS.
+- Limiti: chiamate condizionali, reachability e uso ordinario non provati; modello/runtime/CLI, Linux/USA/Windows nativo aperti; nessuna misura performance.
+
+### ROMDATA-02-E105-ROOT-6C6928
+
+- Esito: completato
+- Criteri verificati: modello autenticato, ricostruzione 756 byte, gap2 e confini, rifiuto JSON/forma/manomissione, sette prefissi conteggio,65 prefissi ID/durata e60 puntatori lista.
+- Prove: build Windows isolata e test Wine `target/rom-data-compact-obj-senary-model/{build-result,wine-result}.json`, `wine-runtime/result.json`; input protetti invariati, retention senza rimozioni.
+- Limiti: pubblicazione runtime e uso ordinario non verificati; Linux/USA/Windows nativo aperti; nessuna misura performance.

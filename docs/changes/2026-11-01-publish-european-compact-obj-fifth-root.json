@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "publish-european-compact-obj-fifth-root",
+  "title": "Publish European compact OBJ fifth root",
+  "kind": "added",
+  "platforms": [
+    "EUR; Wine"
+  ],
+  "changes": [
+    "Publish the authenticated 140-byte compact OBJ resource in e105-d104 and compose typed guest reads with previous owners and ROM fallback."
+  ],
+  "validation": [
+    "Isolated Windows build and focused Wine managed/native test passed: 94 prior resources unchanged, bytes and boundaries, transactional tamper rejection, full-state/clock equality and eight typed native bytes."
+  ],
+  "limitations": [
+    "Older revision assertions updated but not individually rerun; production CLI and ordinary use, Linux, USA and native Windows pending; no performance measurements."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/runtime.rs",
+    "crates/gba-core/src/rom_data/runtime/compact_obj_animations_quinary.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_quinary_runtime_tests.rs",
+    "crates/recomp/src/rom_data/bg_packet_managed_tests.rs",
+    "scripts/extract_rom_data.py",
+    "docs/rom_data_obj.md",
+    "crates/recomp/src/rom_data/conditional_descriptor_bank_zero_runtime_tests.rs",
+    "crates/recomp/src/rom_data/table_graphics_runtime_tests.rs",
+    "crates/recomp/src/rom_data/clan_table_alias_runtime_tests.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_runtime_tests.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_secondary_runtime_tests.rs",
+    "crates/recomp/src/rom_data/dynamic_raw_fragments_runtime_tests.rs",
+    "crates/recomp/src/rom_data/conditional_packed_lookup_runtime_tests.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_tertiary_runtime_tests.rs",
+    "crates/recomp/src/rom_data/conditional_four_byte_lookup_runtime_tests.rs",
+    "crates/recomp/src/rom_data/conditional_property_masks_runtime_tests.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_quaternary_runtime_tests.rs",
+    "crates/recomp/src/rom_data/conditional_descriptor_banks_runtime_tests.rs"
+  ],
+  "references": []
+}

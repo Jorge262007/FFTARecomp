@@ -53,6 +53,12 @@ pub use compact_obj_animations_tertiary::TertiaryCompactObjStats;
 mod compact_obj_animations_quaternary;
 use compact_obj_animations_quaternary::QuaternaryCompactObjResources;
 pub use compact_obj_animations_quaternary::QuaternaryCompactObjStats;
+mod compact_obj_animations_quinary;
+use compact_obj_animations_quinary::QuinaryCompactObjResources;
+pub use compact_obj_animations_quinary::QuinaryCompactObjStats;
+mod compact_obj_animations_senary;
+use compact_obj_animations_senary::SenaryCompactObjResources;
+pub use compact_obj_animations_senary::SenaryCompactObjStats;
 mod metadata2;
 use metadata2::Metadata2Resources;
 pub use metadata2::Metadata2Stats;
@@ -390,6 +396,8 @@ pub struct RuntimeResources {
     secondary_compact_obj_animations: Option<Box<SecondaryCompactObjResources>>,
     tertiary_compact_obj_animations: Option<Box<TertiaryCompactObjResources>>,
     quaternary_compact_obj_animations: Option<Box<QuaternaryCompactObjResources>>,
+    quinary_compact_obj_animations: Option<Box<QuinaryCompactObjResources>>,
+    senary_compact_obj_animations: Option<Box<SenaryCompactObjResources>>,
     map_raster_palettes: Option<Box<MapRasterPaletteResources>>,
     auxiliary_scripts: Option<Box<AuxiliaryScriptResources>>,
 }
@@ -404,6 +412,8 @@ impl RuntimeResources {
     pub fn secondary_compact_obj_animations_stats(&self) -> Option<SecondaryCompactObjStats> { self.secondary_compact_obj_animations.as_ref().map(|r| r.stats()) }
     pub fn tertiary_compact_obj_animations_stats(&self) -> Option<TertiaryCompactObjStats> { self.tertiary_compact_obj_animations.as_ref().map(|r| r.stats()) }
     pub fn quaternary_compact_obj_animations_stats(&self) -> Option<QuaternaryCompactObjStats> { self.quaternary_compact_obj_animations.as_ref().map(|r| r.stats()) }
+    pub fn quinary_compact_obj_animations_stats(&self) -> Option<QuinaryCompactObjStats> { self.quinary_compact_obj_animations.as_ref().map(|r| r.stats()) }
+    pub fn senary_compact_obj_animations_stats(&self) -> Option<SenaryCompactObjStats> { self.senary_compact_obj_animations.as_ref().map(|r| r.stats()) }
     /// The frontend supplies structures parsed from the very bytes whose file
     /// digest is in the manifest. Reauthenticate the base against the actual
     /// selected image; no editable/mod resource can enter through this API.
@@ -740,6 +750,12 @@ impl RuntimeResources {
         if let Some((data,_))=files.quaternary_compact_obj_animations {
             resources.quaternary_compact_obj_animations=Some(Box::new(QuaternaryCompactObjResources::new(data.clone(),&source.quaternary_compact_obj_animations.as_ref().unwrap().sources)?));
         }
+        if let Some((data,_))=files.quinary_compact_obj_animations {
+            resources.quinary_compact_obj_animations=Some(Box::new(QuinaryCompactObjResources::new(data.clone(),&source.quinary_compact_obj_animations.as_ref().unwrap().sources)?));
+        }
+        if let Some((data,_))=files.senary_compact_obj_animations {
+            resources.senary_compact_obj_animations=Some(Box::new(SenaryCompactObjResources::new(data.clone(),&source.senary_compact_obj_animations.as_ref().unwrap().sources)?));
+        }
         if let Some((data,_))= files.map_raster_palettes {
             resources.map_raster_palettes = Some(Box::new(MapRasterPaletteResources::new(data.clone(), &source.map_raster_palettes.as_ref().unwrap().sources)?));
         }
@@ -859,6 +875,8 @@ impl RuntimeResources {
             secondary_compact_obj_animations: None,
             tertiary_compact_obj_animations: None,
             quaternary_compact_obj_animations: None,
+            quinary_compact_obj_animations: None,
+            senary_compact_obj_animations: None,
             map_raster_palettes: None,
             auxiliary_scripts: None,
         }
@@ -979,6 +997,8 @@ impl RuntimeResources {
             + self.secondary_compact_obj_animations.as_ref().map_or(0, |i| i.resident_bytes())
             + self.tertiary_compact_obj_animations.as_ref().map_or(0, |i| i.resident_bytes())
             + self.quaternary_compact_obj_animations.as_ref().map_or(0, |i| i.resident_bytes())
+            + self.quinary_compact_obj_animations.as_ref().map_or(0, |i| i.resident_bytes())
+            + self.senary_compact_obj_animations.as_ref().map_or(0, |i| i.resident_bytes())
             + self.map_raster_palettes.as_ref().map_or(0, |i| i.resident_bytes())
             + self.auxiliary_scripts.as_ref().map_or(0, |i| i.resident_bytes())
     }
@@ -1486,7 +1506,9 @@ impl RuntimeResources {
             let prior = match &self.compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
             let prior = match &self.secondary_compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
             let prior = match &self.tertiary_compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
-            return match &self.quaternary_compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
+            let prior = match &self.quaternary_compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
+            let prior = match &self.quinary_compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
+            return match &self.senary_compact_obj_animations {Some(data)=>data.guest_read(index,rom,prior),None=>prior};
         };
         self.bus_reads.fetch_add(1, Ordering::Relaxed);
         let source_bit = if matches!(base, 0x149510 | 0x14ced8) {
@@ -1663,6 +1685,8 @@ impl crate::MemMap {
             || SecondaryCompactObjResources::source_page(index)
             || TertiaryCompactObjResources::source_page(index)
             || QuaternaryCompactObjResources::source_page(index)
+            || QuinaryCompactObjResources::source_page(index)
+            || SenaryCompactObjResources::source_page(index)
             || ObjGraphicsResources::source_page(index)
             || UiPaletteResources::source_page(index)
             || UiGraphicsResources::source_page(index)

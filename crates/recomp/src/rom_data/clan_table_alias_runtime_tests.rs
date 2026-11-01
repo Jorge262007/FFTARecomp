@@ -15,7 +15,7 @@ fn european_clan_alias_managed_reads() {
     let mut source = Extraction::from_rom(&rom).unwrap();
     let dataset = root.join("offline dataset");
     extract(&dataset, &mut source).unwrap();
-    assert_eq!((source.manifest.extractor_revision, source.manifest.decoder_revision, source.manifest.resources.len()), (104, 103, 94));
+    assert_eq!((source.manifest.extractor_revision, source.manifest.decoder_revision, source.manifest.resources.len()), (106, 105, 96));
     assert_eq!(&source.manifest.coverage[..prior.coverage.len()], prior.coverage);
     let slot = source.manifest.resources.iter().position(|r| r.id == UI_CUSTOM_GRAPHICS_ID).unwrap();
     for (now, previous) in source.manifest.resources.iter().zip(&prior.resources) {

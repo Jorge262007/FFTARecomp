@@ -77,6 +77,8 @@ DESCRIPTIONS = {
     'compact-obj-animations-secondary.json': 'European second witnessed sparse compact OBJ bank; original selectors and outside reads retained',
     'compact-obj-animations-tertiary.json': 'European third witnessed sparse compact OBJ bank, including an empty list; original selectors and outside reads retained',
     'compact-obj-animations-quaternary.json': 'European fourth witnessed compact OBJ bank; original selectors and outside reads retained',
+    'compact-obj-animations-quinary.json': 'European fifth witnessed compact OBJ bank; original selectors and outside reads retained',
+    'compact-obj-animations-senary.json': 'European sixth witnessed sparse compact OBJ bank; original selectors, gap and outside reads retained',
     'word-task-obj-animations.json': 'European four relative OBJ banks for u16 task selectors-ticks-phases; original old-list return, counter wrap, repeat and raw outside reads retained',
     'unit-obj-alternate-battle.json': 'European alternate actor battle poses with explicit shared index-root views, commands, OAM and decoded indexed tiles; original tasks and DMA retained',
     'unit-obj-normal-battle.json': 'European normal actor battle poses, shared source dependencies, commands, OAM and decoded indexed tiles; original tasks and DMA retained',

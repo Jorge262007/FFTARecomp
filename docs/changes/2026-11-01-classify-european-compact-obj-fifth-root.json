@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "classify-european-compact-obj-fifth-root",
+  "title": "Classify European compact OBJ fifth root",
+  "kind": "docs",
+  "platforms": [
+    "EUR; Wine"
+  ],
+  "changes": [
+    "Classify the conditional 140-byte compact OBJ source at 6c5fb0 and its two witnessed selectors."
+  ],
+  "validation": [
+    "Original Wine disassembly and independent authenticated ROM call, table, extent and e104 ownership checks passed."
+  ],
+  "limitations": [
+    "Other indirect selector ranges, caller reachability, ordinary use, model and runtime publication remain unverified; Linux, USA and native Windows pending; no performance measurements."
+  ],
+  "files": [
+    "docs/rom_data_obj.md"
+  ],
+  "references": []
+}

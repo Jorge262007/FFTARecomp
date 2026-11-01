@@ -1828,6 +1828,82 @@ bank's counters were zero in that frame, so ordinary use remains unverified.
 Linux, USA and native Windows remain pending; no performance measurement was
 made.
 
+
+## Conditional compact OBJ animation source at 6c5fb0
+
+Four EUR references pass this root to original constructor `080d97d0`.
+Two conditional directional paths index authenticated four-byte tables whose
+values cover selectors 0 and 1; the other paths do not establish a selector
+bound. The two sequences contain 14 frames and seven lists with 12 objects.
+Their header, offset tables and referenced records cover 140 contiguous bytes
+without overlap with e104 owners. Original Wine disassembly and independent
+ROM call, table, extent and manifest checks passed. Caller reachability and
+ordinary use remain unproved; the physical extent is not a guest bound.
+The model, runtime publication, Linux, USA and native Windows remain pending.
+No gameplay replay or performance measurement was made.
+
+The source-authenticated `compact_obj_animations_quinary` model reconstructs
+those 140 bytes and leaves other addresses outside its projection. An isolated
+Windows build and focused Wine test passed byte and boundary checks,
+JSON/shape and coherent-tamper rejection, and original reader prefixes for
+both selectors, 14 frame references and seven list pointers. Runtime
+publication and ordinary use remain open; Linux, USA and native Windows
+remain pending. No performance measurement was made.
+
+EUR `e105-d104` publishes the bank as
+`graphics.conditional-compact-obj-animations-quinary`. Its loader
+authenticates the decoded source binding, while runtime reads compose the
+owned bytes with previous owners and ROM outside the projection. A focused
+Windows build and Wine test passed: all 94 e104 resource files remained
+identical, all new bytes and mixed boundaries matched, and coherent
+data/manifest tampering was rejected transactionally. One original native
+reader prefix matched the raw interpreter's full state and clock for
+selectors 0, 1 and raw-fallback 19, serving eight typed native bytes. Older
+revision assertions were updated but not individually rerun. Production CLI
+and ordinary use, Linux, USA and native Windows remain open. No performance
+measurement was made.
+
+The production Windows CLI passed isolated Wine create, reuse and startup
+checks: all 96 generation files equal the accepted e105 dataset, all 95
+runtime identities and hashes match the manifest, and the retained neutral
+frame advances from 24755 to 24756 without changing managed files. The new
+bank's counters were zero in that frame, so ordinary use remains unverified.
+Linux, USA and native Windows remain pending; no performance measurement was
+made.
+
+Four conditional source routes to this bank correspond to metadata28 records
+96, 132, 214 and 325, whose selector 32 yields task IDs 93, 129, 211 and 320.
+The authenticated primary task descriptors identify their callbacks; two of
+those tasks can create children that contain the bank references. Task 129
+directly reaches a reference only after its original helper completion, local
+flag, counter and predicate branches. Wine disassembly and independent ROM
+and manifest checks establish these source links, not task execution. In three
+retained EUR snapshots none of the four callback words appeared on aligned
+EWRAM boundaries at capture; this does not establish task liveness or future
+availability. No gameplay replay or performance measurement was made.
+
+
+## Conditional compact OBJ animation source at 6c6928
+
+Original EUR callers conditionally provide selectors 0 through 5 through
+`08106658` and selector 6 directly to another constructor. Together the
+seven sequences reference 65 frames and 60 lists containing 59 objects.
+Their header, offset tables and records cover 756 bytes in two source spans
+with a two-byte gap, without overlap with e105 owners. Original Wine windows
+and independent ROM call, selector and manifest checks passed. The two-byte
+gap and all addresses outside the witnessed spans remain outside the model;
+these observations impose no guest selector bound and do not establish
+ordinary use. Model, runtime publication, Linux, USA and native Windows remain
+open. No gameplay replay or performance measurement was made.
+
+The source-authenticated `compact_obj_animations_senary` model reconstructs
+the two spans and excludes the gap. An isolated Windows build and focused
+Wine test passed all 756 bytes and boundaries, JSON/shape and coherent-tamper
+rejection, and original reader prefixes for seven selectors, 65 frame
+references and 60 list pointers. Runtime publication and ordinary use remain
+open; Linux, USA and native Windows remain pending. No performance measurement
+was made.
+
 ## Conditional compact OBJ animation source at 6bf490
 
 Five original EUR callers pass selectors 2 and 3 through `080d98e4` for this

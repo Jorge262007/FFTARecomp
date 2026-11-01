@@ -3,6 +3,96 @@
 Unreleased development changes. Generated from `docs/changes/*.json`.
 Edit the structured records, then run `python3 scripts/project_memory.py render`.
 
+## 2026-11-01 — Verify European compact OBJ fifth CLI
+
+Type: docs. Platforms: EUR; Wine.
+
+**Changes**
+
+- Record production CLI creation, reuse and startup with the fifth compact OBJ bank.
+
+**Validation**
+
+- Isolated Windows production build and Wine create, reuse and one-frame startup passed; all 96 generation files equal accepted e105 and all 95 resource identities match.
+
+**Limitations**
+
+- New resource counters were zero in the neutral frame; ordinary use, Linux, USA and native Windows remain unverified; no performance measurements.
+
+[Change record](docs/changes/2026-11-01-verify-european-compact-obj-fifth-cli.json)
+
+## 2026-11-01 — Trace European compact OBJ fifth routes
+
+Type: docs. Platforms: EUR; Wine.
+
+**Changes**
+
+- Document four conditional metadata and task routes to the fifth compact OBJ bank and the captured callback-word observations.
+
+**Validation**
+
+- Original Wine disassembly and independent ROM and manifest reconciliation passed; hash-guarded read-only EWRAM checks covered three EUR snapshots.
+
+**Limitations**
+
+- Task liveness, scene reachability and ordinary use remain unproved; no gameplay replay or performance measurements. Linux, USA and native Windows pending.
+
+[Change record](docs/changes/2026-11-01-trace-european-compact-obj-fifth-routes.json)
+
+## 2026-11-01 — Publish European compact OBJ fifth root
+
+Type: added. Platforms: EUR; Wine.
+
+**Changes**
+
+- Publish the authenticated 140-byte compact OBJ resource in e105-d104 and compose typed guest reads with previous owners and ROM fallback.
+
+**Validation**
+
+- Isolated Windows build and focused Wine managed/native test passed: 94 prior resources unchanged, bytes and boundaries, transactional tamper rejection, full-state/clock equality and eight typed native bytes.
+
+**Limitations**
+
+- Older revision assertions updated but not individually rerun; production CLI and ordinary use, Linux, USA and native Windows pending; no performance measurements.
+
+[Change record](docs/changes/2026-11-01-publish-european-compact-obj-fifth-root.json)
+
+## 2026-11-01 — Model European compact OBJ sixth root
+
+Type: added. Platforms: EUR; Wine.
+
+**Changes**
+
+- Add an authenticated sparse model for seven compact OBJ sequences, 60 lists and 756 bytes while preserving the two-byte gap.
+
+**Validation**
+
+- Isolated Windows build and focused Wine source, gap, boundary, tamper and original reader-prefix checks passed; protected inputs unchanged.
+
+**Limitations**
+
+- Runtime publication and ordinary use remain open; Linux, USA and native Windows pending; no performance measurements.
+
+[Change record](docs/changes/2026-11-01-model-european-compact-obj-sixth-root.json)
+
+## 2026-11-01 — Model European compact OBJ fifth root
+
+Type: added. Platforms: EUR; Wine.
+
+**Changes**
+
+- Add a source-authenticated model for two compact OBJ sequences, seven lists and their 140 source bytes, leaving outside addresses untouched.
+
+**Validation**
+
+- Isolated Windows build and focused Wine source, boundary, tamper and original reader-prefix checks passed; protected inputs unchanged.
+
+**Limitations**
+
+- Runtime publication and ordinary use remain open; Linux, USA and native Windows pending; no performance measurements.
+
+[Change record](docs/changes/2026-11-01-model-european-compact-obj-fifth-root.json)
+
 ## 2026-11-01 — Separate the operational handoff from preserved task history
 
 Type: changed. Platforms: Project workflow / documentation tooling.
@@ -34,6 +124,42 @@ Type: changed. Platforms: Project workflow / documentation tooling.
 Documentation: [MEMORY_WORKFLOW.md](docs/development/MEMORY_WORKFLOW.md), [TASK_HANDOFF.md](docs/development/TASK_HANDOFF.md), [TASK_COMPLETED_ARCHIVE.md](docs/development/TASK_COMPLETED_ARCHIVE.md), [TASK_HANDOFF_MIGRATION.json](docs/development/TASK_HANDOFF_MIGRATION.json), [DEBUG_TOOLS_V2_TODO.md](docs/development/DEBUG_TOOLS_V2_TODO.md), [cheats.md](docs/cheats.md).
 
 [Change record](docs/changes/2026-11-01-compact-operational-handoff-and-preserve-history.json)
+
+## 2026-11-01 — Classify European compact OBJ sixth root
+
+Type: docs. Platforms: EUR; Wine.
+
+**Changes**
+
+- Classify the conditional 756-byte compact OBJ source at 6c6928 and its seven witnessed selectors, leaving the two-byte gap unowned.
+
+**Validation**
+
+- Original Wine disassembly and independent authenticated ROM caller, selector, source extent and e105 ownership checks passed.
+
+**Limitations**
+
+- Caller reachability, ordinary use, model and runtime publication remain unverified; Linux, USA and native Windows pending; no performance measurements.
+
+[Change record](docs/changes/2026-11-01-classify-european-compact-obj-sixth-root.json)
+
+## 2026-11-01 — Classify European compact OBJ fifth root
+
+Type: docs. Platforms: EUR; Wine.
+
+**Changes**
+
+- Classify the conditional 140-byte compact OBJ source at 6c5fb0 and its two witnessed selectors.
+
+**Validation**
+
+- Original Wine disassembly and independent authenticated ROM call, table, extent and e104 ownership checks passed.
+
+**Limitations**
+
+- Other indirect selector ranges, caller reachability, ordinary use, model and runtime publication remain unverified; Linux, USA and native Windows pending; no performance measurements.
+
+[Change record](docs/changes/2026-11-01-classify-european-compact-obj-fifth-root.json)
 
 ## 2026-10-31 — Verify European raw transfers during ordinary boot
 

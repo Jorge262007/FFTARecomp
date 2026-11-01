@@ -14,7 +14,7 @@ fn european_conditional_packed_managed_native_reads() {
     let old=PathBuf::from(std::env::var_os("FFTA_STATE_TEST_DATASET").unwrap());
     let prior:Manifest=toml::from_str(&fs::read_to_string(old.join(MANIFEST_FILE)).unwrap()).unwrap();
     let mut source=Extraction::from_rom(&rom).unwrap();let dataset=root.join("offline dataset");extract(&dataset,&mut source).unwrap();
-    assert_eq!((source.manifest.extractor_revision,source.manifest.decoder_revision,source.manifest.resources.len()),(104,103,94));
+    assert_eq!((source.manifest.extractor_revision,source.manifest.decoder_revision,source.manifest.resources.len()),(106,105,96));
     assert_eq!(prior.resources.len(),86);
     for r in &prior.resources {assert_eq!(source.manifest.resources.iter().find(|e|e.id==r.id),Some(r));assert_eq!(fs::read(dataset.join(&r.path)).unwrap(),fs::read(old.join(&r.path)).unwrap());}
     let entry=&source.manifest.resources[86];assert_eq!(entry.id,CONDITIONAL_PACKED_LOOKUP_ID);

@@ -2,9 +2,9 @@
 
 ## Stato operativo
 
-Aggiornato il 2026-11-01. L'ultima richiesta è la riorganizzazione della memoria
-con audit documentale DBG2-13..23; fermarsi al suo termine. Nessun nuovo sviluppo
-runtime, build, estrazione ROM, replay o benchmark è selezionato.
+Aggiornato il 2026-11-01. Richiesta corrente: completare ROM_DATA_TODO EUR con
+Wine ridotto; USA/Linux da verificare, nessuna misura performance o limite spazio.
+Selezionato il controllo della sorgente `ROMDATA-01-E104-ROOT-6C5FB0`.
 
 Leggere questo file per intero e il passaggio finale; poi soltanto le sezioni
 pertinenti indicate sotto. Non caricare automaticamente archivio, CHANGELOG,
@@ -20,19 +20,19 @@ altrui né modifica dello stato dei loro goal.
 
 ## Task in esecuzione o sospesi
 
-### ROMDATA-01-E104-ROOT-6C5FB0
+### ROMDATA-03-04-E105-SENARY-COMPACT-OBJ
 
-- Stato: sospeso
+- Stato: attivo
 - Esito: non_iniziato
-- Verificato: selezione storica del 31 ottobre, non contratto accettato. Il censimento e100 ha quattro candidati euristici; `target/rom-data-e100-unowned-root-census/result.json` è PASS-candidate-census, non prova di letture originali. Nessun handle vivo registrato nella selezione.
-- Manca: ownership e104, istruzioni autentiche, tipo ed estensione della risorsa. Nessuna estrazione/implementazione autorizzata da questo audit.
-- Ripresa: solo su richiesta pertinente, verificare prima stato di file/processi e contratto; consultare archivio, vecchie righe 9..10, e il solo risultato del censimento. Non seguire automaticamente la vecchia istruzione di esplorazione ROM.
+- Verificato: sorgente e modello sparso 756 byte PASS Wine, due span e gap2; dataset e105 accettato con95 risorse.
+- Manca: pubblicazione, autenticazione loader e composizione runtime che preservi gap, input e risorse precedenti.
+- Ripresa: integrazione e test scritti; build Windows isolata attiva sessione 51589, log `target/rom-data-compact-obj-senary-runtime/`. Attendere poi test Wine predisposto se PASS; fallback81 verificato staticamente, gap preservato.
 
 ### ROM-DATA-FULL-EUR
 
 - Stato: sospeso
 - Esito: parziale
-- Verificato: e104-d103, 94 risorse/95 file; CLI create/reuse/startup e 97 file protetti PASS nel risultato `target/rom-data-compact-obj-quaternary-cli/result.json`, letto in questo audit. Neutro 24755→24756 con nuovi contatori zero: non prova di uso ordinario. Source/model/runtime/CLI e le negative concluse non si ripetono.
+- Verificato: e105-d104, 95 risorse/96 file; CLI create/reuse/startup e 98 file protetti PASS nel risultato `target/rom-data-compact-obj-quinary-cli/result.json`, letto in questo audit. Neutro 24755→24756 con nuovi contatori zero: non prova di uso ordinario. Source/model/runtime/CLI e le negative concluse non si ripetono.
 - Manca: risorse/consumatori non migrati, prove ordinarie ancora mancanti, ABI/global extent/indiretti e fasi mod ROMDATA-06/07; Linux/USA/Windows nativo/new32:9 restano distinti. EUR, Wine ridotto, niente misure prestazioni/spazio; originali e salvataggi personali immutati.
 - Ripresa: [ROM_DATA_TODO](ROM_DATA_TODO.md), solo la sezione del criterio scelto (ROMDATA-01/02/03/04/05/06/07); [inventario](ROM_DATA_INVENTORY.md). Non leggere il TODO intero. I seguenti figli conservano ID e limiti, senza nuovi tentativi in questa sessione:
   - `ROMDATA-04-PARAMETER-RECORDS27-ORDINARY`: source/model/runtime/CLI accettati; 59 record osservati, dominio totale non provato; mancano uso normale positivo e coppia completa. Undici catture negative chiuse; archivio vecchie righe 17624..17672 e `docs/rom_data_gameplay.md`, sezione ordinary sparse parameter record reachability.
@@ -40,7 +40,7 @@ altrui né modifica dello stato dei loro goal.
   - `ROMDATA-05-DYNAMIC-RAW-ORDINARY-REACHABILITY` e `ROMDATA-01-LOCALIZED-RAW-DYNAMIC-DOMAIN`: frammenti/percorsi condizionali accettati, dominio globale e invocazione ordinaria non provati. Unit320 negativo chiuso; successiva diagnosi state2/state4/selector-witnesses chiusa senza scena. Archivio 59..75 e 789..866; nessuna navigazione alla cieca.
   - `ROMDATA-01-OBJ-REMAINING-DRAW-ROOTS`, `ROMDATA-01-OBJ-REMAINING-CONSTRUCTOR-SOURCES`, `ROMDATA-01-OBJ-GRAPHICS-PAYLOADS`: incrementi autenticati accettati, censimento globale/consumatori residui aperti; non ripetere l'esperimento ampio con 61 troncamenti. Archivio 2853..2874, poi soltanto il record della famiglia selezionata.
   - `ROMDATA-05-OBJ-VALIDATION`: equivalenza/costi locali, GUI, archivio e initializer USA hanno esiti successivi accettati; rimangono gates Windows nativo, ulteriori cataloghi/scene e abilitazione normale. Archivio 3945..4087. I vecchi vincoli artificiali RSS/spazio e `ROMDATA-05-BG-SCENES-COSTS` non autorizzano altre misure: superati dallo steering EUR/no-metrics.
-  - Compact OBJ e101..e104: prefissi condizionali/modello/runtime/CLI accettati, uso ordinario ancora aperto; record222/candidate-table e selector33 hanno sole condizioni statiche e negative limitate. Archivio 11..65; non inferire una scena dal nome.
+  - Compact OBJ e101..e105: prefissi condizionali/modello/runtime/CLI accettati, uso ordinario ancora aperto; record222/candidate-table e selector33 hanno sole condizioni statiche e negative limitate. Archivio 11..65; non inferire una scena dal nome.
 
 ## Task incompleti e criteri aperti
 
@@ -213,9 +213,9 @@ specifico: archivio vecchie righe 179..744, oppure il record nominato sotto.
 
 ## PASSAGGIO DI TESTIMONE
 
-- Task: WORKFLOW-HANDOFF-COMPACTION completato; nessun task di sviluppo selezionato.
-- Ultimo risultato verificato: storico originale identico a Git (1.729.308 byte, SHA256 e 14 sezioni), 632 ID terminali storici localizzati, 8 test handoff e 5 test memoria PASS, 284 link locali validi; check memoria/struttura/diff PASS. Audit DBG2 confrontato con codice, record e risultati esistenti.
-- Da completare: nulla in questa riorganizzazione. I criteri runtime/input/scene/performance elencati sopra restano incompleti, fuori selezione; nessuna prova accettata riaperta.
-- Errori o impedimenti: nessun blocco documentale. Processi host/altri thread ignoti per visibilità limitata; nessun loro job alterato. Lock cooperativo non protegge editor esterni al protocollo.
-- Prossima azione: fermarsi e attendere una nuova richiesta esplicita. Non riprendere ROM, Debug Tools, scene, cleanup o performance automaticamente.
-- Riferimenti: docs/changes/2026-11-01-compact-operational-handoff-and-preserve-history.json; MEMORY_WORKFLOW.md; TASK_HANDOFF_MIGRATION.json; DEBUG_TOOLS_V2_TODO.md audit e sezioni P2/P3; scripts/task_handoff.py check.
+- Task: ROMDATA-03-04-E105-SENARY-COMPACT-OBJ attivo; obiettivo EUR/Wine, USA/Linux da verificare, nessuna misura performance.
+- Ultimo risultato verificato: modello sparso 756 byte e prefissi originali PASS Wine.
+- Da completare: pubblicazione, confronto runtime/nativo, CLI e uso ordinario.
+- Errori o impedimenti: nessuna scena ordinaria identificata; modello primario/xhigh non verificabile.
+- Prossima azione: attendere sessione 51589, poi test Wine predisposto se PASS; non ripetere il modello.
+- Riferimenti: `target/rom-data-compact-obj-senary-model/wine-runtime/result.json`, `docs/rom_data_obj.md`.

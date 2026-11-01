@@ -39,7 +39,7 @@ fn european_dynamic_fragments_managed_reads() {
     let mut source = Extraction::from_rom(&rom).unwrap();
     let dataset = root.join("offline dataset");
     extract(&dataset, &mut source).unwrap();
-    assert_eq!((source.manifest.extractor_revision, source.manifest.decoder_revision, source.manifest.resources.len()), (104, 103, 94));
+    assert_eq!((source.manifest.extractor_revision, source.manifest.decoder_revision, source.manifest.resources.len()), (106, 105, 96));
     for resource in &prior.resources {
         if resource.id != UI_CUSTOM_GRAPHICS_ID {
             assert_eq!(source.manifest.resources.iter().find(|entry| entry.id == resource.id), Some(resource));

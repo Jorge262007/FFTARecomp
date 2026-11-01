@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "model-european-compact-obj-fifth-root",
+  "title": "Model European compact OBJ fifth root",
+  "kind": "added",
+  "platforms": [
+    "EUR; Wine"
+  ],
+  "changes": [
+    "Add a source-authenticated model for two compact OBJ sequences, seven lists and their 140 source bytes, leaving outside addresses untouched."
+  ],
+  "validation": [
+    "Isolated Windows build and focused Wine source, boundary, tamper and original reader-prefix checks passed; protected inputs unchanged."
+  ],
+  "limitations": [
+    "Runtime publication and ordinary use remain open; Linux, USA and native Windows pending; no performance measurements."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data.rs",
+    "crates/gba-core/src/rom_data/compact_obj_animations_quinary.rs",
+    "crates/recomp/src/rom_data.rs",
+    "crates/recomp/src/rom_data/compact_obj_animations_quinary_tests.rs",
+    "docs/rom_data_obj.md"
+  ],
+  "references": []
+}

@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "verify-european-compact-obj-fifth-cli",
+  "title": "Verify European compact OBJ fifth CLI",
+  "kind": "docs",
+  "platforms": [
+    "EUR; Wine"
+  ],
+  "changes": [
+    "Record production CLI creation, reuse and startup with the fifth compact OBJ bank."
+  ],
+  "validation": [
+    "Isolated Windows production build and Wine create, reuse and one-frame startup passed; all 96 generation files equal accepted e105 and all 95 resource identities match."
+  ],
+  "limitations": [
+    "New resource counters were zero in the neutral frame; ordinary use, Linux, USA and native Windows remain unverified; no performance measurements."
+  ],
+  "files": [
+    "docs/rom_data_obj.md"
+  ],
+  "references": []
+}

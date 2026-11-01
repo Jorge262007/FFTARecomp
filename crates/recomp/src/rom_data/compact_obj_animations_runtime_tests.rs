@@ -16,7 +16,7 @@ fn european_compact_obj_managed_native_reads() {
     assert_eq!(prior.resources.len(), 90);
     let mut source = Extraction::from_rom(&rom).unwrap();
     let dataset = root.join("offline dataset"); extract(&dataset, &mut source).unwrap();
-    assert_eq!((source.manifest.extractor_revision, source.manifest.decoder_revision, source.manifest.resources.len()), (104,103,94));
+    assert_eq!((source.manifest.extractor_revision, source.manifest.decoder_revision, source.manifest.resources.len()), (106,105,96));
     for resource in &prior.resources {
         assert_eq!(source.manifest.resources.iter().find(|r| r.id == resource.id), Some(resource));
         assert_eq!(fs::read(dataset.join(&resource.path)).unwrap(), fs::read(old.join(&resource.path)).unwrap());

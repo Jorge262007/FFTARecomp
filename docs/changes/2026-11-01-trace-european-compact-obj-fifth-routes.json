@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "trace-european-compact-obj-fifth-routes",
+  "title": "Trace European compact OBJ fifth routes",
+  "kind": "docs",
+  "platforms": [
+    "EUR; Wine"
+  ],
+  "changes": [
+    "Document four conditional metadata and task routes to the fifth compact OBJ bank and the captured callback-word observations."
+  ],
+  "validation": [
+    "Original Wine disassembly and independent ROM and manifest reconciliation passed; hash-guarded read-only EWRAM checks covered three EUR snapshots."
+  ],
+  "limitations": [
+    "Task liveness, scene reachability and ordinary use remain unproved; no gameplay replay or performance measurements. Linux, USA and native Windows pending."
+  ],
+  "files": [
+    "docs/rom_data_obj.md"
+  ],
+  "references": []
+}
