@@ -135,7 +135,9 @@ On Steam Deck, run it from Desktop Mode.
 2. Tap the downloaded file and press **Install**. If Android asks, allow installing apps from this source.
 3. Open the app and choose your ROM.
 
-> 💡 You need your own copy of *Final Fantasy Tactics Advance*. This project does not include any game data.
+> ⚠️ The USA version of the game is temporarily not supported with the new changes. Your saves are compatible between regions, so there should be no problems: you only need to switch to the European ROM.
+
+> 💡 You need your own copy of *Final Fantasy Tactics Advance* (European version). This project does not include any game data.
 
 ## 🔨 Building from source
 
