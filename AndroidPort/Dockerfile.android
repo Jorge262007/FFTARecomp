@@ -1,0 +1,54 @@
+# Used by scripts/build_android_docker.py with its filtered, temporary context.
+# BuildKit's bundled frontend avoids an extra syntax-image download.
+FROM rust:1.94.0-slim-bookworm@sha256:a86cada82e36ebd7a9bffed7548792c55a952fdb20718eea9278a936bcb76e62 AS rust
+FROM eclipse-temurin:25-jdk-noble@sha256:7247bd8d2aeec64efe908dc72396d88101417d24ce3642703728382d96afb965 AS toolchain
+
+COPY --from=rust /usr/local/rustup /usr/local/rustup
+COPY --from=rust /usr/local/cargo /usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo \
+    ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk \
+    GRADLE_USER_HOME=/root/.gradle
+ENV PATH=/usr/local/cargo/bin:/opt/android-sdk/cmdline-tools/latest/bin:$PATH
+
+RUN test "$(dpkg --print-architecture)" = amd64 \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl git python3 unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && rustup target add aarch64-linux-android
+
+# Official Android command-line tools; URL and SHA256 from developer.android.com/studio.
+RUN curl --fail --location --retry 3 \
+        https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip \
+        -o /tmp/android-tools.zip \
+    && echo '4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  /tmp/android-tools.zip' | sha256sum --check - \
+    && mkdir -p /opt/android-sdk/cmdline-tools /tmp/android-tools \
+    && unzip -q /tmp/android-tools.zip -d /tmp/android-tools \
+    && mv /tmp/android-tools/cmdline-tools /opt/android-sdk/cmdline-tools/latest \
+    && rm -rf /tmp/android-tools /tmp/android-tools.zip
+RUN yes | sdkmanager --licenses >/dev/null \
+    && sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+
+FROM toolchain AS build
+WORKDIR /workspace
+COPY project/ ./
+COPY export_android.py /opt/ffta/export_android.py
+ARG BUILD_SCRIPT=scripts/build_android.py
+ARG APK_PATH=APK/FFTARecomp-android-arm64-preview.apk
+ARG CACHE_SCOPE=androidport
+# All caches belong to Docker. Never mount the checkout, host SDK or signing keys.
+# The signing-key cache keeps successive builds install-compatible on this daemon.
+RUN --mount=type=cache,id=ffta-android-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=ffta-android-cargo-git,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,id=ffta-android-${CACHE_SCOPE}-target,target=/workspace/target,sharing=locked \
+    --mount=type=cache,id=ffta-android-${CACHE_SCOPE}-gradle,target=/root/.gradle,sharing=locked \
+    --mount=type=cache,id=ffta-android-${CACHE_SCOPE}-signing,target=/root/.android,sharing=locked \
+    find crates -type f -exec touch {} + \
+    && python3 "$BUILD_SCRIPT" --sdk "$ANDROID_HOME" --ndk 28.2.13676358 \
+    && python3 /opt/ffta/export_android.py "$APK_PATH" /artifacts \
+    && { rustc --version; cargo --version; java -version 2>&1; \
+         printf '\nSDK35 / build-tools35.0.0 / NDK28.2.13676358 / ARM64 / API24\n'; \
+       } >> /artifacts/BUILD-INFO.txt
+
+FROM scratch AS export
+COPY --from=build /artifacts/ /

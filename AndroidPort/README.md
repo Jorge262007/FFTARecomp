@@ -13,6 +13,18 @@ El README permanece en la raiz de esta carpeta para que GitHub lo muestre.
 
 ## Compilar desde Windows
 
+Tambien se puede compilar con **Docker/Buildx y Python 3.9+**, sin instalar
+SDK, NDK, Java ni Rust en el equipo. Desde esta carpeta:
+
+    python scripts/build_android_docker.py
+
+Exporta la APK ARM64, SHA256 y resultados de pruebas a `dist/docker-android/`.
+La receta y el script estan dentro de esta carpeta y siguen funcionando al
+copiarla por separado. En Windows, Docker Desktop debe usar contenedores Linux.
+Los logs quedan en `target/build-logs/`; la primera ejecucion descarga las
+herramientas. La firma debug se conserva en la cache Docker y no importa la
+clave de instalaciones compiladas anteriormente fuera de Docker.
+
 Necesitas Rust con aarch64-linux-android, Python 3.9 o posterior, un JDK,
 Android SDK con NDK 28.2.13676358, y GCC o Clang en PATH para el host.
 

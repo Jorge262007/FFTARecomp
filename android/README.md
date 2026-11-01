@@ -34,6 +34,12 @@ timers, DMA, interrupts, backup media, and C recompiler.
 
 ## Build on Windows
 
+For a containerized build without installing a host SDK, NDK, Java or Rust,
+see [Android Docker builds](../docs/android_docker.md). From the repository root,
+`python3 scripts/android/build_android_docker.py` builds the maintained separate
+`AndroidPort/` tree; add `--project-dir . --output dist/docker-android-root` to
+build this root-workspace Android app explicitly.
+
 Requires Rust with `aarch64-linux-android`, Android SDK 35 and NDK
 28.2.13676358, Java compatible with Gradle 9.5, Python, and a host gcc/clang
 for TinyCC's small build-time header generator. The Gradle wrapper and build

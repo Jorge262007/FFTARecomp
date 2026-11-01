@@ -1,6 +1,6 @@
 """Build Android ARM64 Rust + separately loaded TinyCC, then package the APK.
 
-Windows host: Android SDK/NDK, Rust aarch64-linux-android, Java, and a host
+Windows/Linux host: Android SDK/NDK, Rust aarch64-linux-android, Java, and a host
 C compiler (gcc/clang) are required. All downloaded/generated code stays in target.
 """
 from pathlib import Path
@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import io
 import os
+import sys
 import shutil
 import subprocess
 import urllib.request
@@ -25,7 +26,13 @@ def run(args, **kwargs):
 def build(sdk, ndk, native_only=False):
     sdk = Path(sdk).resolve()
     ndk_root = sdk / 'ndk' / ndk
-    bin_dir = ndk_root / 'toolchains/llvm/prebuilt/windows-x86_64/bin'
+    if os.name == 'nt':
+        host, executable, launcher = 'windows-x86_64', '.exe', '.cmd'
+    elif sys.platform.startswith('linux'):
+        host, executable, launcher = 'linux-x86_64', '', ''
+    else:
+        raise RuntimeError('Native Android builds support Windows/Linux; use Docker on other hosts')
+    bin_dir = ndk_root / f'toolchains/llvm/prebuilt/{host}/bin'
     if not bin_dir.is_dir():
         raise RuntimeError(f'NDK toolchain not found: {bin_dir}')
     cache = ROOT / 'target/android-tcc'
@@ -60,15 +67,15 @@ def build(sdk, ndk, native_only=False):
     host_cc = shutil.which('gcc') or shutil.which('clang')
     if not host_cc:
         raise RuntimeError('A host gcc or clang is required to build TinyCC c2str')
-    run([host_cc, '-DC2STR', source / 'conftest.c', '-o', cache / 'c2str.exe'])
-    run([cache / 'c2str.exe', source / 'include/tccdefs.h', source / 'tccdefs_.h'])
+    run([host_cc, '-DC2STR', source / 'conftest.c', '-o', cache / ('c2str' + executable)])
+    run([cache / ('c2str' + executable), source / 'include/tccdefs.h', source / 'tccdefs_.h'])
     libraries = ROOT / 'android/app/src/main/jniLibs/arm64-v8a'
     libraries.mkdir(parents=True, exist_ok=True)
-    run([bin_dir / 'clang.exe', '--target=aarch64-linux-android24', '-shared', '-fPIC', '-O2',
+    run([bin_dir / ('clang' + executable), '--target=aarch64-linux-android24', '-shared', '-fPIC', '-O2',
          '-Wl,-z,max-page-size=16384', '-Wl,-soname,libtcc.so', '-o', libraries / 'libtcc.so',
          source / 'libtcc.c', '-ldl', '-lm'])
     env = os.environ.copy()
-    env['CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER'] = str(bin_dir / 'aarch64-linux-android24-clang.cmd')
+    env['CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER'] = str(bin_dir / ('aarch64-linux-android24-clang' + launcher))
     run(['cargo', 'build', '--release', '--locked', '-p', 'gba-android',
          '--target', 'aarch64-linux-android'], env=env)
     native = ROOT / 'target/aarch64-linux-android/release/libgba_android.so'
@@ -91,8 +98,9 @@ def build(sdk, ndk, native_only=False):
     if native_only:
         return
     (ROOT / 'android/local.properties').write_text('sdk.dir=' + str(sdk).replace('\\', '/') + '\n')
-    run([ROOT / 'android/gradlew.bat', '-p', ROOT / 'android', ':app:assembleDebug',
-         ':app:testDebugUnitTest', '--console=plain'], env=env)
+    gradle = [ROOT / 'android/gradlew.bat'] if os.name == 'nt' else ['bash', ROOT / 'android/gradlew']
+    run([*gradle, '-p', ROOT / 'android', ':app:assembleDebug',
+         ':app:testDebugUnitTest', '--no-daemon', '--console=plain'], env=env)
     apk = ROOT / 'android/app/build/outputs/apk/debug/app-debug.apk'
     destination = ROOT / 'APK/FFTARecomp-android-arm64-preview.apk'
     destination.parent.mkdir(parents=True, exist_ok=True)

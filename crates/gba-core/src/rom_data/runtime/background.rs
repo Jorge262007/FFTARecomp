@@ -76,6 +76,7 @@ mod tests {
     fn all_widths_waitstate_mirrors_edges_and_native_api_use_bg_projection() {
         for version in [Version::Usa, Version::Europe] {
             let (mut machine, resources, root, len) = fixture(version);
+            let resident_bytes = resources.resident_bytes();
             let original = machine.bus.rom.clone();
             machine.bus.rom[root..root + len].fill(0xcd);
             let pointer = &mut machine as *mut Machine as *mut std::ffi::c_void;
@@ -108,8 +109,9 @@ mod tests {
             };
             assert_eq!(machine.bus.read32(0x08000000 + wrong_root), 0x53535353);
             assert_eq!(resources.background_stats().unwrap(), stats);
-            assert!(resources.obj_resident_bytes() + 2 * std::mem::size_of::<usize>() <= 1024);
-            assert!(resources.background_resident_bytes() <= 64 * 1024);
+            // Reads must not grow retained resources. The shared owner also
+            // contains handles for other families, so its size is not a BG cap.
+            assert_eq!(resources.resident_bytes(), resident_bytes);
         }
     }
 

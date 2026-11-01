@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "fix-stale-background-owner-memory-test",
+  "title": "Fix the stale BG allocation assertion blocking Linux builds",
+  "kind": "fixed",
+  "platforms": [
+    "Linux x86_64 / Rust 1.94.0"
+  ],
+  "changes": [
+    "Replace historical shared-owner 1 KiB and BG 64 KiB size assertions in the synthetic BG projection test with before/after retained-allocation accounting. RuntimeResources now includes handles for additional resource families, so the shared-owner size is not a valid BG-specific cap.",
+    "Preserve existing USA/EUR byte-width, mirror/boundary, RtApi, counters, clock, CPU/DMA and snapshot checks; production runtime and attachment logic are unchanged. Document the test correction alongside the previously retired allocation caps."
+  ],
+  "validation": [
+    "Read the supplied existing Linux Docker failure log: 242 tests passed, one failed on the stale shared-owner assertion, 27 ignored; no repeated failing build was needed.",
+    "A frozen 717-file source snapshot plus the exact test-only correction built offline in release mode without compiler warnings. All three rom_data::runtime::background::tests passed on native Linux with rustc 1.94.0; 267 other tests were filtered out.",
+    "Snapshot SHA256 checks pass for all 717 files with only the declared test overlay; reconstructing that overlay restores the original file hash. Evidence remains in target/linux-bg-resident-test/result.json and bg-tests.log.",
+    "project_memory.py check --metadata-only, task_handoff.py check and git diff --check pass. The full memory coverage check reports only eight separately owned Android/export-script implementation paths awaiting their own record; this correction covers its sole changed implementation file."
+  ],
+  "limitations": [
+    "The full Docker build/export and full workspace suite were not rerun. Docker socket access for the readonly image inventory was denied; focused native Linux validation used the same Rust 1.94.0 toolchain version.",
+    "No game data, ROM extraction, gameplay, performance/RSS measurements, packages, canonical binaries or other agents processes were changed. Existing Android/ROM/coverage work remains separately owned.",
+    "Primary model and xhigh runtime settings are not independently exposed. The cause and narrow correction were supported directly by source, the failing log and documentation; no stalled-diagnosis delegation was needed."
+  ],
+  "files": [
+    "crates/gba-core/src/rom_data/runtime/background.rs",
+    "docs/rom_data_runtime.md"
+  ],
+  "references": [
+    "docs/rom_data_runtime.md"
+  ]
+}

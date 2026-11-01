@@ -414,6 +414,7 @@ fn rows_of(page: Page) -> &'static [Row] {
         Page::ScriptLibrary => &[Row::DebugTool(DebugTool::Homepage), Row::DebugTool(DebugTool::CampaignReport), Row::DebugTool(DebugTool::ArtifactPreview), Row::DebugTool(DebugTool::Recipe), Row::DebugTool(DebugTool::GuestScripts), Row::Back],
         Page::DebugTool => &[Row::Back],
         Page::ToolInputs => &[Row::ToolInput(ContentSlot::Replay), Row::ToolInput(ContentSlot::Catalog),
+            Row::ToolInput(ContentSlot::CheatCatalog),
             Row::ToolInput(ContentSlot::Session), Row::ToolInput(ContentSlot::Recording),
             Row::ToolInput(ContentSlot::Snapshot), Row::ToolInput(ContentSlot::Input),
             Row::ToolInput(ContentSlot::Dataset), Row::ToolInput(ContentSlot::RuntimeA),

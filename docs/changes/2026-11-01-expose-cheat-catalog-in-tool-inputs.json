@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "expose-cheat-catalog-in-tool-inputs",
+  "title": "Expose the cheat catalog in the shared tool-input selector",
+  "kind": "fixed",
+  "platforms": [
+    "Linux / Docker",
+    "Shared desktop menu"
+  ],
+  "changes": [
+    "Add the missing CheatCatalog row to Debug Tool inputs / current selections. ContentSlot::ALL already exposed all eighteen roles, but this page listed seventeen, so the cheat catalog could not be chosen there and the existing all-slot navigation test failed.",
+    "Keep the existing selection-only handler and return-to-parent behavior; selecting this reference does not activate or execute cheat codes. Document the route in the integrated selector guide."
+  ],
+  "validation": [
+    "Read the supplied Linux Docker log: menu105 passed, one failed and one ignored; source shows CheatCatalog in ContentSlot::ALL but absent from ToolInputs. The existing all-slot regression test is retained unchanged.",
+    "Atlas inventory check passes, preserving190 legacy row occurrences,54 actions and97 operation contracts; whitespace check passes.",
+    "The actual Dockerfile.linux export target completed successfully using 1365 frozen public inputs: Linux release build and all selected input-config/menu/gba-core/screen/recomp test targets,758 passed,0 failed,356 ignored,0 compiler warnings. Menu106 passed/1ignored includes the unchanged ALL18 input-selection/cancel regression; the previously corrected BG test also passes.",
+    "Exported target/linux-menu-cheat-input/export/FFTARecomp-linux-portable.tar.gz is14281636bytes, SHA256583ad0fdea8f05eab9f6daf061a00dc45b4d9c841748d575e3aa528c33ebeccc matching BUILD-INFO.txt. Verified all82 manifest payloads, safe archive paths, Linux ELF executables/modes, required TinyCC library and empty Data folders; no ROM/save/recording payload.",
+    "All1365 frozen input hashes match after the build; current executable sources match the snapshot. Only the separately updated selector guide differs in the working tree. Result/logs and the initial incomplete-context preparation diagnostic remain under target/linux-menu-cheat-input/.",
+    "Final metadata-only project-memory, handoff structure, Atlas inventory and whitespace checks pass. Full project-memory coverage reports eleven concurrent Android/export documentation/implementation paths awaiting their own record; this change and the preceding BG correction have accurate records."
+  ],
+  "limitations": [
+    "Ignored356 optional/private/platform test cases were not executed; this build/export does not establish GUI/gameplay, physical-controller or native Windows coverage. The portable package was exported separately without replacing canonical binaries or existing releases.",
+    "The archive uses the frozen guide text captured before the explanatory documentation annotation; all executable build inputs match the current correction. No additional build is needed for that guide-only change.",
+    "Existing Android/ROM/coverage work remains separately owned and preserved. Primary model/xhigh settings are not independently visible; source and failing log directly establish the omission, without a diagnostic stall."
+  ],
+  "files": [
+    "crates/menu/src/lib.rs",
+    "docs/debug_selector.md"
+  ],
+  "references": [
+    "docs/debug_selector.md"
+  ]
+}

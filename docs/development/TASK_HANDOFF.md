@@ -2,9 +2,9 @@
 
 ## Stato operativo
 
-Aggiornato il 2026-11-01. Semplificazione aggiunta lingue completata in
-`MENU-I18N-LANGUAGE-FILES`: un JSON per lingua con registrazione automatica.
-Nessun nuovo task selezionato; esiti EN/IT e processi ROMDATA preservati.
+Aggiornato il 2026-11-01. LINUX-MENU-CHEAT-INPUT concluso: riga CheatCatalog
+aggiunta; build/export Docker Linux completa PASS,758 test/0fail/356ignored.
+Android e ROM restano attività separate con i loro handle, non riprese qui.
 
 Leggere questo file per intero e il passaggio finale; poi soltanto le sezioni
 pertinenti indicate sotto. Non caricare automaticamente archivio, CHANGELOG,
@@ -213,9 +213,9 @@ specifico: archivio vecchie righe 179..744, oppure il record nominato sotto.
 
 ## PASSAGGIO DI TESTIMONE
 
-- Task: MENU-I18N-LANGUAGE-FILES completato; nuove lingue tramite un JSON e ricompilazione, senza modifiche Rust o registrazioni manuali.
-- Ultimo risultato verificato: en.json/it.json378voci lossless; helper3test, Linux36+4test, Wine36+3+6test PASS; check runtime/test Windows PASS; picker EN/IT identici alle anteprime accettate; terza lingua sintetica compilata PASS.
-- Da completare: nessun criterio della richiesta; file incorporati in compilazione, quindi richiedono rebuild. Windows nativo/controller fisico e GUI Linux restano non verificati.
-- Errori o impedimenti: nessun errore prodotto nuovo; difetto Debug ToolInputs precedente fuori ambito. Comandi test/build propri conclusi, nessuna inferenza sull'attività host globale.
-- Prossima azione: consegnare i percorsi en.json/it.json e il comando create/check; nessuna ripresa automatica del lavoro ROMDATA o Debug separato.
-- Riferimenti: `docs/menu_localization.md`, `scripts/menu_language.py`, `docs/changes/2026-11-01-simplify-menu-language-files.json`, `target/menu-language-files/result.json`, archivio MENU-I18N-LANGUAGE-FILES.
+- Task: LINUX-MENU-CHEAT-INPUT concluso; riga CheatCatalog aggiunta, test originale invariato.
+- Ultimo risultato verificato: Docker Linux build/export completo exit0,758PASS/0FAIL/356ignored/0warning; menu106PASS/1ignored e precedente BG PASS.1365 input esatti; archivio14281636B/SHA583ad0fdea8f05eab9f6daf061a00dc45b4d9c841748d575e3aa528c33ebeccc,82payload e BUILD-INFO verificati.
+- Da completare: nulla in questa correzione. Android/ROM e casi ignorati restano nei rispettivi scope.
+- Errori o impedimenti: nessun errore build. Fullmemorycheck segnala11path concorrenti Android/export senza record, preservati; metadata/struttura/Atlas/diff PASS. Modello/xhigh non esposti.
+- Prossima azione: nessuna; usare export isolato verificato o attendere nuova richiesta, senza riprendere altri task.
+- Riferimenti: docs/changes/2026-11-01-expose-cheat-catalog-in-tool-inputs.json; target/linux-menu-cheat-input/{result.json,docker-build.log,source-hashes.json,export/FFTARecomp-linux-portable.tar.gz}; docs/debug_selector.md.

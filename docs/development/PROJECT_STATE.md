@@ -2000,6 +2000,11 @@ publication; `scripts/task_handoff.py check` enforces structure and preservation
 
 - The root Cargo workspace and `AndroidPort/` are separate trees. A root fix
   does not automatically update AndroidPort.
+  Android Docker builds use `scripts/android/build_android_docker.py` (default
+  maintained AndroidPort; `--project-dir .` explicitly selects root). The port
+  keeps its Dockerfile/driver/exporter self-contained. Filtered public contexts,
+  separate Cargo/Gradle/signing caches and APK/hash/test export avoid writing
+  build intermediates into either checkout; see [Android Docker](../android_docker.md).
 - `crates/recomp/src/play.rs` connects the desktop event loop, input, menu and
   presentation. `crates/menu` owns UI state and rendering; `crates/input-config`
   owns persisted bindings and combo capture/latching. `crates/screen` presents

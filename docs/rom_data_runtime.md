@@ -675,6 +675,10 @@ limits, e86-d85 removes the two attach allocation checks and three corresponding
 legacy assertions. Parsing bounds, source/format/dependency authentication and
 transactional attachment remain active. No new allocation/RSS or performance
 campaign is run; the old measurements retain their historical scope.
+The BG projection regression test also checks retained allocation accounting
+before and after its reads, rather than reapplying the historical 1 KiB shared
+owner and 64 KiB BG caps. Its byte/width/mirror, counter and clock assertions
+remain active; adding other resource handles must not fail this BG test.
 
 The ROM arms of `MemMap::read8/read16/read32` check only fixed source
 pages:four for OBJ, four BG pages per region and fixed palette asset regions

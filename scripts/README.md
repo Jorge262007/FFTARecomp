@@ -6,8 +6,10 @@ Platform-specific entry points live in these folders:
   packager. `build_windows_docker.sh` builds the Windows package from a Linux host.
 - `windows/`: PowerShell entry points, the Windows portable-packager wrapper,
   MSYS2 TinyCC builder and Windows-to-Linux cross-build helper with its C linker.
-- `android/`: Android APK builder and Android-device camera helper. The current
-  APK builder requires a Windows SDK/NDK toolchain as documented in its header.
+- `android/`: Android APK builders and Android-device camera helper. Run
+  `python3 scripts/android/build_android_docker.py` for the maintained AndroidPort
+  with Docker/Buildx and Python only; `--project-dir .` selects the root tree.
+  The direct builder supports Windows/Linux SDK/NDK toolchains.
 - `unix/`: TinyCC builder shared by Linux and macOS.
 - `tests/`: shared Python tooling tests.
 
@@ -29,6 +31,9 @@ It launches the Linux cross-build helper with the current PowerShell executable,
 so PowerShell 7 does not try to find the Windows PowerShell `powershell.exe`
 inside its own installation directory.
 `AndroidPort/` has its own scripts and is managed separately.
+Its Docker recipe/driver remain self-contained when that directory is copied.
+See [Android Docker builds](../docs/android_docker.md) for APK output, logs,
+toolchain versions and the distinction between the two source trees.
 
 The runtime's [session diagnosis](../docs/debug_diagnostics.md) is available as
 `recomp diagnose` and Debug > Copy diagnosis; it needs no Python installation.

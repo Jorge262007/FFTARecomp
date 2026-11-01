@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "build-android-with-docker",
+  "title": "Build and export Android ARM64 previews through Docker",
+  "kind": "added",
+  "platforms": [
+    "Linux/amd64 Docker host validated; Android ARM64 cross-build; Windows NDK command branches simulated"
+  ],
+  "changes": [
+    "Add a cross-platform Python Docker/Buildx launcher at scripts/android/build_android_docker.py, defaulting to maintained AndroidPort with explicit --project-dir . selection for the root workspace. Keep the canonical driver, exporter and Dockerfile inside AndroidPort so a copied standalone port remains buildable.",
+    "Use digest-pinned Rust1.94.0 and Temurin Java25 images, SDK35/build-tools35.0.0/NDK28.2.13676358 and the checked Gradle9.5 wrapper. Checksum command-line-tools and pinned TinyCC source archives, compile optimized Rust and dynamically packaged ARM64 TinyCC, and require Kotlin unit tests before APK export. Adapt both existing native builders to Linux NDK tools while preserving Windows tool names and paths.",
+    "Stage filtered public working-tree sources in a temporary build context without checkout bind mounts. Exclude game/personal inputs, generated binaries, hidden files, links and host local.properties; normalize the Linux Gradle wrapper line endings. Separate target/Gradle/debug-signing caches by source tree; export APK, SHA256, source manifest/build info and JUnit results. Preserve streamed logs, original Docker exit status and failed public contexts."
+  ],
+  "validation": [
+    "Seven focused Python tests passed: private/generated/link filtering and source preservation for both trees, failure logs/status/context retention, CSV-unsafe output and missing-input refusal, exported SHA checks, standalone copied-port dry run, four Windows/Linux native adapter cases and APK ARM64/license/private-payload checks. Python compile checks and git diff --check passed.",
+    "Actual Docker AndroidPort build succeeded:24Kotlin tests,0failures/0errors/0skips; APK dist/docker-android/FFTARecomp-android-arm64-preview.apk SHA256=813e895d8f4aa8c959ecab726cb88e7b783e94fbd69405d7d3f18b80563dba47. Cargo Rust and TinyCC compiled for Android ARM64/API24; Gradle42tasks executed. Own handle15188 ended with exit0.",
+    "Actual explicit root-workspace Docker build succeeded:12Kotlin tests,0failures/0errors/0skips; APK dist/docker-android-root/FFTARecomp-android-arm64-preview.apk SHA256=b42a42ff173ce36d73e6594c658ee94e037e655ea7a49aab8c78bcdc43a521ed. Own handle35837 ended with exit0. Both exported SHA files, ARM64 ELF headers, APK CRC/required entries and packaged TinyCC source ZIP hash were checked; evidence/source pins in target/android-docker-build/result.json.",
+    "The two pre-existing modified ROM coverage files retain their exact byte hashes. Concurrent background/menu/docs/record edits and a Linux export-script mode change were observed and preserved rather than attributed or reset; both Android builds use their recorded immutable temporary snapshots. No existing host APK, SDK, configuration, signing key or unrelated process/cache was modified."
+  ],
+  "limitations": [
+    "Neither physical Android runtime/controller/audio/performance nor Windows Docker Desktop/native Windows execution was exercised. AndroidPort and root versions remain separate. Preview APKs are debug-signed with generated cached Docker keys; previous native-build signing keys are not imported. Package repositories can change despite fixed image digests/major tool versions, so bit-for-bit reproducibility across machines is not claimed.",
+    "Build logs retain SDK XML version/deprecated API warnings despite successful compilation and tests. The root APK snapshot may contain concurrent public workspace edits and does not certify their unrelated ROM/menu acceptance. Project-memory check at publication may still report the unowned scripts/linux/export_debug_assets.sh mode change; this task does not document it as its own implementation.",
+    "No ROM/data scene, private save/recording, publishing/install action or existing Docker job was used or stopped. No managed ROM interrupted/moved fixtures exist, so the ROM-only local_artifacts completion helper does not apply; owned BuildKit caches, debug-signing material and small validation evidence remain local."
+  ],
+  "files": [
+    "AndroidPort/Dockerfile.android",
+    "AndroidPort/README.md",
+    "AndroidPort/scripts/build_android.py",
+    "AndroidPort/scripts/build_android_docker.py",
+    "AndroidPort/scripts/export_android.py",
+    "android/README.md",
+    "scripts/README.md",
+    "scripts/android/build_android.py",
+    "scripts/android/build_android_docker.py",
+    "scripts/tests/test_build_android_docker.py",
+    "docs/android_docker.md",
+    "docs/docker.md",
+    "docs/development/PROJECT_STATE.md"
+  ],
+  "references": [
+    "docs/android_docker.md",
+    "docs/docker.md",
+    "android/README.md",
+    "AndroidPort/README.md"
+  ]
+}

@@ -1,5 +1,11 @@
 # Desktop portable builds with Docker
 
+For the ARM64 Android APK, use
+`python3 scripts/android/build_android_docker.py`. It defaults to the maintained
+`AndroidPort/` tree, includes SDK/NDK/Java/Rust inside Docker and exports the APK,
+checksum and Kotlin unit-test results. See [Android Docker builds](android_docker.md)
+for the standalone-port entry point and explicit root-workspace selection.
+
 ## Build from Windows / PowerShell
 
 Install and start [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)

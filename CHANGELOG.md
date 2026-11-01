@@ -119,6 +119,60 @@ Type: added. Platforms: EUR; Wine.
 
 [Change record](docs/changes/2026-11-01-model-european-compact-obj-fifth-root.json)
 
+## 2026-11-01 — Fix the stale BG allocation assertion blocking Linux builds
+
+Type: fixed. Platforms: Linux x86_64 / Rust 1.94.0.
+
+**Changes**
+
+- Replace historical shared-owner 1 KiB and BG 64 KiB size assertions in the synthetic BG projection test with before/after retained-allocation accounting. RuntimeResources now includes handles for additional resource families, so the shared-owner size is not a valid BG-specific cap.
+- Preserve existing USA/EUR byte-width, mirror/boundary, RtApi, counters, clock, CPU/DMA and snapshot checks; production runtime and attachment logic are unchanged. Document the test correction alongside the previously retired allocation caps.
+
+**Validation**
+
+- Read the supplied existing Linux Docker failure log: 242 tests passed, one failed on the stale shared-owner assertion, 27 ignored; no repeated failing build was needed.
+- A frozen 717-file source snapshot plus the exact test-only correction built offline in release mode without compiler warnings. All three rom_data::runtime::background::tests passed on native Linux with rustc 1.94.0; 267 other tests were filtered out.
+- Snapshot SHA256 checks pass for all 717 files with only the declared test overlay; reconstructing that overlay restores the original file hash. Evidence remains in target/linux-bg-resident-test/result.json and bg-tests.log.
+- project_memory.py check --metadata-only, task_handoff.py check and git diff --check pass. The full memory coverage check reports only eight separately owned Android/export-script implementation paths awaiting their own record; this correction covers its sole changed implementation file.
+
+**Limitations**
+
+- The full Docker build/export and full workspace suite were not rerun. Docker socket access for the readonly image inventory was denied; focused native Linux validation used the same Rust 1.94.0 toolchain version.
+- No game data, ROM extraction, gameplay, performance/RSS measurements, packages, canonical binaries or other agents processes were changed. Existing Android/ROM/coverage work remains separately owned.
+- Primary model and xhigh runtime settings are not independently exposed. The cause and narrow correction were supported directly by source, the failing log and documentation; no stalled-diagnosis delegation was needed.
+
+Documentation: [rom_data_runtime.md](docs/rom_data_runtime.md).
+
+[Change record](docs/changes/2026-11-01-fix-stale-background-owner-memory-test.json)
+
+## 2026-11-01 — Expose the cheat catalog in the shared tool-input selector
+
+Type: fixed. Platforms: Linux / Docker, Shared desktop menu.
+
+**Changes**
+
+- Add the missing CheatCatalog row to Debug Tool inputs / current selections. ContentSlot::ALL already exposed all eighteen roles, but this page listed seventeen, so the cheat catalog could not be chosen there and the existing all-slot navigation test failed.
+- Keep the existing selection-only handler and return-to-parent behavior; selecting this reference does not activate or execute cheat codes. Document the route in the integrated selector guide.
+
+**Validation**
+
+- Read the supplied Linux Docker log: menu105 passed, one failed and one ignored; source shows CheatCatalog in ContentSlot::ALL but absent from ToolInputs. The existing all-slot regression test is retained unchanged.
+- Atlas inventory check passes, preserving190 legacy row occurrences,54 actions and97 operation contracts; whitespace check passes.
+- The actual Dockerfile.linux export target completed successfully using 1365 frozen public inputs: Linux release build and all selected input-config/menu/gba-core/screen/recomp test targets,758 passed,0 failed,356 ignored,0 compiler warnings. Menu106 passed/1ignored includes the unchanged ALL18 input-selection/cancel regression; the previously corrected BG test also passes.
+- Exported target/linux-menu-cheat-input/export/FFTARecomp-linux-portable.tar.gz is14281636bytes, SHA256583ad0fdea8f05eab9f6daf061a00dc45b4d9c841748d575e3aa528c33ebeccc matching BUILD-INFO.txt. Verified all82 manifest payloads, safe archive paths, Linux ELF executables/modes, required TinyCC library and empty Data folders; no ROM/save/recording payload.
+- All1365 frozen input hashes match after the build; current executable sources match the snapshot. Only the separately updated selector guide differs in the working tree. Result/logs and the initial incomplete-context preparation diagnostic remain under target/linux-menu-cheat-input/.
+- Final metadata-only project-memory, handoff structure, Atlas inventory and whitespace checks pass. Full project-memory coverage reports eleven concurrent Android/export documentation/implementation paths awaiting their own record; this change and the preceding BG correction have accurate records.
+
+**Limitations**
+
+- Ignored356 optional/private/platform test cases were not executed; this build/export does not establish GUI/gameplay, physical-controller or native Windows coverage. The portable package was exported separately without replacing canonical binaries or existing releases.
+- The archive uses the frozen guide text captured before the explanatory documentation annotation; all executable build inputs match the current correction. No additional build is needed for that guide-only change.
+- Existing Android/ROM/coverage work remains separately owned and preserved. Primary model/xhigh settings are not independently visible; source and failing log directly establish the omission, without a diagnostic stall.
+
+Documentation: [debug_selector.md](docs/debug_selector.md).
+
+[Change record](docs/changes/2026-11-01-expose-cheat-catalog-in-tool-inputs.json)
+
 ## 2026-11-01 — Separate the operational handoff from preserved task history
 
 Type: changed. Platforms: Project workflow / documentation tooling.
@@ -186,6 +240,33 @@ Type: docs. Platforms: EUR; Wine.
 - Other indirect selector ranges, caller reachability, ordinary use, model and runtime publication remain unverified; Linux, USA and native Windows pending; no performance measurements.
 
 [Change record](docs/changes/2026-11-01-classify-european-compact-obj-fifth-root.json)
+
+## 2026-11-01 — Build and export Android ARM64 previews through Docker
+
+Type: added. Platforms: Linux/amd64 Docker host validated; Android ARM64 cross-build; Windows NDK command branches simulated.
+
+**Changes**
+
+- Add a cross-platform Python Docker/Buildx launcher at scripts/android/build_android_docker.py, defaulting to maintained AndroidPort with explicit --project-dir . selection for the root workspace. Keep the canonical driver, exporter and Dockerfile inside AndroidPort so a copied standalone port remains buildable.
+- Use digest-pinned Rust1.94.0 and Temurin Java25 images, SDK35/build-tools35.0.0/NDK28.2.13676358 and the checked Gradle9.5 wrapper. Checksum command-line-tools and pinned TinyCC source archives, compile optimized Rust and dynamically packaged ARM64 TinyCC, and require Kotlin unit tests before APK export. Adapt both existing native builders to Linux NDK tools while preserving Windows tool names and paths.
+- Stage filtered public working-tree sources in a temporary build context without checkout bind mounts. Exclude game/personal inputs, generated binaries, hidden files, links and host local.properties; normalize the Linux Gradle wrapper line endings. Separate target/Gradle/debug-signing caches by source tree; export APK, SHA256, source manifest/build info and JUnit results. Preserve streamed logs, original Docker exit status and failed public contexts.
+
+**Validation**
+
+- Seven focused Python tests passed: private/generated/link filtering and source preservation for both trees, failure logs/status/context retention, CSV-unsafe output and missing-input refusal, exported SHA checks, standalone copied-port dry run, four Windows/Linux native adapter cases and APK ARM64/license/private-payload checks. Python compile checks and git diff --check passed.
+- Actual Docker AndroidPort build succeeded:24Kotlin tests,0failures/0errors/0skips; APK dist/docker-android/FFTARecomp-android-arm64-preview.apk SHA256=813e895d8f4aa8c959ecab726cb88e7b783e94fbd69405d7d3f18b80563dba47. Cargo Rust and TinyCC compiled for Android ARM64/API24; Gradle42tasks executed. Own handle15188 ended with exit0.
+- Actual explicit root-workspace Docker build succeeded:12Kotlin tests,0failures/0errors/0skips; APK dist/docker-android-root/FFTARecomp-android-arm64-preview.apk SHA256=b42a42ff173ce36d73e6594c658ee94e037e655ea7a49aab8c78bcdc43a521ed. Own handle35837 ended with exit0. Both exported SHA files, ARM64 ELF headers, APK CRC/required entries and packaged TinyCC source ZIP hash were checked; evidence/source pins in target/android-docker-build/result.json.
+- The two pre-existing modified ROM coverage files retain their exact byte hashes. Concurrent background/menu/docs/record edits and a Linux export-script mode change were observed and preserved rather than attributed or reset; both Android builds use their recorded immutable temporary snapshots. No existing host APK, SDK, configuration, signing key or unrelated process/cache was modified.
+
+**Limitations**
+
+- Neither physical Android runtime/controller/audio/performance nor Windows Docker Desktop/native Windows execution was exercised. AndroidPort and root versions remain separate. Preview APKs are debug-signed with generated cached Docker keys; previous native-build signing keys are not imported. Package repositories can change despite fixed image digests/major tool versions, so bit-for-bit reproducibility across machines is not claimed.
+- Build logs retain SDK XML version/deprecated API warnings despite successful compilation and tests. The root APK snapshot may contain concurrent public workspace edits and does not certify their unrelated ROM/menu acceptance. Project-memory check at publication may still report the unowned scripts/linux/export_debug_assets.sh mode change; this task does not document it as its own implementation.
+- No ROM/data scene, private save/recording, publishing/install action or existing Docker job was used or stopped. No managed ROM interrupted/moved fixtures exist, so the ROM-only local_artifacts completion helper does not apply; owned BuildKit caches, debug-signing material and small validation evidence remain local.
+
+Documentation: [android_docker.md](docs/android_docker.md), [docker.md](docs/docker.md), [README.md](android/README.md), [README.md](AndroidPort/README.md).
+
+[Change record](docs/changes/2026-11-01-build-android-with-docker.json)
 
 ## 2026-11-01 — Add persisted English and Italian menu languages
 

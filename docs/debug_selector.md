@@ -90,6 +90,9 @@ noto. Le liste sono vincolate al ruolo e le scelte conservano hash, ID e contest
 ROM. Un file non hashato nel budget viene rifiutato con richiesta di restringere
 la radice e aggiornare. Un riferimento alterato resta visibile e viene rifiutato
 prima dell'uso; non si ripiega su un altro file o sui dialoghi OS.
+La stessa pagina include **Cheat reference catalog**, con il selettore interno
+vincolato al catalogo cheat. Confermare il riferimento e annullare il selettore
+mantiene il cursore sulla relativa riga; non applica né attiva codici.
 
 Choose replay profile e Choose catalog aprono la pagina interna. Replay, Audit,
 Capture, Compare e Create issue senza profilo aprono la stessa pagina con il
