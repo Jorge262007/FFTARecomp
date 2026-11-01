@@ -18085,3 +18085,17 @@ LOCAL-ARTIFACT-SWEEP-2026-10-31 — CLOSED. Latest request: clean residual proje
 - Criteri verificati: modello autenticato, ricostruzione 756 byte, gap2 e confini, rifiuto JSON/forma/manomissione, sette prefissi conteggio,65 prefissi ID/durata e60 puntatori lista.
 - Prove: build Windows isolata e test Wine `target/rom-data-compact-obj-senary-model/{build-result,wine-result}.json`, `wine-runtime/result.json`; input protetti invariati, retention senza rimozioni.
 - Limiti: pubblicazione runtime e uso ordinario non verificati; Linux/USA/Windows nativo aperti; nessuna misura performance.
+
+### MENU-I18N-EN-IT
+
+- Esito: completato
+- Criteri verificati: menu desktop con inglese predefinito per configurazioni nuove/precedenti e italiano opzionale; System > Language richiede conferma, annulla senza mutare e applica subito; menu.language en|it usa la persistenza esistente. Catalogo378voci estendibile, lingua per istanza, rendering e valori tecnici distinti. Metadata timestamp/Undo conservati e ritradotti senza toccare dati di gioco.
+- Prove: `docs/changes/2026-11-01-add-english-italian-menu-localization.json`, `docs/menu_localization.md`; Windows GNU/Wine:36test configurazione e5test lingua PASS, suite finale104PASS/1ignored/1escluso noto;36test configurazione Linux PASS. `cargo check -p recomp -p ffta-play --tests` Windows PASS,16anteprime senza ROM; log/hash/result in `target/menu-i18n-en-it/`. Check memoria e diff registrati nel record.
+- Limiti: suite completa104PASS/1FAIL/1ignored; failure ToolInputs/CheatCatalog già strutturalmente presente in HEAD, conservato e fuori richiesta. Windows nativo, controller fisico, gioco reale e menu Linux non provati; mancano metadati sviluppo Wayland per quest'ultimo. Contenuto tecnico/importato e payload diagnostici restano nella lingua sorgente; messaggi operazione già prodotti non ritradotti. AndroidPort separato. Nessuna ROM/save/configurazione personale letta o cambiata; nessun dataset managed da ritirare, prefix/evidenze propri conservati. Lavori/processi ROMDATA precedenti non selezionati né fermati.
+
+### MENU-I18N-LANGUAGE-FILES
+
+- Esito: completato
+- Criteri verificati: un JSON per lingua in crates/input-config/languages con code/name/messages; discovery/registrazione/incorporamento automatici in compilazione senza modifica Rust, helper create/check e guida diretta. en.json/it.json mantengono tutte378voci precedenti; fallback inglese per traduzioni parziali e validazione metadati/chiavi/segnaposto. Persistenza per codice e selettore derivato dal registro.
+- Prove: `docs/changes/2026-11-01-simplify-menu-language-files.json`, `docs/menu_localization.md`; helper3test PASS, Linux36unit+4catalog PASS (terza lingua sintetica compilata con vera Language), Wine36config+3catalog+6menu PASS. Build test/preview e check runtime/test Windows PASS; due picker identici byte per byte alle anteprime accettate. Source hash/log/result in `target/menu-language-files/`. Check memoria e diff PASS.
+- Limiti: aggiunta/modifica richiede ricompilazione; nessun caricatore JSON esterno a runtime. Windows nativo/input fisico/GUI Linux non verificati; stessi limiti su dati diagnostici/importati e difetto Debug ToolInputs preesistente, non riaperto. Primo harness locale classificava male un exe: corretto, config36test eseguiti separatamente con PASS e ricevuta iniziale conservata. Nessuna ROM/save/configurazione privata o dataset managed coinvolti; nessun cleanup o job altrui toccato. Cache/prefix propri riusati ed evidenze piccole conservate.

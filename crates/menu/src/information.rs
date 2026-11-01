@@ -13,6 +13,7 @@ impl Menu {
     }
     /// Capture the selected context without executing it or leaving an editor/capture.
     pub fn information(&mut self, av: &AvConfig, cfg: &InputConfig) {
+        self.language.set(av.menu_language);
         self.cancel_debug_unlock();
         if !self.information_available() {
             return;
@@ -31,11 +32,11 @@ impl Menu {
             .map(|(_, v)| v.as_str())
             .unwrap_or(self.atlas.title());
         let mut parts = vec![
-            format!("{} / {}", self.atlas.title(), label),
-            "Dettagli della selezione all’apertura".into(),
+            format!("{} / {}", self.tr(self.atlas.title()), label),
+            self.tr("Dettagli della selezione all’apertura").into(),
         ];
         if let Some((_, value)) = properties.iter().find(|(k, _)| k == "value") {
-            parts.push(format!("Valore: {value}"));
+            parts.push(self.tr_format("Valore: {value}", &[("value", (value).to_string())]));
         }
         if self.tool_active() {
             parts.push(self.tool.message.clone());
@@ -53,59 +54,78 @@ impl Menu {
                 .highlighted_id()
                 .and_then(|id| self.content.entries.iter().find(|e| e.id == id))
             {
-                parts.push(format!(
+                parts.push(self.tr_format(
                     "{}\n{}\nPosizione: {}\nIdentità: {}\nStato: {}\nCompatibilità: {}\n{}",
-                    entry.name,
-                    entry.description,
-                    entry.location,
-                    entry.identity,
-                    entry.status,
-                    entry.compatibility,
-                    entry.reason
+                    &[
+                        ("0", (entry.name).to_string()),
+                        ("1", (entry.description).to_string()),
+                        ("2", (entry.location).to_string()),
+                        ("3", (entry.identity).to_string()),
+                        ("4", (entry.status).to_string()),
+                        ("5", (entry.compatibility).to_string()),
+                        ("6", (entry.reason).to_string()),
+                    ],
                 ));
             }
         }
         if self.cheat_active() {
-            parts.push(self.cheats.description());parts.push(self.cheats.message.clone());
-            if let Some(entry)=self.cheats.highlighted_id().and_then(|id|self.cheats.entries.iter().find(|e|e.id==id)){
-                parts.push(format!("{}\n{}\n{}\n{}",entry.name,entry.description,entry.identity,entry.reason));
+            parts.push(self.cheats.description());
+            parts.push(self.cheats.message.clone());
+            if let Some(entry) = self
+                .cheats
+                .highlighted_id()
+                .and_then(|id| self.cheats.entries.iter().find(|e| e.id == id))
+            {
+                parts.push(format!(
+                    "{}\n{}\n{}\n{}",
+                    entry.name, entry.description, entry.identity, entry.reason
+                ));
             }
         }
         if self.page == Page::DebugCatalog {
             parts.push(self.catalog.details());
             parts.push(self.catalog.message.clone());
         }
-        parts.push(format!("Menu tastiera: {}", cfg.menu_key));
-        parts.push(format!("Menu gamepad: {}", cfg.menu_pad));
+        parts.push(self.tr_format("Menu tastiera: {}", &[("0", (cfg.menu_key).to_string())]));
+        parts.push(self.tr_format("Menu gamepad: {}", &[("0", (cfg.menu_pad).to_string())]));
         if matches!(
             self.page,
             Page::Main | Page::SaveStates | Page::ReplaceState
         ) {
             if let Some(slot) = self.state_slots.get(self.state_slot) {
-                parts.push(format!(
+                parts.push(self.tr_format(
                     "Stato {} / {}: {}",
-                    self.state_slot + 1,
-                    self.state_slots.len(),
-                    slot.status
+                    &[
+                        ("0", (self.state_slot + 1).to_string()),
+                        ("1", (self.state_slots.len()).to_string()),
+                        ("2", self.tr(&slot.status).to_string()),
+                    ],
                 ));
-                parts.push(format!(
-                    "Data stato: {}",
-                    self.state_times
-                        .get(self.state_slot)
-                        .copied()
-                        .flatten()
-                        .and_then(clan_atlas::timestamp_utc)
-                        .unwrap_or_else(|| "non disponibile".into())
-                ));
+                parts.push(
+                    self.tr_format(
+                        "Data stato: {}",
+                        &[(
+                            "0",
+                            (self
+                                .state_times
+                                .get(self.state_slot)
+                                .copied()
+                                .flatten()
+                                .and_then(clan_atlas::timestamp_utc)
+                                .unwrap_or_else(|| self.tr("non disponibile").into()))
+                            .to_string(),
+                        )],
+                    ),
+                );
             }
-            parts.push(self.atlas.standard_save.clone());
+            parts.push(self.standard_save_text());
         }
         for (label, message) in [
-            ("Stato", &self.state_message),
-            ("Salvataggi cartuccia", &self.game_save_message),
+            (self.tr("Stato"), &self.state_message),
+            (self.tr("Salvataggi cartuccia"), &self.game_save_message),
             ("Backup", &self.backup_message),
             ("Debug", &self.debug_message),
-            ("Sessione", &self.session_message),
+            (self.tr("Sessione"), &self.session_message),
         ] {
             if !message.is_empty() {
                 parts.push(format!("{label}: {message}"));
@@ -116,7 +136,13 @@ impl Menu {
                 self.page,
                 Page::GameSaves | Page::SwitchGameSave | Page::ReplaceGameSave
             ) {
-                parts.push(format!("File: {}\nStato: {}", slot.name, slot.status));
+                parts.push(self.tr_format(
+                    "File: {}\nStato: {}",
+                    &[
+                        ("0", (slot.name).to_string()),
+                        ("1", self.tr(&slot.status).to_string()),
+                    ],
+                ));
             }
         }
         self.atlas.information = parts.join("\n\n");
@@ -196,7 +222,7 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
     c.text(
         (r.x + 12) as f32,
         (r.y + r.h.saturating_sub(26)) as f32,
-        "↑↓ / rotella: scorri · F1 / R3 / Esc: chiudi",
+        menu.tr("↑↓ / rotella: scorri · F1 / R3 / Esc: chiudi"),
         [168, 189, 199],
         (fs * 0.8).max(9.),
         false,

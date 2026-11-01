@@ -232,6 +232,7 @@ pub(super) struct State {
     pub fast_active: bool,
     pub fast_effective: u32,
     pub standard_save: String,
+    pub standard_save_stamp: Option<u64>,
     pub information:String,
     pub information_hover:bool,
     pub information_sidebar_focus:bool,
@@ -255,6 +256,7 @@ impl Default for State {
             fast_active: false,
             fast_effective: 100,
             standard_save: "Nessun salvataggio standard trovato".into(),
+            standard_save_stamp: None,
             information:String::new(),
             information_hover:false,
             information_sidebar_focus:false,
@@ -294,7 +296,7 @@ pub(super) const SAVES_ROWS: &[Row] = &[
     Row::SaveBackupsMenu,
     Row::Back,
 ];
-pub(super) const SYSTEM_ROWS: &[Row] = &[Row::RestartRom, Row::SwitchRomMenu, Row::Quit, Row::Back];
+pub(super) const SYSTEM_ROWS: &[Row] = &[Row::Language, Row::RestartRom, Row::SwitchRomMenu, Row::Quit, Row::Back];
 pub(super) fn root_page(domain: Domain, section: usize) -> Page {
     if domain == Domain::Debug {
         return Page::Debug;

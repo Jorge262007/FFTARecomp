@@ -43,6 +43,12 @@ impl Menu {
     }
 
     pub(super) fn commit_choice(&mut self, dd: Dropdown, av: &mut AvConfig) -> Option<MenuAction> {
+        let result = self.commit_choice_inner(dd, av);
+        self.language.set(av.menu_language);
+        result
+    }
+
+    fn commit_choice_inner(&mut self, dd: Dropdown, av: &mut AvConfig) -> Option<MenuAction> {
         match dd.row {
             Row::StateSlot => {
                 self.state_slot = dd.index;

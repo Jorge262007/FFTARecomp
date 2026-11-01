@@ -45,7 +45,7 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
             "Slot {} / {} · {}",
             menu.state_slot + 1,
             menu.state_slots.len(),
-            menu.state_slots[menu.state_slot].status
+            menu.tr(&menu.state_slots[menu.state_slot].status)
         )
     } else if game {
         menu.game_save_slots
@@ -54,13 +54,13 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
                 format!(
                     "Slot {} / 99 · {}{}",
                     menu.game_save_slot + 1,
-                    s.status,
-                    if s.current { " · attivo" } else { "" }
+                    menu.tr(&s.status),
+                    if s.current { menu.tr(" · attivo") } else { "" }
                 )
             })
-            .unwrap_or_else(|| "Salvataggi non disponibili".into())
+            .unwrap_or_else(|| menu.tr("Salvataggi non disponibili").into())
     } else {
-        "Backup cartuccia · due copie automatiche".into()
+        menu.tr("Backup cartuccia · due copie automatiche").into()
     };
     c.text(
         8.,
@@ -116,9 +116,9 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
                 (ix + 4) as f32,
                 (iy + ih / 2) as f32,
                 if slot.occupied {
-                    "Anteprima non disponibile"
+                    menu.tr("Anteprima non disponibile")
                 } else {
-                    "Slot vuoto"
+                    menu.tr("Slot vuoto")
                 },
                 MUTED,
                 fs * 0.8,
@@ -132,7 +132,7 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
             .copied()
             .flatten()
             .and_then(clan_atlas::timestamp_utc)
-            .unwrap_or_else(|| "Data non disponibile".into());
+            .unwrap_or_else(|| menu.tr("Data non disponibile").into());
         c.text(
             detail.x as f32,
             (iy + ih + 5) as f32,
@@ -149,13 +149,11 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
                 .get(menu.game_save_slot)
                 .map(|s| s.name.as_str())
                 .unwrap_or("");
-            format!(
-                "{name}\nLe copie contengono il progresso salvato nel gioco. Usare un file riavvia il gioco. Sostituire richiede conferma; Annulla è preselezionato."
-            )
+            menu.tr_format("{name}\nLe copie contengono il progresso salvato nel gioco. Usare un file riavvia il gioco. Sostituire richiede conferma; Annulla è preselezionato.", &[("name", (name).to_string())])
         } else if menu.page == Page::RestoreBackup {
-            "Il gioco riparte da questa copia. Confermare sostituisce il salvataggio cartuccia attivo; il progresso della sessione viene sostituito.".into()
+            menu.tr("Il gioco riparte da questa copia. Confermare sostituisce il salvataggio cartuccia attivo; il progresso della sessione viene sostituito.").into()
         } else {
-            "Copie automatiche create all'avvio. Selezionare una copia richiede conferma prima del ripristino.".into()
+            menu.tr("Copie automatiche create all'avvio. Selezionare una copia richiede conferma prima del ripristino.").into()
         };
         for (i, line) in Canvas::wrap_text(&description, fs, detail.w as f32)
             .iter()
@@ -189,13 +187,12 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
             ),
             Row::GameSaveSlot => format!("‹ Slot {} / 99 ›", menu.game_save_slot + 1),
             Row::UndoState => menu
-                .state_undo
-                .clone()
-                .unwrap_or_else(|| "Annulla ultima operazione".into()),
+                .state_undo_text()
+                .unwrap_or_else(|| menu.tr("Annulla ultima operazione").into()),
             Row::Backup(copy) => format!(
                 "{} · {}",
-                row.label(),
-                menu.save_backups[*copy as usize].status
+                row.localized_label(menu.language()),
+                menu.tr(&menu.save_backups[*copy as usize].status)
             ),
             Row::Back
                 if matches!(
@@ -206,9 +203,9 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
                         | Page::RestoreBackup
                 ) =>
             {
-                "Annulla".into()
+                menu.tr("Annulla").into()
             }
-            _ => row.label().into(),
+            _ => row.localized_label(menu.language()).into(),
         };
         text(
             &mut c,
@@ -234,9 +231,9 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
         8.,
         (h.saturating_sub(18)) as f32,
         if message.is_empty() {
-            "Frecce: naviga · OK: scegli/conferma · Annulla: indietro"
+            menu.tr("Frecce: naviga · OK: scegli/conferma · Annulla: indietro")
         } else {
-            message
+            menu.tr(message)
         },
         MUTED,
         10.,

@@ -14,7 +14,7 @@ impl Menu {
         let mut state = vec![("page".into(), format!("{:?}", self.page)), ("row".into(), self.selected.to_string())];
         if let Some(row) = self.rows().get(self.selected).copied() {
             state.push(("item_id".into(), format!("{:?}/{row:?}", self.page)));
-            state.push(("label".into(), row.label().into()));
+            state.push(("label".into(), row.localized_label(av.menu_language).into()));
             let pad = self.page == Page::Gamepad;
             let keys = if pad { &cfg.pads } else if self.page == Page::MouseKeyboard { &cfg.mouse_keys } else { &cfg.keys };
             let value = match row {

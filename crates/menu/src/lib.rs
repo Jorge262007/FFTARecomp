@@ -12,6 +12,7 @@
 //! through the `screen` crate's enums so the two frontends never drift.
 
 mod canvas;
+pub mod i18n;
 pub mod diagnostics;
 mod font;
 pub mod fps;
@@ -44,7 +45,7 @@ pub use save_backups::BackupInfo;
 pub use save_states::StateSlot;
 pub use game_saves::GameSaveSlot;
 
-use input_config::{AvConfig, Button, Device, GamepadLayout, InputConfig};
+use input_config::{AvConfig, Button, Device, GamepadLayout, InputConfig, Language};
 use screen::{ResponseMode, ScreenKind};
 use std::ops::{Deref, DerefMut};
 
@@ -300,6 +301,7 @@ enum Row {
     Screen,
     Brightness,
     MenuTransparency,
+    Language,
     Darken,
     Response,
     Grid,
@@ -444,10 +446,20 @@ fn rows_of(page: Page) -> &'static [Row] {
 const FF_SPEEDS: [u32; 36] = input_config::fast_forward::PERCENTS;
 
 impl Row {
+    fn localized_label(self, language: Language) -> &'static str {
+        let key = self.label();
+        if matches!(self, Row::Key(Button::A | Button::B | Button::L | Button::R | Button::Start | Button::Select)) {
+            key
+        } else {
+            i18n::text(language, key)
+        }
+    }
+
     fn label(self) -> &'static str {
         match self {
             Row::CliReference => "Riferimenti Menu / CLI",
             Row::FastForwardToggle => "Fast Forward ON/OFF",
+            Row::Language => "Language",
             Row::MenuTransparency => "Trasparenza menu",
             Row::DebugMenu => "Debug",
             Row::ToolInputsMenu => "Tool inputs / current selections",
@@ -695,6 +707,7 @@ impl Navigation {
 
 /// The pause-overlay model and its public input/draw boundary.
 pub struct Menu {
+    language: std::cell::Cell<Language>,
     atlas: clan_atlas::State,
     navigation: Navigation,
     /// Whether the enhanced-audio toggle applies live or on next launch.
@@ -733,6 +746,7 @@ pub struct Menu {
     tool: debug_tool::ToolForm,
     state_message: String,
     state_undo: Option<String>,
+    state_undo_description: Option<(&'static str, u8)>,
     save_backups: [BackupInfo;2],
     backup_selection: Option<(u64,u8)>,
     backup_message: String,
@@ -767,6 +781,7 @@ impl Menu {
     /// in the launcher) and is ignored.
     pub fn new(audio_live: bool, _gamut_live: bool) -> Menu {
         Menu {
+            language: std::cell::Cell::new(Language::default()),
             navigation: Navigation::new(),
             atlas: clan_atlas::State::default(),
             audio_live,
@@ -799,6 +814,7 @@ impl Menu {
             tool: debug_tool::ToolForm::default(),
             state_message: String::new(),
             state_undo: None,
+            state_undo_description: None,
             save_backups: std::array::from_fn(|_| BackupInfo::default()),
             backup_selection: None,
             backup_message: String::new(),
@@ -901,11 +917,11 @@ impl Menu {
         let l=self.page_layout(w,h);
         let first=self.first_visible(l);
         diagnostics::Focus {page:format!("{:?}",self.page),selected:self.selected,
-            label:self.rows().get(self.selected).map(|r|r.label()).unwrap_or("unknown").into(),
+            label:self.rows().get(self.selected).map(|r|r.localized_label(self.language())).unwrap_or("unknown").into(),
             capture:self.capture.map(|b|format!("{b:?}")),panel:[l.panel_x,l.panel_y,l.panel_w,l.panel_h],
             first_visible:first,dropdown:self.dropdown.as_ref().map(|dd|{
                 let(x,y,w,h,_,first)=theme::dropdown_geometry(dd,w,h);
-                diagnostics::DropdownFocus {label:dd.row.label().into(),index:dd.index,
+                diagnostics::DropdownFocus {label:dd.row.localized_label(self.language()).into(),index:dd.index,
                     option:dd.options.get(dd.index).cloned().unwrap_or_default(),
                     panel:[x,y,w,h],first_visible:first}
             }),selected_bounds:clan_atlas::row_rect(self,self.selected,w,h).map(|r|[r.x,r.y,r.w,r.h])}
@@ -975,8 +991,22 @@ impl Menu {
 
     pub fn state_result(&mut self, message: String) { self.state_message = message; }
     pub fn set_state_timestamps(&mut self,timestamps:Vec<Option<u64>>) {if timestamps.len()==self.state_slots.len(){self.state_times=timestamps;}}
-    pub fn set_standard_save_status(&mut self,message:String){self.atlas.standard_save=message;}
-    pub fn set_state_undo(&mut self, label: Option<String>) { self.state_undo = label; }
+    pub fn set_standard_save_status(&mut self,message:String){self.atlas.standard_save=message;self.atlas.standard_save_stamp=None;}
+    pub fn set_standard_save_timestamp(&mut self,stamp:u64){self.atlas.standard_save_stamp=Some(stamp);}
+    fn standard_save_text(&self)->String {
+        match self.atlas.standard_save_stamp {
+            Some(value)=>clan_atlas::timestamp_utc(value).map(|stamp|self.tr_format("Last .sav modification: {stamp}",&[("stamp",stamp)])).unwrap_or_else(||self.tr("Ultima modifica file .sav: data non disponibile").into()),
+            None=>self.tr(&self.atlas.standard_save).into(),
+        }
+    }
+    pub fn set_state_undo(&mut self, label: Option<String>) { self.state_undo = label; self.state_undo_description=None; }
+    pub fn set_state_undo_description(&mut self, description: Option<(&'static str,u8)>) {
+        self.state_undo = description.map(|(key,slot)|i18n::format(Language::default(),key,&[("slot",slot.to_string())]));
+        self.state_undo_description=description;
+    }
+    fn state_undo_text(&self)->Option<String> {
+        self.state_undo_description.map(|(key,slot)|self.tr_format(key,&[("slot",slot.to_string())])).or_else(||self.state_undo.as_ref().map(|s|self.tr(s).into()))
+    }
     pub fn set_save_backups(&mut self, copies: [BackupInfo;2]) { self.save_backups = copies; }
     pub fn backup_result(&mut self, message: String) { self.backup_message = message; }
     pub fn session_result(&mut self, message: String) { self.session_message = message; }
@@ -1096,6 +1126,7 @@ impl Menu {
     /// While a key capture is pending every event is ignored — the play
     /// loop decides what ends it.
     pub fn handle(&mut self, input: MenuInput, av: &mut AvConfig) -> Option<MenuAction> {
+        self.language.set(av.menu_language);
         if av.debug && !self.debug_enabled(){self.set_debug_enabled(true);}
         if self.observe_debug_unlock(input) {
             self.set_debug_enabled(true);av.debug=true;self.debug_message="Debug sbloccato".into();
@@ -1282,7 +1313,7 @@ impl Menu {
                     if self.state_slots[self.state_slot].occupied {
                         Some(MenuAction::LoadState(self.state_slot as u8 + 1))
                     } else {
-                        self.state_message = format!("Slot {} is empty.", self.state_slot + 1);
+                        self.state_message = self.tr_format("Slot {slot} is empty.", &[("slot", (self.state_slot + 1).to_string())]);
                         None
                     }
                 },
@@ -1517,6 +1548,7 @@ impl Menu {
         w: usize,
         h: usize,
     ) {
+        self.language.set(av.menu_language);
         self.viewport.set((w,h));
         let transparency = if av.menu_transparency.is_finite() { av.menu_transparency.clamp(0.,1.) } else { 0. };
         canvas::with_panel_alpha(((1.-transparency)*255.).round() as u8, || atlas_theme::draw(
@@ -1605,6 +1637,7 @@ fn value_of(
     capture: Option<Bind>,
 ) -> Option<String> {
     Some(match row {
+        Row::Language => av.menu_language.name().into(),
         Row::CliReference => "Sola lettura".into(),
         Row::DebugMenu => ">".into(),
         Row::GameSavesMenu => if av.debug_extended_saves { ">" } else { "DISABLED" }.into(),
@@ -1692,6 +1725,7 @@ fn step_slider(value: &mut f32, forward: bool, lo: i32, hi: i32) -> bool {
 /// already at their end).
 fn setting_options(row: Row) -> Vec<String> {
     match row {
+        Row::Language => Language::ALL.iter().map(|l| l.name().into()).collect(),
         Row::Volume | Row::MenuTransparency => (0..=10).map(|i|format!("{}%",i*10)).collect(),
         Row::Brightness => (5..=15).map(|i|format!("{}%",i*10)).collect(),
         Row::BubbleSize => (5..=20).map(|i|format!("{}%",i*10)).collect(),
@@ -1722,6 +1756,10 @@ fn setting_value(row: Row, av: &AvConfig) -> String {
 }
 fn choose_setting(row: Row, value: &str, av: &mut AvConfig) -> Option<Changed> {
     if setting_value(row,av)==value {return None;}
+    if row==Row::Language {
+        av.menu_language = Language::ALL.into_iter().find(|l| l.name()==value)?;
+        return Some(Changed::Overlay);
+    }
     if row==Row::FastForwardAudio {
         if !["SILENT","FAST","NORMAL"].contains(&value) {return None;}
         av.ff_audio=value.to_ascii_lowercase();return Some(Changed::Gamut);
@@ -1752,6 +1790,10 @@ fn choose_setting(row: Row, value: &str, av: &mut AvConfig) -> Option<Changed> {
 }
 fn cycle(row: Row, av: &mut AvConfig, forward: bool) -> Option<Changed> {
     match row {
+        Row::Language => {
+            av.menu_language = step_enum(&Language::ALL, av.menu_language, forward);
+            Some(Changed::Overlay)
+        },
         Row::MenuTransparency=>step_slider(&mut av.menu_transparency,forward,0,10).then_some(Changed::Overlay),
         Row::ExtendedSaves => {
             av.debug_extended_saves = !av.debug_extended_saves;

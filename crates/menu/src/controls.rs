@@ -28,29 +28,39 @@ impl Menu {
         if self.hints_gamepad() {
             let pad = |token| self.hint_button(token, "");
             [
-                format!(
+                self.tr_format(
                     "D-pad · {} OK · {} indietro · {} focus · {} dettagli",
-                    pad("South"),
-                    pad("East"),
-                    pad("West"),
-                    pad("RightThumb")
+                    &[
+                        ("0", (pad("South")).to_string()),
+                        ("1", (pad("East")).to_string()),
+                        ("2", (pad("West")).to_string()),
+                        ("3", (pad("RightThumb")).to_string()),
+                    ],
                 ),
-                format!(
+                self.tr_format(
                     "VOL {}− / {}+ / {}+{} mute · FAST {}− / {}+ / {}+{} ON",
-                    pad("LeftTrigger"),
-                    pad("RightTrigger"),
-                    pad("LeftTrigger"),
-                    pad("RightTrigger"),
-                    pad("LeftTrigger2"),
-                    pad("RightTrigger2"),
-                    pad("LeftTrigger2"),
-                    pad("RightTrigger2")
+                    &[
+                        ("0", (pad("LeftTrigger")).to_string()),
+                        ("1", (pad("RightTrigger")).to_string()),
+                        ("2", (pad("LeftTrigger")).to_string()),
+                        ("3", (pad("RightTrigger")).to_string()),
+                        ("4", (pad("LeftTrigger2")).to_string()),
+                        ("5", (pad("RightTrigger2")).to_string()),
+                        ("6", (pad("LeftTrigger2")).to_string()),
+                        ("7", (pad("RightTrigger2")).to_string()),
+                    ],
                 ),
             ]
         } else {
             [
-                "Frecce · Invio OK · Esc indietro · Tab focus · F1 dettagli".into(),
-                if self.debug_enabled(){"Volume / Fast: voce + Invio · Shift+Tab: vista Debug"}else{"Volume / Fast: scegli la voce + Invio"}.into(),
+                self.tr("Frecce · Invio OK · Esc indietro · Tab focus · F1 dettagli")
+                    .into(),
+                if self.debug_enabled() {
+                    self.tr("Volume / Fast: voce + Invio · Shift+Tab: vista Debug")
+                } else {
+                    self.tr("Volume / Fast: scegli la voce + Invio")
+                }
+                .into(),
             ]
         }
     }

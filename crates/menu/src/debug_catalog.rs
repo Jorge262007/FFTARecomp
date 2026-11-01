@@ -304,7 +304,7 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
                 c.text(
                     (dx + 3) as f32,
                     (iy + ih / 2) as f32,
-                    "NO PREVIEW",
+                    menu.tr("NO PREVIEW"),
                     [168, 189, 199],
                     10.,
                     false,
@@ -320,13 +320,13 @@ pub(super) fn draw(menu: &Menu, px: &mut [[u8; 4]], w: usize, h: usize) {
         let value = menu.catalog.value(*row);
         let size = (r.h as f32 * 0.46).clamp(10., 15.);
         if value.is_empty() {
-            super::atlas_theme::text(&mut c, r, row.label(), size, false, ink);
+            super::atlas_theme::text(&mut c, r, row.localized_label(menu.language()), size, false, ink);
         } else {
             let label_width = r.w * 43 / 100;
             c.text(
                 (r.x + 6) as f32,
                 (r.y + 5) as f32,
-                row.label(),
+                row.localized_label(menu.language()),
                 ink,
                 size,
                 true,

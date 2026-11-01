@@ -64,6 +64,14 @@ publication; `scripts/task_handoff.py check` enforces structure and preservation
   navigation rather than advertise nonexistent shoulder-key equivalents.
   Video exposes persisted menu.transparency0..1 (default0.1; explicit old values
   retained), affecting background fills while text, borders and previews retain their foreground.
+  System persists menu.language by stable code (English default, Italian included).
+  One JSON per language in crates/input-config/languages supplies code, native
+  name and messages; builds discover/register/embed all files automatically.
+  scripts/menu_language.py create/check supports new languages without Rust edits,
+  with English fallback for missing keys and build-time metadata/template checks.
+  Each menu owns its locale; the generated catalog translates native UI copy before
+  layout while config tokens, bindings, imported content and diagnostic payloads
+  retain their identity. ROM language is independent; see [menu localization](../menu_localization.md).
   Complete selected values are available through readonly Dettagli/F1/R3;
   capture, editors, dropdowns and busy host owners keep priority. Native font
   scaling follows HD/4K, with readable nested catalog/selector/tool controls.

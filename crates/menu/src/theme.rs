@@ -21,12 +21,12 @@ fn binding_value(
     zout: &str,
 ) -> Option<String> {
     if row == Row::FastForwardToggle {
-        return Some(if menu.atlas.fast_active { "ON" } else { "OFF" }.into());
+        return Some(if menu.atlas.fast_active { menu.tr("ON") } else { menu.tr("OFF") }.into());
     }
     if row == Row::Menu {
         return Some(
             if matches!(menu.capture, Some(Bind::Menu | Bind::GamepadMenu)) {
-                "HOLD + RELEASE".into()
+                menu.tr("HOLD + RELEASE").into()
             } else {
                 menu.menu_binding
                     .borrow()
@@ -50,7 +50,7 @@ fn binding_value(
             Bind::GamepadFastForwardToggle
         };
         return Some(if menu.capture == Some(b) {
-            "PRESS BUTTON".into()
+            menu.tr("PRESS BUTTON").into()
         } else {
             gamepad_label(
                 if row == Row::FfKey { ff } else { toggle },
@@ -60,7 +60,7 @@ fn binding_value(
     }
     if row == Row::FfToggleKey {
         return Some(if menu.capture == Some(Bind::FastForwardToggle) {
-            "PRESS KEY".into()
+            menu.tr("PRESS KEY").into()
         } else {
             toggle.to_uppercase()
         });
@@ -77,9 +77,9 @@ fn binding_value(
             Bind::ZoomOut
         };
         return Some(if menu.capture == Some(pad) {
-            "PRESS BUTTON".into()
+            menu.tr("PRESS BUTTON").into()
         } else if menu.capture == Some(key) {
-            "PRESS KEY".into()
+            menu.tr("PRESS KEY").into()
         } else {
             let value = if row == Row::ZoomIn { zin } else { zout };
             if menu.page == Page::Gamepad {
@@ -92,7 +92,7 @@ fn binding_value(
     if menu.page == Page::Gamepad {
         if let Row::Key(b) = row {
             return Some(if menu.capture == Some(Bind::Gamepad(b)) {
-                "PRESS BUTTON".into()
+                menu.tr("PRESS BUTTON").into()
             } else {
                 gamepad_label(&keys[b.index()], menu.controller_layout.get())
             });
@@ -131,7 +131,7 @@ pub(super) fn draw_rows(
         menu.page,
         Page::Inputs | Page::Gamepad | Page::MouseKeyboard
     ) {
-        for (i, label) in ["KEYBOARD", "GAMEPAD", "MOUSE & KEYBOARD"]
+        for (i, label) in [menu.tr("KEYBOARD"), menu.tr("GAMEPAD"), menu.tr("MOUSE & KEYBOARD")]
             .iter()
             .enumerate()
         {
@@ -199,7 +199,7 @@ pub(super) fn draw_rows(
             c.text(
                 tx,
                 yy + 3. * scale,
-                slot.label(),
+                menu.tr(slot.label()),
                 fg,
                 fs * 0.78,
                 true,
@@ -210,7 +210,7 @@ pub(super) fn draw_rows(
                 .iter()
                 .find(|(key, _)| *key == slot)
                 .map(|(_, v)| v.as_str())
-                .unwrap_or("Not selected - choose an internal reference");
+                .unwrap_or(menu.tr("Not selected - choose an internal reference"));
             c.text(
                 tx,
                 yy + 22. * scale,
@@ -226,7 +226,7 @@ pub(super) fn draw_rows(
             c.text(
                 tx,
                 yy + 3. * scale,
-                "Enable (Experimental)",
+                menu.tr("Enable (Experimental)"),
                 fg,
                 fs * 0.72,
                 true,
@@ -235,7 +235,7 @@ pub(super) fn draw_rows(
             c.text(
                 tx,
                 yy + 17. * scale,
-                "Keyboard-only is unavailable",
+                menu.tr("Keyboard-only is unavailable"),
                 fg,
                 fs * 0.50,
                 false,
@@ -244,7 +244,7 @@ pub(super) fn draw_rows(
             c.text(
                 tx,
                 yy + 27. * scale,
-                "until this mode is disabled.",
+                menu.tr("until this mode is disabled."),
                 fg,
                 fs * 0.50,
                 false,
@@ -284,7 +284,7 @@ pub(super) fn draw_rows(
                 } else {
                     ty
                 },
-                row.label(),
+                row.localized_label(menu.language()),
                 fg,
                 fs,
                 true,
@@ -294,7 +294,7 @@ pub(super) fn draw_rows(
                 c.text(
                     tx,
                     ty + 13. * scale,
-                    "1X: UP TO 2S DELAY",
+                    menu.tr("1X: UP TO 2S DELAY"),
                     fg,
                     fs * 0.62,
                     false,
@@ -304,7 +304,7 @@ pub(super) fn draw_rows(
             let labels = if row == Row::FastForward {
                 ["2X", "4X", "8X"]
             } else {
-                ["1X", "SILENT", "FAST"]
+                ["1X", menu.tr("SILENT"), menu.tr("FAST")]
             };
             for i in 0..3 {
                 let active = if row == Row::FastForward {
@@ -326,7 +326,7 @@ pub(super) fn draw_rows(
                 c.text(
                     ax + 6. * scale,
                     ty,
-                    labels[i],
+                    menu.tr(labels[i]),
                     INK,
                     fs * 0.85,
                     false,
@@ -356,9 +356,9 @@ pub(super) fn draw_rows(
             tx,
             if row == Row::Fps { yy + 2. * scale } else { ty },
             if row == Row::Audio && !menu.audio_live {
-                "ENHANCED (RESTART)"
+                menu.tr("ENHANCED (RESTART)")
             } else {
-                row.label()
+                row.localized_label(menu.language())
             },
             fg,
             if row == Row::Fps { fs * 0.82 } else { fs },
@@ -374,7 +374,7 @@ pub(super) fn draw_rows(
             c.text(
                 tx,
                 yy + 16. * scale,
-                "INT: GAME / EXT: PRESENTS",
+                menu.tr("INT: GAME / EXT: PRESENTS"),
                 fg,
                 fs * 0.55,
                 false,
@@ -383,7 +383,7 @@ pub(super) fn draw_rows(
             c.text(
                 tx,
                 yy + 27. * scale,
-                "FAST CAN SHOW DIFFERENT RATES",
+                menu.tr("FAST CAN SHOW DIFFERENT RATES"),
                 fg,
                 fs * 0.52,
                 false,
@@ -413,7 +413,7 @@ pub(super) fn draw_rows(
                 c.text(
                     vx + 8. * scale,
                     ty,
-                    &v,
+                    if matches!(row, Row::Key(_) | Row::Menu | Row::FfKey | Row::FfToggleKey | Row::ZoomIn | Row::ZoomOut) { &v } else { menu.tr(&v) },
                     if sel {
                         [233, 239, 236]
                     } else {
@@ -468,7 +468,7 @@ pub(super) fn draw_rows(
         c.text(
             xx + 20. * scale,
             yy + 10. * scale,
-            "BACK",
+            menu.tr("BACK"),
             if sel { GOLD } else { INK },
             fs,
             true,
@@ -479,7 +479,7 @@ pub(super) fn draw_rows(
         c.text(
             x + pad,
             y + ph + 3. * scale,
-            &menu.session_message,
+            menu.tr(&menu.session_message),
             [233, 239, 236],
             12. * scale,
             false,
@@ -526,7 +526,7 @@ pub(super) fn dropdown_hit(dd: &Dropdown, x: usize, y: usize, w: usize, h: usize
     let i = (y - yy - 6) / (clan_atlas::geometry(w, h).body.h / 15).clamp(14, 40);
     (i < visible).then_some(first + i)
 }
-pub(super) fn draw_dropdown(dd: &Dropdown, c: &mut Canvas, w: usize, h: usize) {
+pub(super) fn draw_dropdown(menu: &Menu, dd: &Dropdown, c: &mut Canvas, w: usize, h: usize) {
     let (x, y, rw, rh, visible, first) = dropdown_geometry(dd, w, h);
     let pitch = (clan_atlas::geometry(w, h).body.h / 15).clamp(14, 40);
     c.rect(
@@ -562,7 +562,7 @@ pub(super) fn draw_dropdown(dd: &Dropdown, c: &mut Canvas, w: usize, h: usize) {
         c.text(
             x as f32 + 14.,
             yy + 4.,
-            s,
+            if matches!(dd.row, Row::CatalogRegion | Row::CatalogStatus | Row::CatalogKind | Row::CatalogCase | Row::CatalogEntry) { s } else { menu.tr(s) },
             if sel { GOLD } else { [232, 216, 176] },
             pitch as f32 * 0.6,
             false,

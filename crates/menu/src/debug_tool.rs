@@ -439,9 +439,10 @@ impl ToolForm {
         }
     }
 }
-pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize) {
+pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize, language: input_config::Language) {
+    let locale = super::i18n::Locale(language);
     if s.text_focus() {
-        super::content_selector::draw(&s.editor, px, w, h);
+        super::content_selector::draw(&s.editor, px, w, h, language);
         return;
     }
     for p in px.iter_mut().take(w * h) {
@@ -469,8 +470,8 @@ pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize) {
         (y + 4) as f32,
         &format!(
             "{}DRAFT / {}",
-            if s.debug_copy { "DEBUG COPY / " } else { "" },
-            s.tool.label()
+            if s.debug_copy { locale.tr("DEBUG COPY / ") } else { "" },
+            locale.tr(s.tool.label())
         ),
         ink,
         size * 1.2,
@@ -478,7 +479,7 @@ pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize) {
         pw.saturating_sub(20) as f32,
     );
     let mut instruction=g.search;instruction[2]=g.panel[2].saturating_sub((instruction[0]-x)*2);
-    button(&mut c,instruction,if s.choice_focus(){"Scelta: frecce regolano · OK applica · Annulla scarta"}else{"Frecce: naviga · OK modifica · usa i pulsanti per eseguire"},false,size);
+    button(&mut c,instruction,if s.choice_focus(){locale.tr("Scelta: frecce regolano · OK applica · Annulla scarta")}else{locale.tr("Frecce: naviga · OK modifica · usa i pulsanti per eseguire")},false,size);
     let first = s.first(g.visible);
     for (n, f) in s.fields.iter().skip(first).take(g.visible).enumerate() {
         let r = [
@@ -490,7 +491,7 @@ pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize) {
         button(
             &mut c,
             r,
-            &format!("{}: {}", f.label, s.shown_value(first+n)),
+            &format!("{}: {}", locale.tr(&f.label), s.shown_value(first+n)),
             s.focus == first + n,
             size,
         );
@@ -498,16 +499,16 @@ pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize) {
     let help = s
         .fields
         .get(s.focus)
-        .map(|f| format!("{}\n{}\n\n", f.label, f.help))
+        .map(|f| format!("{}\n{}\n\n", locale.tr(&f.label), locale.tr(&f.help)))
         .unwrap_or_default();
     let text = format!(
         "{help}{}\n\n{}\n\n{}",
         s.summary,
-        s.message,
+        locale.tr(&s.message),
         if s.busy {
-            "Host operation pending; no guest execution implied."
+            locale.tr("Host operation pending; no guest execution implied.")
         } else {
-            "Draft and selected input references are separate from execution. Existing authenticated profiles are never edited."
+            locale.tr("Draft and selected input references are separate from execution. Existing authenticated profiles are never edited.")
         }
     );
     let lines = Canvas::wrap_text(&text, size, g.details[2].saturating_sub(12) as f32);
@@ -530,12 +531,12 @@ pub(super) fn draw(s: &ToolForm, px: &mut [[u8; 4]], w: usize, h: usize) {
         button(
             &mut c,
             g.actions[i],
-            request_label(REQUESTS[i], s.tool),
+            locale.tr(request_label(REQUESTS[i], s.tool)),
             s.focus == s.fields.len() + i,
             size,
         );
     }
-    let footer = Canvas::wrap_text(&s.message, size, g.panel[2].saturating_sub(20) as f32);
+    let footer = Canvas::wrap_text(locale.tr(&s.message), size, g.panel[2].saturating_sub(20) as f32);
     for (n, t) in footer.iter().take(2).enumerate() {
         c.text(
             (x + 10) as f32,

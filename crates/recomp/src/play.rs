@@ -691,6 +691,10 @@ struct PlayApp {
 }
 
 impl PlayApp {
+    fn menu_text(&self,key:&str,args:&[(&str,String)])->String {
+        menu::i18n::format(self.av.menu_language,key,args)
+    }
+
     fn set_fullscreen(&mut self, enabled: bool) {
         let Some(window) = &self.window else { return; };
         self.fullscreen.request(window, enabled);
@@ -2721,13 +2725,18 @@ impl PlayApp {
         self.menu.set_state_slots(slots);
         let times=(1..=self.state_slots.count()).map(|slot|self.state_slots.path(slot).ok().and_then(|path|std::fs::metadata(path).ok()).and_then(|m|m.modified().ok()).and_then(|time|time.duration_since(std::time::UNIX_EPOCH).ok()).map(|d|d.as_secs())).collect();
         self.menu.set_state_timestamps(times);
-        let standard=match std::fs::metadata(&self.sav_path) {
-            Ok(metadata)=>metadata.modified().ok().and_then(|time|time.duration_since(std::time::UNIX_EPOCH).ok()).and_then(|d|menu::clan_atlas::timestamp_utc(d.as_secs())).map(|stamp|format!("Ultima modifica file .sav: {stamp}")).unwrap_or_else(||"Ultima modifica file .sav: data non disponibile".into()),
-            Err(e) if e.kind()==std::io::ErrorKind::NotFound=>"Nessun salvataggio standard trovato".into(),
-            Err(_)=>"File .sav: metadati non disponibili".into(),
-        };
-        self.menu.set_standard_save_status(standard);
-        self.menu.set_state_undo(self.state_slots.undo_label());
+        match std::fs::metadata(&self.sav_path) {
+            Ok(metadata) => {
+                if let Some(stamp) = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()) {
+                    self.menu.set_standard_save_timestamp(stamp);
+                } else {
+                    self.menu.set_standard_save_status("Ultima modifica file .sav: data non disponibile".into());
+                }
+            }
+            Err(e) if e.kind()==std::io::ErrorKind::NotFound => self.menu.set_standard_save_status("Nessun salvataggio standard trovato".into()),
+            Err(_) => self.menu.set_standard_save_status("File .sav: metadati non disponibili".into()),
+        }
+        self.menu.set_state_undo_description(self.state_slots.undo_description());
         let expected = self.machine.bus.save_data().map_or(0, |data| data.len());
         if self.av.debug_extended_saves {
             self.menu.set_game_saves(self.game_saves.choices(expected));
@@ -2796,11 +2805,11 @@ impl PlayApp {
                 self.machine.bus.ffta_battle_mouse.set_enabled(self.icfg.mouse_keyboard);
                 self.after_state_restore();
                 match persisted {
-                    Ok(()) => format!("Slot {slot:02} active. Resume, then load inside the game."),
-                    Err(e) => format!("Slot {slot:02} active; cannot remember selection: {e}"),
+                    Ok(()) => self.menu_text("Slot {slot:02} active. Resume, then load inside the game.", &[("slot", format!("{:02}",slot))]),
+                    Err(e) => self.menu_text("Slot {slot:02} active; cannot remember selection: {e}", &[("slot", format!("{:02}",slot)), ("e", (e).to_string())]),
                 }
             },
-            Err(e) => format!("Cannot switch save: {e}"),
+            Err(e) => self.menu_text("Cannot switch save: {e}", &[("e", (e).to_string())]),
         };
         self.refresh_state_slots();
         self.menu.game_save_result(message);
@@ -2811,8 +2820,8 @@ impl PlayApp {
     fn copy_game_save(&mut self, slot: u8, overwrite: bool) {
         if !self.av.debug_extended_saves { return; }
         let message = match self.game_saves.copy_current(&self.machine, slot, overwrite) {
-            Ok(()) => format!("Copied current game save to slot {slot:02}."),
-            Err(e) => format!("Cannot copy save: {e}"),
+            Ok(()) => self.menu_text("Copied current game save to slot {slot:02}.", &[("slot", format!("{:02}",slot))]),
+            Err(e) => self.menu_text("Cannot copy save: {e}", &[("e", (e).to_string())]),
         };
         self.refresh_state_slots();
         self.menu.game_save_result(message);
@@ -2843,7 +2852,7 @@ impl PlayApp {
             Err(error) => {
                 self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":"restart","outcome":"refused","error":error.chars().take(1024).collect::<String>()}));
                 eprintln!("Cannot restart ROM: {error}");
-                self.menu.session_result(format!("Cannot restart ROM: {error}"));
+                self.menu.session_result(self.menu_text("Cannot restart ROM: {error}", &[("error", (error).to_string())]));
             }
         }
         self.menu_dirty = true;
@@ -2882,7 +2891,7 @@ impl PlayApp {
                     self.after_state_restore();
                     "Backup restored. Resume to start the game.".into()
                 }
-                Err(error) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":"restore-backup","outcome":"refused","error":error.chars().take(1024).collect::<String>()}));format!("Cannot restore backup: {error}")},
+                Err(error) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":"restore-backup","outcome":"refused","error":error.chars().take(1024).collect::<String>()}));self.menu_text("Cannot restore backup: {error}", &[("error", (error).to_string())])},
             };
         self.refresh_state_slots();
         self.menu.backup_result(message);
@@ -2948,13 +2957,13 @@ impl PlayApp {
             return;
         }
         let message = match self.state_slots.undo(&mut self.machine) {
-            Ok(crate::save_state::UndoEffect::Save(slot)) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"completed",None,serde_json::json!({"operation":"undo-save","slot":slot,"outcome":"completed"}));format!("Undid save in slot {slot}.")},
+            Ok(crate::save_state::UndoEffect::Save(slot)) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"completed",None,serde_json::json!({"operation":"undo-save","slot":slot,"outcome":"completed"}));self.menu_text("Undid save in slot {slot}.", &[("slot", (slot).to_string())])},
             Ok(crate::save_state::UndoEffect::Load(slot)) => {
                 self.lifecycle_emit(crate::debug_lifecycle::Family::State,"completed",None,serde_json::json!({"operation":"undo-load","slot":slot,"outcome":"completed","scope":"Restored state boundary before collectors freeze"}));
                 self.after_state_restore();
-                format!("Undid load from slot {slot}.")
+                self.menu_text("Undid load from slot {slot}.", &[("slot", (slot).to_string())])
             }
-            Err(error) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":"undo","outcome":"refused","error":error.chars().take(1024).collect::<String>()}));format!("Cannot undo: {error}")},
+            Err(error) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":"undo","outcome":"refused","error":error.chars().take(1024).collect::<String>()}));self.menu_text("Cannot undo: {error}", &[("error", (error).to_string())])},
         };
         self.refresh_state_slots();
         self.menu.state_result(message);
@@ -2990,9 +2999,9 @@ impl PlayApp {
                 if !saving {
                     self.after_state_restore();
                 }
-                format!("Slot {slot} {}.", if saving { "saved" } else { "loaded" })
+                if saving {self.menu_text("Slot {slot} saved.", &[("slot", (slot).to_string())])} else {self.menu_text("Slot {slot} loaded.", &[("slot", (slot).to_string())])}
             }
-            Err(error) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":operation,"slot":slot,"outcome":"refused","error":error.chars().take(1024).collect::<String>()}));format!("Cannot {} slot {slot}: {error}",if saving{"save"}else{"load"})},
+            Err(error) => {self.lifecycle_emit(crate::debug_lifecycle::Family::State,"refused",None,serde_json::json!({"operation":operation,"slot":slot,"outcome":"refused","error":error.chars().take(1024).collect::<String>()}));if saving{self.menu_text("Cannot save slot {slot}: {error}", &[("slot", (slot).to_string()), ("error", (error).to_string())])}else{self.menu_text("Cannot load slot {slot}: {error}", &[("slot", (slot).to_string()), ("error", (error).to_string())])}},
         };
         self.refresh_state_slots();
         self.menu.state_result(message);

@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "add-english-italian-menu-localization",
+  "title": "Add persisted English and Italian menu languages",
+  "kind": "added",
+  "platforms": [
+    "Shared desktop menu; Windows GNU/Wine validation; native Linux configuration tests"
+  ],
+  "changes": [
+    "Add typed menu.language=en|it to AvConfig. Missing, empty or unsupported preferences select English; the existing settings handler persists a confirmed System > Language selection without altering ROM language or other preferences.",
+    "Add a central catalog of 378 English/Italian message entries with explicit menu-instance locale selection, source-text fallback, named interpolation and placeholder validation. Translate native menu chrome, row labels/options, keyboard/controller hints, save forms, details, selector/tool controls and ordinary save-operation feedback before layout. Preserve hardware button names, bindings, option tokens, drafts, imported content and diagnostic payloads.",
+    "Keep the standard save timestamp and undo operation/slot structured until drawing so retained metadata follows language changes. Update the no-ROM preview example with sidebar page selection and an optional language token."
+  ],
+  "validation": [
+    "Locked/offline Windows GNU builds of input-config/menu tests and preview passed; cargo check -p recomp -p ffta-play --tests passed. The existing local MinGW toolchain was selected explicitly; no production release/package was built.",
+    "Wine input-config tests:36 passed. Native Linux input-config tests:36 passed. Five menu localization tests passed: legacy/default/roundtrip behavior, confirmed/cancelled keyboard and mouse language selection, reopened configuration, canonical option values, translated rendering at480x640/854x480/1280x720, independent menu locales, retained undo metadata and literal placeholder values. Updated existing hint expectations to the requested English default.",
+    "Complete Wine menu suite recorded104 passed,1 failed,1 ignored. The failure is the pre-existing ToolInputs/ContentSlot::ALL mismatch: HEAD already enumerates CheatCatalog while omitting its row. Final suite excluding only that named unrelated test:104 passed,0 failed,1 ignored,1 filtered. Its failure evidence remains in target/menu-i18n-en-it/menu-tests.log.",
+    "Rendered16 no-ROM native menu previews for eight pages in both languages. Visually inspected English System and Italian language picker, overview, audio, video and controls; corrected remaining overview status text. Final git diff --check passed. Results, source hashes, logs and images retained under target/menu-i18n-en-it/result.json."
+  ],
+  "limitations": [
+    "Windows native, physical controllers and in-game runtime interaction were not exercised; tests use Wine and simulated menu keyboard/mouse/controller state. Linux menu build could not proceed without Wayland development metadata, while its configuration crate tests passed. AndroidPort is separate and unchanged.",
+    "The unrelated pre-existing Debug ToolInputs test remains failing and was explicitly excluded from the final passing regression run; it is not claimed fixed. External/technical reference content, diagnostic payloads and imported descriptions retain source language; previously produced operation messages are not retroactively translated.",
+    "No personal configuration, ROM, saves, recording or generated guest code was read or changed for validation. No managed ROM interrupted/moved fixture copies exist; the ROM-only local_artifacts completion helper does not apply. Own Wine prefix/build/test evidence retained, with no global process/prefix cleanup."
+  ],
+  "files": [
+    "crates/input-config/src/language.rs",
+    "crates/input-config/src/lib.rs",
+    "crates/menu/examples/preview.rs",
+    "crates/menu/src/atlas_theme.rs",
+    "crates/menu/src/clan_atlas.rs",
+    "crates/menu/src/content_selector.rs",
+    "crates/menu/src/content_selector/tests.rs",
+    "crates/menu/src/controls.rs",
+    "crates/menu/src/controls/tests.rs",
+    "crates/menu/src/debug_catalog.rs",
+    "crates/menu/src/debug_tool.rs",
+    "crates/menu/src/debug_tool/tests.rs",
+    "crates/menu/src/i18n.rs",
+    "crates/menu/src/i18n/catalog.rs",
+    "crates/menu/src/i18n/tests.rs",
+    "crates/menu/src/information.rs",
+    "crates/menu/src/interaction.rs",
+    "crates/menu/src/lib.rs",
+    "crates/menu/src/save_forms.rs",
+    "crates/menu/src/selection.rs",
+    "crates/menu/src/theme.rs",
+    "crates/recomp/src/play.rs",
+    "crates/recomp/src/save_state.rs"
+  ],
+  "references": [
+    "docs/menu_localization.md",
+    "docs/menu_clan_atlas.md"
+  ]
+}

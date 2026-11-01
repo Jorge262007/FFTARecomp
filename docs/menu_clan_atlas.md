@@ -30,8 +30,16 @@ illeggibili sono indicati senza date simulate.
 
 Salvataggi raccoglie Save states, Extended saves (9/99 slot), salvataggi
 cartuccia numerati e backup. Le forme e gli handler precedenti conservano
-anteprime, conferme e Undo. Sistema raccoglie riavvio, cambio ROM e uscita.
+anteprime, conferme e Undo. Sistema raccoglie lingua, riavvio, cambio ROM e uscita.
 I binding e i tre profili di input rimangono in Controlli.
+
+Il menu parte in **English**. **Game > System > Language** offre **English** e
+**Italiano**, con applicazione immediata alla conferma e persistenza in
+`menu.language = en|it` dentro `av.cfg`. Le etichette italiane usate in questa
+guida corrispondono alla selezione Italiano. Configurazioni precedenti senza
+lingua usano l'inglese; la lingua della ROM resta indipendente. Dettagli e
+istruzioni per aggiungere un singolo JSON con registrazione automatica:
+[lingua del menu](menu_localization.md).
 
 **Gioco > Video > Trasparenza menu** regola gli sfondi dallo 0% (opachi)
 al 100% (trasparenti), in passi del 10%. Il valore iniziale è **10%**. Testi, bordi e

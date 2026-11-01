@@ -190,11 +190,16 @@ impl Slots {
         Ok(())
     }
 
-    pub fn undo_label(&self) -> Option<String> {
+    pub fn undo_description(&self) -> Option<(&'static str, u8)> {
         self.undo.as_ref().map(|undo| match undo {
-            Undo::Save { slot, .. } => format!("Undo save (slot {slot})"),
-            Undo::Load { slot, .. } => format!("Undo load (slot {slot})"),
+            Undo::Save { slot, .. } => ("Undo save (slot {slot})", *slot),
+            Undo::Load { slot, .. } => ("Undo load (slot {slot})", *slot),
         })
+    }
+
+    #[cfg(test)]
+    pub fn undo_label(&self) -> Option<String> {
+        self.undo_description().map(|(key, slot)| key.replace("{slot}", &slot.to_string()))
     }
 
     pub fn undo_restores_machine(&self) -> bool {

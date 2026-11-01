@@ -1,5 +1,5 @@
 //! Render native menu previews without starting a game or reading a ROM.
-use input_config::{AvConfig, InputConfig};
+use input_config::{AvConfig, InputConfig, Language};
 use menu::{Menu, MenuInput};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ];
         }
     }
-    if let Some(path) = args.get(6) {
+    if let Some(path) = args.get(6).filter(|path| !path.is_empty()) {
         let data = std::fs::read(path)?;
         let mut parts = data.splitn(4, |&b| b == b'\n');
         assert_eq!(parts.next().unwrap(), b"P6");
@@ -36,31 +36,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     let mut av = AvConfig::default();
+    av.menu_language = Language::parse(args.get(7).map(String::as_str).unwrap_or("en"));
     let cfg = InputConfig::default();
     let mut menu = Menu::new(true, true);
-    let index = match page {
-        "fastforward" => 1,
-        "bubbles" => 2,
-        "audio" => 3,
-        "video" | "dropdown" => 4,
-        "keyboard" | "gamepad" | "mouse" => 5,
-        "exit" => 7,
+    let section = match page {
+        "saves" => 1,
+        "fastforward" => 2,
+        "bubbles" => 3,
+        "audio" => 4,
+        "video" | "dropdown" => 5,
+        "keyboard" | "gamepad" | "mouse" => 6,
+        "system" | "language" | "exit" => 7,
         _ => 0,
     };
-    if page != "main" {
-        for _ in 0..index {
-            menu.handle(MenuInput::Down, &mut av);
-        }
+    menu.atlas_section(menu::clan_atlas::Domain::Game, section);
+    if page == "gamepad" || page == "mouse" {
+        menu.handle(MenuInput::Up, &mut av);
+        menu.handle(MenuInput::Right, &mut av);
+        if page == "mouse" { menu.handle(MenuInput::Right, &mut av); }
         menu.handle(MenuInput::Confirm, &mut av);
     }
-    if page == "gamepad" || page=="mouse" {
-        menu.handle(MenuInput::Right, &mut av);
+    if page == "exit" {
+        for _ in 0..3 { menu.handle(MenuInput::Down, &mut av); }
+        menu.handle(MenuInput::Confirm, &mut av);
     }
-    if page=="mouse" {menu.handle(MenuInput::Right,&mut av);}
     for _ in 0..args.get(5).and_then(|s| s.parse().ok()).unwrap_or(0) {
         menu.handle(MenuInput::Down, &mut av);
     }
-    if page == "dropdown" {
+    if page == "dropdown" || page == "language" {
         menu.handle(MenuInput::Confirm, &mut av);
     }
     menu.draw_inputs(&av, &cfg, &mut rgba, w, h);

@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "slug": "simplify-menu-language-files",
+  "title": "Add menu languages through automatically registered JSON files",
+  "kind": "changed",
+  "platforms": [
+    "Shared desktop localization; Windows GNU/Wine and native Linux parser/generator validation"
+  ],
+  "changes": [
+    "Replace the shared Rust English/Italian tuple catalog and fixed language enum with one self-contained JSON per locale in crates/input-config/languages. Preserve every key and value of the378accepted English/Italian entries. Language files supply code, native name and messages; the build automatically discovers/registers/embeds each JSON, with English first and stable config codes independent of generated indices.",
+    "Add scripts/menu_language.py create CODE --name NAME to copy the English catalog without overwriting existing files, and check to validate all catalogs. The Cargo build also refuses malformed JSON, duplicate/unknown keys, mismatched filenames, duplicate display names, empty translations and invalid/mismatched placeholders. Missing translations fall back to English, allowing incremental translation without Rust or manual registry edits.",
+    "Keep runtime localization dependency-free and embedded: serde/serde_json are build/test dependencies only. Adapt language selection tests to discovery/order instead of assuming exactly two enum variants, and document the one-file create/edit/check/rebuild workflow with direct en.json/it.json links."
+  ],
+  "validation": [
+    "Migration receipt confirms lossless378-entry English and Italian maps. Python helper3tests passed; actual CLI create/check demonstrated a full French scaffold and a partial1/378catalog using377English fallbacks under ignored target only, not in release sources.",
+    "Native locked/offline input-config tests passed36unit+4catalog integration cases. A fixture added one synthetic zz.json, generated the registry and compiled the real Language implementation with rustc; automatic selection by code, Unicode name and missing-key English fallback passed without editing Rust or adding test languages to shipped sources.",
+    "Locked/offline Windows GNU test/preview builds and cargo check -p recomp -p ffta-play --tests passed. Wine targeted validation passed36configuration tests,3catalog validator tests and6menu localization tests, including discovery-backed selector entries and stable config codes. English and Italian language-picker PPMs match the previous accepted images byte for byte. Evidence/source hashes in target/menu-language-files/result.json.",
+    "Final git diff --check and language checker passed. A local Wine harness initially misclassified the config executable by matching a directory name; corrected the classifier and ran its36configuration tests separately. Product tests passed; the initial harness summary is retained."
+  ],
+  "limitations": [
+    "New/edited JSON files take effect after rebuilding the application; there is no runtime external-language loader. Native Windows, physical controllers and Linux GUI remain unverified. Existing technical/imported text and diagnostic-payload limits from MENU-I18N-EN-IT remain.",
+    "The earlier unrelated ToolInputs/CheatCatalog test mismatch is outside this follow-up; no broad suite, ROM scene, private configuration/save/recording or other agents jobs were resumed. No managed interrupted/moved ROM copies exist, so the ROM-only cleanup helper does not apply; small own fixtures/evidence and reused owned Wine/build caches are retained."
+  ],
+  "files": [
+    "Cargo.lock",
+    "crates/input-config/Cargo.toml",
+    "crates/input-config/build.rs",
+    "crates/input-config/language_catalog.rs",
+    "crates/input-config/languages/en.json",
+    "crates/input-config/languages/it.json",
+    "crates/input-config/src/language.rs",
+    "crates/input-config/src/lib.rs",
+    "crates/input-config/tests/language_catalog.rs",
+    "crates/menu/src/i18n.rs",
+    "crates/menu/src/i18n/tests.rs",
+    "crates/menu/src/lib.rs",
+    "crates/menu/src/content_selector/tests.rs",
+    "crates/menu/src/debug_tool/tests.rs",
+    "scripts/menu_language.py",
+    "scripts/test_menu_language.py",
+    "crates/menu/src/i18n/catalog.rs"
+  ],
+  "references": [
+    "docs/menu_localization.md",
+    "docs/menu_clan_atlas.md",
+    "docs/changes/2026-11-01-add-english-italian-menu-localization.json"
+  ]
+}

@@ -85,7 +85,7 @@ fn mouse_text_keyboard_and_measured_layout_cover_small_and_large_clients() {
     f.summary = "identity/path ".repeat(200);
     for (w, h) in [(400, 300), (620, 480), (940, 620), (1600, 1000)] {
         let mut pixels = vec![[0, 0, 0, 255]; w * h];
-        draw(&f, &mut pixels, w, h);
+        draw(&f, &mut pixels, w, h, input_config::Language::default());
         let mineral=pixels.iter().filter(|p|p[2]>p[0]&&p[1]>p[0]).count();
         assert!(mineral>w*h/4,"form must copy its visible canvas to the frontend");
         let focus = f.focus(w, h);

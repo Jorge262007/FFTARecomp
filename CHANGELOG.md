@@ -39,6 +39,32 @@ Type: docs. Platforms: EUR; Wine.
 
 [Change record](docs/changes/2026-11-01-trace-european-compact-obj-fifth-routes.json)
 
+## 2026-11-01 — Add menu languages through automatically registered JSON files
+
+Type: changed. Platforms: Shared desktop localization; Windows GNU/Wine and native Linux parser/generator validation.
+
+**Changes**
+
+- Replace the shared Rust English/Italian tuple catalog and fixed language enum with one self-contained JSON per locale in crates/input-config/languages. Preserve every key and value of the378accepted English/Italian entries. Language files supply code, native name and messages; the build automatically discovers/registers/embeds each JSON, with English first and stable config codes independent of generated indices.
+- Add scripts/menu_language.py create CODE --name NAME to copy the English catalog without overwriting existing files, and check to validate all catalogs. The Cargo build also refuses malformed JSON, duplicate/unknown keys, mismatched filenames, duplicate display names, empty translations and invalid/mismatched placeholders. Missing translations fall back to English, allowing incremental translation without Rust or manual registry edits.
+- Keep runtime localization dependency-free and embedded: serde/serde_json are build/test dependencies only. Adapt language selection tests to discovery/order instead of assuming exactly two enum variants, and document the one-file create/edit/check/rebuild workflow with direct en.json/it.json links.
+
+**Validation**
+
+- Migration receipt confirms lossless378-entry English and Italian maps. Python helper3tests passed; actual CLI create/check demonstrated a full French scaffold and a partial1/378catalog using377English fallbacks under ignored target only, not in release sources.
+- Native locked/offline input-config tests passed36unit+4catalog integration cases. A fixture added one synthetic zz.json, generated the registry and compiled the real Language implementation with rustc; automatic selection by code, Unicode name and missing-key English fallback passed without editing Rust or adding test languages to shipped sources.
+- Locked/offline Windows GNU test/preview builds and cargo check -p recomp -p ffta-play --tests passed. Wine targeted validation passed36configuration tests,3catalog validator tests and6menu localization tests, including discovery-backed selector entries and stable config codes. English and Italian language-picker PPMs match the previous accepted images byte for byte. Evidence/source hashes in target/menu-language-files/result.json.
+- Final git diff --check and language checker passed. A local Wine harness initially misclassified the config executable by matching a directory name; corrected the classifier and ran its36configuration tests separately. Product tests passed; the initial harness summary is retained.
+
+**Limitations**
+
+- New/edited JSON files take effect after rebuilding the application; there is no runtime external-language loader. Native Windows, physical controllers and Linux GUI remain unverified. Existing technical/imported text and diagnostic-payload limits from MENU-I18N-EN-IT remain.
+- The earlier unrelated ToolInputs/CheatCatalog test mismatch is outside this follow-up; no broad suite, ROM scene, private configuration/save/recording or other agents jobs were resumed. No managed interrupted/moved ROM copies exist, so the ROM-only cleanup helper does not apply; small own fixtures/evidence and reused owned Wine/build caches are retained.
+
+Documentation: [menu_localization.md](docs/menu_localization.md), [menu_clan_atlas.md](docs/menu_clan_atlas.md), [2026-11-01-add-english-italian-menu-localization.json](docs/changes/2026-11-01-add-english-italian-menu-localization.json).
+
+[Change record](docs/changes/2026-11-01-simplify-menu-language-files.json)
+
 ## 2026-11-01 — Publish European compact OBJ fifth root
 
 Type: added. Platforms: EUR; Wine.
@@ -160,6 +186,33 @@ Type: docs. Platforms: EUR; Wine.
 - Other indirect selector ranges, caller reachability, ordinary use, model and runtime publication remain unverified; Linux, USA and native Windows pending; no performance measurements.
 
 [Change record](docs/changes/2026-11-01-classify-european-compact-obj-fifth-root.json)
+
+## 2026-11-01 — Add persisted English and Italian menu languages
+
+Type: added. Platforms: Shared desktop menu; Windows GNU/Wine validation; native Linux configuration tests.
+
+**Changes**
+
+- Add typed menu.language=en|it to AvConfig. Missing, empty or unsupported preferences select English; the existing settings handler persists a confirmed System > Language selection without altering ROM language or other preferences.
+- Add a central catalog of 378 English/Italian message entries with explicit menu-instance locale selection, source-text fallback, named interpolation and placeholder validation. Translate native menu chrome, row labels/options, keyboard/controller hints, save forms, details, selector/tool controls and ordinary save-operation feedback before layout. Preserve hardware button names, bindings, option tokens, drafts, imported content and diagnostic payloads.
+- Keep the standard save timestamp and undo operation/slot structured until drawing so retained metadata follows language changes. Update the no-ROM preview example with sidebar page selection and an optional language token.
+
+**Validation**
+
+- Locked/offline Windows GNU builds of input-config/menu tests and preview passed; cargo check -p recomp -p ffta-play --tests passed. The existing local MinGW toolchain was selected explicitly; no production release/package was built.
+- Wine input-config tests:36 passed. Native Linux input-config tests:36 passed. Five menu localization tests passed: legacy/default/roundtrip behavior, confirmed/cancelled keyboard and mouse language selection, reopened configuration, canonical option values, translated rendering at480x640/854x480/1280x720, independent menu locales, retained undo metadata and literal placeholder values. Updated existing hint expectations to the requested English default.
+- Complete Wine menu suite recorded104 passed,1 failed,1 ignored. The failure is the pre-existing ToolInputs/ContentSlot::ALL mismatch: HEAD already enumerates CheatCatalog while omitting its row. Final suite excluding only that named unrelated test:104 passed,0 failed,1 ignored,1 filtered. Its failure evidence remains in target/menu-i18n-en-it/menu-tests.log.
+- Rendered16 no-ROM native menu previews for eight pages in both languages. Visually inspected English System and Italian language picker, overview, audio, video and controls; corrected remaining overview status text. Final git diff --check passed. Results, source hashes, logs and images retained under target/menu-i18n-en-it/result.json.
+
+**Limitations**
+
+- Windows native, physical controllers and in-game runtime interaction were not exercised; tests use Wine and simulated menu keyboard/mouse/controller state. Linux menu build could not proceed without Wayland development metadata, while its configuration crate tests passed. AndroidPort is separate and unchanged.
+- The unrelated pre-existing Debug ToolInputs test remains failing and was explicitly excluded from the final passing regression run; it is not claimed fixed. External/technical reference content, diagnostic payloads and imported descriptions retain source language; previously produced operation messages are not retroactively translated.
+- No personal configuration, ROM, saves, recording or generated guest code was read or changed for validation. No managed ROM interrupted/moved fixture copies exist; the ROM-only local_artifacts completion helper does not apply. Own Wine prefix/build/test evidence retained, with no global process/prefix cleanup.
+
+Documentation: [menu_localization.md](docs/menu_localization.md), [menu_clan_atlas.md](docs/menu_clan_atlas.md).
+
+[Change record](docs/changes/2026-11-01-add-english-italian-menu-localization.json)
 
 ## 2026-10-31 — Verify European raw transfers during ordinary boot
 

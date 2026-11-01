@@ -2,9 +2,9 @@
 
 ## Stato operativo
 
-Aggiornato il 2026-11-01. Richiesta corrente: completare ROM_DATA_TODO EUR con
-Wine ridotto; USA/Linux da verificare, nessuna misura performance o limite spazio.
-Selezionato il controllo della sorgente `ROMDATA-01-E104-ROOT-6C5FB0`.
+Aggiornato il 2026-11-01. Semplificazione aggiunta lingue completata in
+`MENU-I18N-LANGUAGE-FILES`: un JSON per lingua con registrazione automatica.
+Nessun nuovo task selezionato; esiti EN/IT e processi ROMDATA preservati.
 
 Leggere questo file per intero e il passaggio finale; poi soltanto le sezioni
 pertinenti indicate sotto. Non caricare automaticamente archivio, CHANGELOG,
@@ -213,9 +213,9 @@ specifico: archivio vecchie righe 179..744, oppure il record nominato sotto.
 
 ## PASSAGGIO DI TESTIMONE
 
-- Task: ROMDATA-03-04-E105-SENARY-COMPACT-OBJ attivo; obiettivo EUR/Wine, USA/Linux da verificare, nessuna misura performance.
-- Ultimo risultato verificato: modello sparso 756 byte e prefissi originali PASS Wine.
-- Da completare: pubblicazione, confronto runtime/nativo, CLI e uso ordinario.
-- Errori o impedimenti: nessuna scena ordinaria identificata; modello primario/xhigh non verificabile.
-- Prossima azione: attendere sessione 51589, poi test Wine predisposto se PASS; non ripetere il modello.
-- Riferimenti: `target/rom-data-compact-obj-senary-model/wine-runtime/result.json`, `docs/rom_data_obj.md`.
+- Task: MENU-I18N-LANGUAGE-FILES completato; nuove lingue tramite un JSON e ricompilazione, senza modifiche Rust o registrazioni manuali.
+- Ultimo risultato verificato: en.json/it.json378voci lossless; helper3test, Linux36+4test, Wine36+3+6test PASS; check runtime/test Windows PASS; picker EN/IT identici alle anteprime accettate; terza lingua sintetica compilata PASS.
+- Da completare: nessun criterio della richiesta; file incorporati in compilazione, quindi richiedono rebuild. Windows nativo/controller fisico e GUI Linux restano non verificati.
+- Errori o impedimenti: nessun errore prodotto nuovo; difetto Debug ToolInputs precedente fuori ambito. Comandi test/build propri conclusi, nessuna inferenza sull'attività host globale.
+- Prossima azione: consegnare i percorsi en.json/it.json e il comando create/check; nessuna ripresa automatica del lavoro ROMDATA o Debug separato.
+- Riferimenti: `docs/menu_localization.md`, `scripts/menu_language.py`, `docs/changes/2026-11-01-simplify-menu-language-files.json`, `target/menu-language-files/result.json`, archivio MENU-I18N-LANGUAGE-FILES.

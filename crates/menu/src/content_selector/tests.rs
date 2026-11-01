@@ -201,11 +201,11 @@ fn shared_text_wrap_preserves_every_character_and_render_stays_in_canvas() {
     s.focus = 5;
     for (w, h) in [(1280, 720), (940, 620), (620, 480), (400, 300)] {
         let mut px = vec![[15, 25, 35, 255]; w * h];
-        draw(&s, &mut px, w, h);
+        draw(&s, &mut px, w, h, input_config::Language::default());
         assert_eq!(px.len(), w * h);
         let g = geometry(w, h);
         assert!(g.panel[0] + g.panel[2] <= w && g.panel[1] + g.panel[3] <= h);
-        let text = diagnostics::capture(|| draw(&s, &mut px, w, h)).unwrap();
+        let text = diagnostics::capture(|| draw(&s, &mut px, w, h, input_config::Language::default())).unwrap();
         assert!(!text.runs.is_empty());
         assert!(text.runs.iter().all(|r| !r.canvas_clipped));
     }

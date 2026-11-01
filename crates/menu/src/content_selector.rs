@@ -845,7 +845,8 @@ pub(super) fn button(c: &mut Canvas, r: Rect, text: &str, active: bool, size: f3
         (w as f32 - 10.).max(1.),
     );
 }
-pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
+pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize, language: input_config::Language) {
+    let locale = super::i18n::Locale(language);
     for p in px.iter_mut().take(w * h) {
         for v in &mut p[..3] {
             *v = (*v as u16 / 4) as u8;
@@ -868,12 +869,12 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
         [89, 121, 139],
     );
     if s.cheat_mode && s.detail_mode {
-        c.text((x+10) as f32,(y+5) as f32,"DETTAGLI CHEAT · SOLA LETTURA",ink,size*1.1,true,pw.saturating_sub(20) as f32);
+        c.text((x+10) as f32,(y+5) as f32,locale.tr("DETTAGLI CHEAT · SOLA LETTURA"),ink,size*1.1,true,pw.saturating_sub(20) as f32);
         let lines=Canvas::wrap_text(&s.cheat_details(),size,pw.saturating_sub(24) as f32);
         let pitch=(size*1.5).ceil() as usize;let top=y+g.row+4;let bottom=(y+ph).saturating_sub(g.row);
         let rows=bottom.saturating_sub(top)/pitch.max(1);let offset=s.detail_scroll.get().min(lines.len().saturating_sub(rows));s.detail_scroll.set(offset);
         for (n,line) in lines.iter().skip(offset).take(rows).enumerate(){c.text((x+10) as f32,(top+n*pitch) as f32,line,ink,size,false,pw.saturating_sub(20) as f32);}
-        c.text((x+10) as f32,bottom as f32,"Su/Giù: scorri · OK/Annulla: torna",ink,size,false,pw.saturating_sub(20) as f32);
+        c.text((x+10) as f32,bottom as f32,locale.tr("Su/Giù: scorri · OK/Annulla: torna"),ink,size,false,pw.saturating_sub(20) as f32);
         c.finish(px);return;
     }
     c.text(
@@ -881,13 +882,13 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
         (y + 4) as f32,
         &format!(
             "{}{} / {}",
-            if s.debug_copy { "DEBUG COPY / " } else { "" },
+            if s.debug_copy { locale.tr("DEBUG COPY / ") } else { "" },
             if s.editor_only {
-                "EDIT DRAFT"
+                locale.tr("EDIT DRAFT")
             } else {
-                "CONTENT"
+                locale.tr("CONTENT")
             },
-            s.title
+            locale.tr(&s.title)
         ),
         ink,
         size * 1.2,
@@ -896,12 +897,12 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
     );
     let search = format!(
         "{}: {}{}{}",
-        if s.editor_only { "Value" } else { "Search" },
+        if s.editor_only { locale.tr("Value") } else { locale.tr("Search") },
         s.query,
         if s.editing { " | " } else { "" },
         s.preedit
     );
-    let search=if s.choice_focus(){"Scelta filtro: frecce · OK applica · Annulla scarta".into()}else{search};
+    let search=if s.choice_focus(){locale.tr("Scelta filtro: frecce · OK applica · Annulla scarta").into()}else{search};
     button(&mut c, g.search, &search, s.focus == 0 || s.editing, size);
     let kinds = s.kinds();
     let mut indices=[s.kind,s.filter,s.sort,s.collection];
@@ -914,18 +915,18 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
     ];
     if !s.editor_only {
         for i in 0..4 {
-            button(&mut c, g.controls[i], labels[i], s.focus == i + 1, size);
+            button(&mut c, g.controls[i], locale.tr(labels[i]), s.focus == i + 1, size);
         }
     }
     if s.editing {
         let keys = s.key_labels();
         for (i, key) in keys.iter().enumerate() {
-            button(&mut c, s.key_rect(g, i), key, s.key == i, size);
+            button(&mut c, s.key_rect(g, i), if i < KEYS[s.key_page].chars().count() { key } else { locale.tr(key) }, s.key == i, size);
         }
         c.text(
             g.list[0] as f32,
             (g.list[1]+6*((g.row*3/4).max(5)+(5.*g.scale).max(1.)as usize))as f32,
-            "Type Unicode text or use arrows / controller. Done commits; Cancel restores.",
+            locale.tr("Type Unicode text or use arrows / controller. Done commits; Cancel restores."),
             ink,
             size,
             false,
@@ -937,7 +938,7 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
             c.text(
                 g.list[0] as f32 + 7.,
                 g.list[1] as f32 + 7.,
-                "No matching content",
+                locale.tr("No matching content"),
                 ink,
                 size,
                 true,
@@ -946,7 +947,7 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
             c.text(
                 g.list[0] as f32 + 7.,
                 g.list[1] as f32 + g.row as f32,
-                "Refresh or add a file/folder.",
+                locale.tr("Refresh or add a file/folder."),
                 ink,
                 size,
                 false,
@@ -979,7 +980,7 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
                 size,
             );
         }
-        let mut lines = Canvas::wrap_text(&s.message, size, g.details[2].saturating_sub(12) as f32);
+        let mut lines = Canvas::wrap_text(locale.tr(&s.message), size, g.details[2].saturating_sub(12) as f32);
         if let Some(i) = s.selected() {
             let e = &s.entries[i];
             let text = if s.cheat_mode {
@@ -1029,14 +1030,14 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
                 && s.selected()
                     .is_some_and(|n| s.favorites.contains(&s.entries[n].id))
             {
-                "Unfavorite"
+                locale.tr("Unfavorite")
             } else {
                 if s.cheat_mode {CHEAT_ACTIONS[i]}else{ACTIONS[i]}
             };
             button(
                 &mut c,
                 g.actions[i],
-                label,
+                locale.tr(label),
                 s.focus == i + 6 || i == 2 && s.detail_mode,
                 size,
             );
@@ -1051,7 +1052,7 @@ pub(super) fn draw(s: &Selector, px: &mut [[u8; 4]], w: usize, h: usize) {
         let footer = format!(
             "{} items{} | {}{}",
             s.visible.len(),
-            if s.busy { " / working" } else { "" },
+            if s.busy { locale.tr(" / working") } else { "" },
             s.message,
             confirmed
         );

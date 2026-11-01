@@ -3,6 +3,8 @@
 //! config dir. Native Windows controller support is isolated in directinput.
 
 pub mod fast_forward;
+mod language;
+pub use language::Language;
 
 pub mod storage;
 
@@ -718,6 +720,8 @@ pub fn pad_binding(name: &str) -> PadBinding<'_> {
 /// frontends parse through it. "auto" means "the screen model's default".
 #[derive(Clone, PartialEq, Debug)]
 pub struct AvConfig {
+    /// Desktop menu language; independent of ROM and OS locale.
+    pub menu_language: Language,
         /// Native menu background transparency,0..1; text/borders remain readable.
     pub menu_transparency: f32,
     /// Persistently reveal desktop debug menus after the directional sequence.
@@ -773,6 +777,7 @@ pub struct AvConfig {
 impl Default for AvConfig {
     fn default() -> Self {
         Self {
+            menu_language: Language::default(),
             menu_transparency: 0.1,
             debug: false,
             debug_extended_saves: false,
@@ -810,6 +815,7 @@ impl AvConfig {
             };
             let v = v.trim();
             match k.trim() {
+                "menu.language" => cfg.menu_language = Language::parse(v),
                 "menu.transparency" => {
                     if let Ok(value) = v.parse::<f32>() {
                         if value.is_finite() { cfg.menu_transparency = value.clamp(0.0, 1.0); }
@@ -876,6 +882,7 @@ impl AvConfig {
     pub fn serialize(&self) -> String {
         format!(
             "# gba-recomp a/v settings\n\
+             menu.language = {}\n\
              menu.transparency = {}\n\
              debug = {}\n\
              debug.extended_saves = {}\n\
@@ -899,6 +906,7 @@ impl AvConfig {
              video.aspect = {}\n\
              bubble.size = {}\n\
              bubble.length = {}\n",
+            self.menu_language.token(),
             self.menu_transparency,
             self.debug,
             self.debug_extended_saves,

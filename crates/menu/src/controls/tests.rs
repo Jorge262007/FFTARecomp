@@ -24,7 +24,7 @@ fn hints_follow_last_input_while_profile_bindings_capture_and_navigation_stay_in
     assert!(menu.note_input(Device::Keyboard));
     let text = rendered(&menu, &cfg);
     assert!(
-        text.contains("Invio OK") && text.contains("Tab focus") && text.contains("F1 dettagli")
+        text.contains("Enter OK") && text.contains("Tab focus") && text.contains("F1 details")
     );
     assert!(!text.contains("VOL LB") && !text.contains("D-pad"));
     assert_eq!(*menu.menu_binding.borrow(), "H");
@@ -33,7 +33,7 @@ fn hints_follow_last_input_while_profile_bindings_capture_and_navigation_stay_in
     assert!(menu.note_input(Device::Gamepad));
     assert!(!menu.note_input(Device::Gamepad));
     let text = rendered(&menu, &cfg);
-    assert!(text.contains("A OK") && text.contains("B indietro"));
+    assert!(text.contains("A OK") && text.contains("B back"));
     assert_eq!(menu.capturing(), Some(Bind::GamepadMenu));
     assert_eq!(
         navigation,
@@ -43,7 +43,7 @@ fn hints_follow_last_input_while_profile_bindings_capture_and_navigation_stay_in
     menu.reset();
     assert!(menu.hints_gamepad());
     menu.note_input(Device::MouseKeyboard);
-    assert!(rendered(&menu, &cfg).contains("Invio OK"));
+    assert!(rendered(&menu, &cfg).contains("Enter OK"));
     assert_eq!(cfg.device, Device::Gamepad);
 }
 
@@ -67,7 +67,7 @@ fn left_marks_sidebar_cursor_distinctly_even_at_full_transparency() {
     assert_eq!(focus[i], [209, 175, 117, 255]);
     menu.handle(MenuInput::Down, &mut av);
     let text = rendered(&menu, &cfg);
-    assert!(text.contains("› 02  Salvataggi"));
+    assert!(text.contains("› 02  Saves"));
     menu.handle(MenuInput::Right, &mut av);
     assert_eq!(menu.page, Page::Saves);
     assert!(!menu.atlas.sidebar_focus);

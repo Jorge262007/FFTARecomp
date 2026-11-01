@@ -2988,6 +2988,8 @@ dependencies = [
 name = "input-config"
 version = "0.2.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "windows 0.62.2",
 ]
 
