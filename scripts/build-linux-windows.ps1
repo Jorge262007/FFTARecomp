@@ -135,6 +135,8 @@ Copy-Item -LiteralPath (Join-Path $release 'ffta-play') -Destination (Join-Path 
 Copy-Item -LiteralPath (Join-Path $repo 'gamedb.sqlite') -Destination (Join-Path $payload 'gamedb.sqlite') -Force
 Copy-Item -LiteralPath (Join-Path $release 'tcc') -Destination $payload -Recurse -Force
 }
+# The launcher reads this from the top of both archives; the installer ignores it.
+Copy-Item -LiteralPath (Join-Path $repo 'recomplauncher.json') -Destination (Join-Path $OutputDir 'recomplauncher.json') -Force
 foreach ($required in @('recomp', 'FFTARecomp', 'gamedb.sqlite', 'tcc/libtcc.so')) {
     if (-not (Test-Path -LiteralPath (Join-Path $payload $required))) { throw "Missing payload file: $required. Build once without -InstallerOnly." }
 }
@@ -145,7 +147,7 @@ function ConvertTo-MsysPath([string]$Path) {
     return '/' + $full.Substring(0, 1).ToLowerInvariant() + $full.Substring(2).Replace('\', '/')
 }
 $archive = Join-Path $OutputDir 'FFTAInstaller-linux-x86_64.tar.gz'
-& $gnuTar -C (ConvertTo-MsysPath $OutputDir) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $archive) FFTAInstaller payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
+& $gnuTar -C (ConvertTo-MsysPath $OutputDir) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $archive) FFTAInstaller recomplauncher.json payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
 if ($LASTEXITCODE -ne 0) { throw 'Could not package Linux installer' }
 Write-Host "Linux installer: $archive" -ForegroundColor Green
 
@@ -163,11 +165,12 @@ $deckStage = Join-Path $target ('steamdeck-package-' + [Guid]::NewGuid().ToStrin
 $deckStagePayload = Join-Path $deckStage 'payload'
 New-Item -ItemType Directory -Force -Path $deckStagePayload | Out-Null
 Copy-Item -LiteralPath (Join-Path $OutputDir 'FFTAInstaller-SteamDeck') -Destination (Join-Path $deckStage 'FFTAInstaller-SteamDeck') -Force
+Copy-Item -LiteralPath (Join-Path $OutputDir 'recomplauncher.json') -Destination (Join-Path $deckStage 'recomplauncher.json') -Force
 Get-ChildItem -LiteralPath $payload -Force | Copy-Item -Destination $deckStagePayload -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR 'x86_64-unknown-linux-gnu\release\recomp') -Destination (Join-Path $deckStagePayload 'recomp') -Force
 
 $deckArchive = Join-Path $OutputDir 'FFTAInstaller-SteamDeck-linux-x86_64.tar.gz'
-& $gnuTar -C (ConvertTo-MsysPath $deckStage) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $deckArchive) FFTAInstaller-SteamDeck payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
+& $gnuTar -C (ConvertTo-MsysPath $deckStage) --exclude=payload/toolchain --mode=a+rx -czf (ConvertTo-MsysPath $deckArchive) FFTAInstaller-SteamDeck recomplauncher.json payload/recomp payload/FFTARecomp payload/gamedb.sqlite payload/tcc/libtcc.so
 if ($LASTEXITCODE -ne 0) { throw 'Could not package Steam Deck installer' }
 Write-Host "Steam Deck installer: $deckArchive" -ForegroundColor Green
 

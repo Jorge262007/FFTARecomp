@@ -126,7 +126,8 @@ image's sha256) instead of label files; mutually exclusive with --labels",
     ], "Translate a ROM image to a native shared library at out/<stem>.<dylib|so|dll> (host platform). \
 Emits C11 in bounded chunks and compiles them with cc. Label files (<rom>.labels \
 or the recorder's accumulator) contribute extra entry-point seeds automatically."),
-    ("play", "recomp play <rom> [--interp] [--stats] [--status] [--record-labels] [--bios file] [--no-bios]", &[
+    ("play", "recomp play <rom> [--interp] [--stats] [--status] [--prepare] [--record-labels] [--bios file] [--no-bios]", &[
+        "--prepare          translate the image into the cache and exit without opening a window",
         "--interp           force the interpreter (skip/ignore native translation)",
         "--stats            print performance readouts (frame time, native vs fallback)",
         "--status           emit machine-readable lifecycle lines on stdout (used by the launcher)",

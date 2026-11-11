@@ -1,0 +1,84 @@
+{
+  "$schema": "https://recomplauncher.com/schema/recomplauncher.json",
+  "format": 1,
+  "name": "FFTARecomp",
+  "repo": "Jorge262007/FFTARecomp",
+  "game": {
+    "kind": "iso",
+    "label": "Your Final Fantasy Tactics Advance ROM (.gba). This version supports the European release."
+  },
+  "start": {
+    "program": ["payload/FFTARecomp.exe", "payload/FFTARecomp"],
+    "args": ["--game", "{game}"]
+  },
+  "prepare": {
+    "program": ["payload/FFTARecomp.exe", "payload/FFTARecomp"],
+    "args": ["--prepare", "--game", "{game}"],
+    "label": "Translating the game for your PC",
+    "timeout": 900
+  },
+  "config": [
+    {
+      "id": "main",
+      "format": "ini",
+      "file": [{ "path": "{config}/FFTARecomp/av.cfg" }]
+    }
+  ],
+  "saves": ["{local}/FFTARecomp/ffta.sav", "{local}/FFTARecomp/Saves"],
+  "folders": {
+    "saves": [{ "path": "{local}/FFTARecomp" }],
+    "logs": [{ "path": "{install}/payload" }]
+  },
+  "settings": [
+    {
+      "id": "window",
+      "label": "Window",
+      "help": "Fullscreen fills your screen. Windowed lets you move and resize the game.",
+      "choices": [
+        { "label": "Fullscreen", "set": { "video.fullscreen": "true" } },
+        { "label": "Windowed", "set": { "video.fullscreen": "false" } }
+      ],
+      "defaults": { "video.fullscreen": "true" }
+    },
+    {
+      "id": "widescreen",
+      "label": "Widescreen",
+      "help": "How much extra picture is drawn at the sides. Match it to your screen, or pick 3:2 for the original shape.",
+      "choices": [
+        { "label": "Auto", "set": { "video.aspect": "auto" } },
+        { "label": "3:2 (original)", "set": { "video.aspect": "3:2" } },
+        { "label": "16:10", "set": { "video.aspect": "16:10" } },
+        { "label": "16:9", "set": { "video.aspect": "16:9" } },
+        { "label": "20:9", "set": { "video.aspect": "20:9" } },
+        { "label": "21:9", "set": { "video.aspect": "21:9" } },
+        { "label": "32:9", "set": { "video.aspect": "32:9" } }
+      ],
+      "defaults": { "video.aspect": "16:9" }
+    },
+    {
+      "id": "vsync",
+      "label": "V-Sync",
+      "help": "On removes screen tearing. Off shows each frame as soon as it's ready.",
+      "choices": [
+        { "label": "Off", "set": { "video.vsync": "false" } },
+        { "label": "On", "set": { "video.vsync": "true" } }
+      ],
+      "defaults": { "video.vsync": "false" }
+    },
+    {
+      "id": "fast_forward",
+      "label": "Fast forward speed",
+      "help": "How fast the game runs while fast forward is held.",
+      "choices": [
+        { "label": "1.5x", "set": { "ff.speed": "1.5" } },
+        { "label": "2x", "set": { "ff.speed": "2" } },
+        { "label": "3x", "set": { "ff.speed": "3" } },
+        { "label": "4x", "set": { "ff.speed": "4" } }
+      ],
+      "defaults": { "ff.speed": "4" }
+    }
+  ],
+  "actions": [
+    { "id": "saves", "label": "Saves", "help": "Your save file and quick saves.", "open": "saves" }
+  ]
+}
