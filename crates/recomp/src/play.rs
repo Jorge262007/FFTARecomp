@@ -3718,6 +3718,9 @@ pub fn cmd_play(args: &[String]) -> Result<(), String> {
     // Machine-readable lifecycle lines on stdout for a supervising frontend
     // (the launcher): `STATUS building <pct>` / `STATUS playing`.
     let mut status = false;
+    // Translate the image into the cache, then exit without opening a window.
+    // A launcher uses it to do the one-time build as a setup step.
+    let mut prepare = false;
     // Perf instrumentation is developer tooling: always on in debug builds,
     // opt-in (--stats or GBA_RECOMP_STATS=1) in release.
     let mut show_stats = cfg!(debug_assertions) || std::env::var_os("GBA_RECOMP_STATS").is_some();
@@ -3729,6 +3732,7 @@ pub fn cmd_play(args: &[String]) -> Result<(), String> {
         match arg.as_str() {
             "--interp" => interp_only = true,
             "--status" => status = true,
+            "--prepare" => prepare = true,
             "--stats" => show_stats = true,
             "--record-labels" => FALLBACK_COLLECT.store(true, Ordering::Relaxed),
             "--bios" => bios_arg = Some(it.next().ok_or("--bios needs a value")?.to_string()),
@@ -3882,12 +3886,17 @@ Place your own dump as gba_bios.bin next to the executable:\n  {}",
     } else {
         match ensure_native(&rom_path, &rom, status, bios.as_deref(), gamedb.as_ref()) {
             Ok(v) => Some(v),
+            // A setup step must fail loudly; only a real play session may fall back.
+            Err(e) if prepare => return Err(format!("native translation failed: {e}")),
             Err(e) => {
                 eprintln!("DEGRADED: native translation unavailable ({e}); interpreter only");
                 None
             }
         }
     };
+    if prepare {
+        return Ok(());
+    }
 
     let mut machine = make_machine(rom, bios.as_deref());
     if let Ok(sav) =
