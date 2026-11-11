@@ -24,8 +24,10 @@ def main():
                            ('tcc/libtcc.dll', payload / 'tcc/libtcc.dll')]:
         copy(ROOT / 'target/release' / source, target)
     copy(ROOT / 'gamedb.sqlite', payload / 'gamedb.sqlite')
+    # The launcher reads this from the top of the release; the installer ignores it.
+    copy(ROOT / 'recomplauncher.json', output / 'recomplauncher.json')
     windows = output / 'FFTARecomp-windows-x86_64.zip'
-    files = [output / 'Installer.exe', payload / 'recomp.exe', payload / 'FFTARecomp.exe',
+    files = [output / 'Installer.exe', output / 'recomplauncher.json', payload / 'recomp.exe', payload / 'FFTARecomp.exe',
              payload / 'gamedb.sqlite', payload / 'tcc/libtcc.dll']
     with zipfile.ZipFile(windows, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in sorted(files):
