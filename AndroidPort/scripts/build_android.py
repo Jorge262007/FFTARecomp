@@ -22,7 +22,7 @@ def run(args, **kwargs):
     subprocess.run([str(a) for a in args], check=True, cwd=ROOT, **kwargs)
 
 
-def build(sdk, ndk, native_only=False):
+def build(sdk, ndk, native_only=False, wear=False):
     sdk = Path(sdk).resolve()
     ndk_root = sdk / 'ndk' / ndk
     bin_dir = ndk_root / 'toolchains/llvm/prebuilt/windows-x86_64/bin'
@@ -100,6 +100,16 @@ def build(sdk, ndk, native_only=False):
     digest = hashlib.sha256(destination.read_bytes()).hexdigest()
     (destination.parent / 'SHA256.txt').write_text(digest + '  ' + destination.name + '\n', encoding='utf-8')
     print(f'APK: {destination}\nSHA256: {digest}')
+    if wear:
+        # Wear OS front end: same native core and jniLibs, separate :wear module.
+        run([ROOT / 'android/gradlew.bat', '-p', ROOT / 'android', ':wear:assembleDebug',
+             '-PwearNoRom', '--console=plain'], env=env)
+        watch = ROOT / 'APK/FFTARecomp-wearos-arm64-preview.apk'
+        shutil.copy2(ROOT / 'android/wear/build/outputs/apk/debug/wear-debug.apk', watch)
+        watch_digest = hashlib.sha256(watch.read_bytes()).hexdigest()
+        with open(destination.parent / 'SHA256.txt', 'a', encoding='utf-8') as sums:
+            sums.write(watch_digest + '  ' + watch.name + '\n')
+        print(f'Wear OS APK: {watch}\nSHA256: {watch_digest}')
 
 
 if __name__ == '__main__':
@@ -107,7 +117,8 @@ if __name__ == '__main__':
     parser.add_argument('--sdk', default=os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME'))
     parser.add_argument('--ndk', default='28.2.13676358')
     parser.add_argument('--native-only', action='store_true')
+    parser.add_argument('--wear', action='store_true', help='also build the Wear OS APK (:wear)')
     args = parser.parse_args()
     if not args.sdk:
         parser.error('--sdk or ANDROID_HOME/ANDROID_SDK_ROOT is required')
-    build(args.sdk, args.ndk, args.native_only)
+    build(args.sdk, args.ndk, args.native_only, args.wear)
