@@ -39,6 +39,7 @@
 ## 🎮 Features
 
 - 🤖 **Native Android version,** with touch support that works like the PC mouse support. To enable it, go to **Input > Touchscreen > Touch Controls**.
+- ⌚ **Wear OS version** (64-bit watches), recompiled on the watch with the same core as the Android version, with a round layout, tap & drag controls and the rotary crown. See [AndroidPort/android/wear](AndroidPort/android/wear/README.md).
 - 🖱️ **Mouse support:** it doesn't cover the whole game yet, but support keeps expanding. To enable it, go to **Input > Mouse and Keyboard** and turn it on. On Windows, mouse mode comes with its own remappable layout that doesn't affect the keyboard controls.
 - ⚡ **Lightweight install:** the install size is only about 11 MB (it used to be roughly 800 MB), and compile time is about 4 seconds (it used to be roughly 120 seconds).
 - 💬 **Fully reworked game UI and editable text bubbles:** the **Text Bubbles** option in the Settings menu lets you adjust their length and size in-game.
@@ -134,6 +135,12 @@ On Steam Deck, run it from Desktop Mode.
 1. Download `FFTARecomp-android-arm64.apk` from [Releases](https://github.com/Jorge262007/FFTARecomp/releases).
 2. Tap the downloaded file and press **Install**. If Android asks, allow installing apps from this source.
 3. Open the app and choose your ROM.
+
+### Wear OS
+
+1. Install `FFTARecomp-wearos-arm64-preview.apk` on a 64-bit Wear OS watch with `adb install` (built with `python AndroidPort/scripts/build_android.py --sdk <SDK> --wear`).
+2. Open the app: scan the QR code with your phone and upload your ROM over Wi-Fi.
+3. The watch recompiles the game once, then it starts. Details: [Wear OS README](AndroidPort/android/wear/README.md).
 
 > 💡 You need your own copy of *Final Fantasy Tactics Advance*. This project does not include any game data.
 

@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "FFTARecomp"
 include(":app")
+include(":wear")
  
